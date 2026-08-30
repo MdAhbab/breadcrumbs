@@ -1,0 +1,654 @@
+% ============================================================================
+%  ref.bib  --  Breadcrumbs
+%  Every entry below was checked against a primary source before inclusion, and
+%  the COMPLETE author list of each entry was fetched from that source rather
+%  than written from memory:
+%    - arXiv entries: full author list from the arXiv API
+%    - Journal and conference entries: full author list from the Crossref API
+%    - Legal instruments: title and dates from EUR-Lex
+%    - Institutional sources: from the publishing organisation's own page
+%  Where an entry uses "and others", the named prefix was verified in order
+%  against the source.
+%  Last full author-level audit: 14 August 2026.
+% ============================================================================
+
+% ---------------------------------------------------------------------------
+% Federated learning: foundations
+% ---------------------------------------------------------------------------
+
+@inproceedings{mcmahan2017fedavg,
+  author    = {McMahan, H. Brendan and Moore, Eider and Ramage, Daniel and
+               Hampson, Seth and Ag{\"u}era y Arcas, Blaise},
+  title     = {Communication-Efficient Learning of Deep Networks from
+               Decentralized Data},
+  booktitle = {Proceedings of the 20th International Conference on Artificial
+               Intelligence and Statistics (AISTATS)},
+  series    = {PMLR},
+  volume    = {54},
+  pages     = {1273--1282},
+  year      = {2017},
+  note      = {\url{https://arxiv.org/abs/1602.05629}}
+}
+
+@article{kairouz2021advances,
+  author  = {Kairouz, Peter and McMahan, H. Brendan and Avent, Brendan and
+             Bellet, Aur{\'e}lien and Bennis, Mehdi and others},
+  title   = {Advances and Open Problems in Federated Learning},
+  journal = {Foundations and Trends in Machine Learning},
+  volume  = {14},
+  number  = {1--2},
+  pages   = {1--210},
+  year    = {2021},
+  doi     = {10.1561/2200000083},
+  note    = {\url{https://arxiv.org/abs/1912.04977}}
+}
+
+@inproceedings{li2020fedprox,
+  author    = {Li, Tian and Sahu, Anit Kumar and Zaheer, Manzil and
+               Sanjabi, Maziar and Talwalkar, Ameet and Smith, Virginia},
+  title     = {Federated Optimization in Heterogeneous Networks},
+  booktitle = {Proceedings of Machine Learning and Systems (MLSys)},
+  volume    = {2},
+  pages     = {429--450},
+  year      = {2020},
+  note      = {\url{https://arxiv.org/abs/1812.06127}}
+}
+
+@article{beutel2020flower,
+  author  = {Beutel, Daniel J. and Topal, Taner and Mathur, Akhil and
+             Qiu, Xinchi and Fernandez-Marques, Javier and others},
+  title   = {Flower: A Friendly Federated Learning Research Framework},
+  journal = {arXiv preprint arXiv:2007.14390},
+  year    = {2020},
+  note    = {\url{https://arxiv.org/abs/2007.14390}}
+}
+
+% ---------------------------------------------------------------------------
+% Privacy: what model updates leak, and how to defend
+% ---------------------------------------------------------------------------
+
+@inproceedings{bonawitz2017secagg,
+  author    = {Bonawitz, Keith and Ivanov, Vladimir and Kreuter, Ben and
+               Marcedone, Antonio and McMahan, H. Brendan and Patel, Sarvar and
+               Ramage, Daniel and Segal, Aaron and Seth, Karn},
+  title     = {Practical Secure Aggregation for Privacy-Preserving Machine
+               Learning},
+  booktitle = {Proceedings of the 2017 ACM SIGSAC Conference on Computer and
+               Communications Security (CCS)},
+  pages     = {1175--1191},
+  year      = {2017},
+  doi       = {10.1145/3133956.3133982}
+}
+
+@inproceedings{abadi2016dpsgd,
+  author    = {Abadi, Mart{\'i}n and Chu, Andy and Goodfellow, Ian and
+               McMahan, H. Brendan and Mironov, Ilya and Talwar, Kunal and
+               Zhang, Li},
+  title     = {Deep Learning with Differential Privacy},
+  booktitle = {Proceedings of the 2016 ACM SIGSAC Conference on Computer and
+               Communications Security (CCS)},
+  pages     = {308--318},
+  year      = {2016},
+  doi       = {10.1145/2976749.2978318}
+}
+
+@article{dwork2014dp,
+  author  = {Dwork, Cynthia and Roth, Aaron},
+  title   = {The Algorithmic Foundations of Differential Privacy},
+  journal = {Foundations and Trends in Theoretical Computer Science},
+  volume  = {9},
+  number  = {3--4},
+  pages   = {211--407},
+  year    = {2014},
+  doi     = {10.1561/0400000042}
+}
+
+@inproceedings{zhu2019dlg,
+  author    = {Zhu, Ligeng and Liu, Zhijian and Han, Song},
+  title     = {Deep Leakage from Gradients},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {32},
+  year      = {2019},
+  note      = {\url{https://arxiv.org/abs/1906.08935}}
+}
+
+@inproceedings{geiping2020inverting,
+  author    = {Geiping, Jonas and Bauermeister, Hartmut and Dr{\"o}ge, Hannah and
+               Moeller, Michael},
+  title     = {Inverting Gradients: How Easy Is It to Break Privacy in
+               Federated Learning?},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {33},
+  year      = {2020},
+  note      = {\url{https://arxiv.org/abs/2003.14053}}
+}
+
+@inproceedings{shokri2017membership,
+  author    = {Shokri, Reza and Stronati, Marco and Song, Congzheng and
+               Shmatikov, Vitaly},
+  title     = {Membership Inference Attacks Against Machine Learning Models},
+  booktitle = {2017 IEEE Symposium on Security and Privacy (SP)},
+  pages     = {3--18},
+  year      = {2017},
+  doi       = {10.1109/SP.2017.41}
+}
+
+% ---------------------------------------------------------------------------
+% Robustness against dishonest participants
+% ---------------------------------------------------------------------------
+
+@inproceedings{blanchard2017krum,
+  author    = {Blanchard, Peva and El Mhamdi, El Mahdi and Guerraoui, Rachid and
+               Stainer, Julien},
+  title     = {Machine Learning with Adversaries: Byzantine Tolerant Gradient
+               Descent},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  pages     = {119--129},
+  year      = {2017}
+}
+
+@inproceedings{yin2018byzantine,
+  author    = {Yin, Dong and Chen, Yudong and Ramchandran, Kannan and
+               Bartlett, Peter},
+  title     = {Byzantine-Robust Distributed Learning: Towards Optimal
+               Statistical Rates},
+  booktitle = {Proceedings of the 35th International Conference on Machine
+               Learning (ICML)},
+  series    = {PMLR},
+  volume    = {80},
+  pages     = {5650--5659},
+  year      = {2018},
+  note      = {\url{https://arxiv.org/abs/1803.01498}}
+}
+
+@inproceedings{bagdasaryan2020backdoor,
+  author    = {Bagdasaryan, Eugene and Veit, Andreas and Hua, Yiqing and
+               Estrin, Deborah and Shmatikov, Vitaly},
+  title     = {How To Backdoor Federated Learning},
+  booktitle = {Proceedings of the 23rd International Conference on Artificial
+               Intelligence and Statistics (AISTATS)},
+  series    = {PMLR},
+  volume    = {108},
+  pages     = {2938--2948},
+  year      = {2020},
+  note      = {\url{https://arxiv.org/abs/1807.00459}}
+}
+
+% ---------------------------------------------------------------------------
+% Continual learning
+% ---------------------------------------------------------------------------
+
+@article{kirkpatrick2017ewc,
+  author  = {Kirkpatrick, James and Pascanu, Razvan and Rabinowitz, Neil and
+             Veness, Joel and Desjardins, Guillaume and others},
+  title   = {Overcoming Catastrophic Forgetting in Neural Networks},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume  = {114},
+  number  = {13},
+  pages   = {3521--3526},
+  year    = {2017},
+  doi     = {10.1073/pnas.1611835114}
+}
+
+@inproceedings{lopezpaz2017gem,
+  author    = {Lopez-Paz, David and Ranzato, Marc'Aurelio},
+  title     = {Gradient Episodic Memory for Continual Learning},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+  note      = {\url{https://arxiv.org/abs/1706.08840}}
+}
+
+@inproceedings{rebuffi2017icarl,
+  author    = {Rebuffi, Sylvestre-Alvise and Kolesnikov, Alexander and
+               Sperl, Georg and Lampert, Christoph H.},
+  title     = {{iCaRL}: Incremental Classifier and Representation Learning},
+  booktitle = {2017 IEEE Conference on Computer Vision and Pattern Recognition
+               (CVPR)},
+  pages     = {5533--5542},
+  year      = {2017},
+  doi       = {10.1109/CVPR.2017.587}
+}
+
+@inproceedings{shin2017dgr,
+  author    = {Shin, Hanul and Lee, Jung Kwon and Kim, Jaehong and Kim, Jiwon},
+  title     = {Continual Learning with Deep Generative Replay},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+  note      = {\url{https://arxiv.org/abs/1705.08690}}
+}
+
+@inproceedings{chaudhry2018rwalk,
+  author    = {Chaudhry, Arslan and Dokania, Puneet K. and Ajanthan, Thalaiyasingam
+               and Torr, Philip H. S.},
+  title     = {Riemannian Walk for Incremental Learning: Understanding
+               Forgetting and Intransigence},
+  booktitle = {Computer Vision: ECCV 2018},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {11215},
+  pages     = {556--572},
+  year      = {2018},
+  doi       = {10.1007/978-3-030-01252-6_33}
+}
+
+@article{parisi2019review,
+  author  = {Parisi, German I. and Kemker, Ronald and Part, Jose L. and
+             Kanan, Christopher and Wermter, Stefan},
+  title   = {Continual Lifelong Learning with Neural Networks: A Review},
+  journal = {Neural Networks},
+  volume  = {113},
+  pages   = {54--71},
+  year    = {2019},
+  doi     = {10.1016/j.neunet.2019.01.012}
+}
+
+@article{delange2022survey,
+  author  = {De Lange, Matthias and Aljundi, Rahaf and Masana, Marc and
+             Parisot, Sarah and Jia, Xu and Leonardis, Ale{\v{s}} and
+             Slabaugh, Gregory and Tuytelaars, Tinne},
+  title   = {A Continual Learning Survey: Defying Forgetting in Classification
+             Tasks},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {44},
+  number  = {7},
+  pages   = {3366--3385},
+  year    = {2022},
+  doi     = {10.1109/TPAMI.2021.3057446}
+}
+
+% ---------------------------------------------------------------------------
+% Federated continual learning: the closest prior art
+% ---------------------------------------------------------------------------
+
+@inproceedings{yoon2021fedweit,
+  author    = {Yoon, Jaehong and Jeong, Wonyong and Lee, Giwoong and
+               Yang, Eunho and Hwang, Sung Ju},
+  title     = {Federated Continual Learning with Weighted Inter-client Transfer},
+  booktitle = {Proceedings of the 38th International Conference on Machine
+               Learning (ICML)},
+  series    = {PMLR},
+  volume    = {139},
+  pages     = {12073--12086},
+  year      = {2021},
+  note      = {\url{https://arxiv.org/abs/2003.03196}}
+}
+
+@article{hamedi2025fcl,
+  author  = {Hamedi, Parisa and Razavi-Far, Roozbeh and Hallaji, Ehsan},
+  title   = {Federated Continual Learning: Concepts, Challenges, and Solutions},
+  journal = {Neurocomputing},
+  volume  = {651},
+  pages   = {130844},
+  year    = {2025},
+  doi     = {10.1016/j.neucom.2025.130844},
+  note    = {\url{https://arxiv.org/abs/2502.07059}}
+}
+
+@article{gholizade2026fcl,
+  author  = {Gholizade, Masoume and Ruffini, Fabrizio and Ducange, Pietro and
+             Marcelloni, Francesco},
+  title   = {Federated Continual Learning: A Comprehensive Survey on Lifelong
+             and Privacy-Preserving Learning over Distributed and
+             Non-Stationary Data},
+  journal = {Neurocomputing},
+  volume  = {694},
+  pages   = {133929},
+  year    = {2026},
+  doi     = {10.1016/j.neucom.2026.133929},
+  note    = {\url{https://arxiv.org/abs/2606.11272}}
+}
+
+@article{wang2024fcledge,
+  author  = {Wang, Zi and Wu, Fei and Yu, Feng and Zhou, Yurui and Hu, Jia and
+             Min, Geyong},
+  title   = {Federated Continual Learning for Edge-AI: A Comprehensive Survey},
+  journal = {arXiv preprint arXiv:2411.13740},
+  year    = {2024},
+  note    = {\url{https://arxiv.org/abs/2411.13740}}
+}
+
+% ---------------------------------------------------------------------------
+% Blockchain: platform, evaluation, and the decision to use one
+% ---------------------------------------------------------------------------
+
+@inproceedings{androulaki2018fabric,
+  author    = {Androulaki, Elli and Barger, Artem and Bortnikov, Vita and
+               Cachin, Christian and Christidis, Konstantinos and others},
+  title     = {Hyperledger Fabric: A Distributed Operating System for
+               Permissioned Blockchains},
+  booktitle = {Proceedings of the Thirteenth EuroSys Conference},
+  pages     = {1--15},
+  year      = {2018},
+  doi       = {10.1145/3190508.3190538}
+}
+
+@inproceedings{wust2018blockchain,
+  author    = {W{\"u}st, Karl and Gervais, Arthur},
+  title     = {Do You Need a Blockchain?},
+  booktitle = {2018 Crypto Valley Conference on Blockchain Technology (CVCBT)},
+  pages     = {45--54},
+  year      = {2018},
+  doi       = {10.1109/CVCBT.2018.00011}
+}
+
+@article{dinh2018untangling,
+  author  = {Dinh, Tien Tuan Anh and Liu, Rui and Zhang, Meihui and Chen, Gang
+             and Ooi, Beng Chin and Wang, Ji},
+  title   = {Untangling Blockchain: A Data Processing View of Blockchain Systems},
+  journal = {IEEE Transactions on Knowledge and Data Engineering},
+  volume  = {30},
+  number  = {7},
+  pages   = {1366--1385},
+  year    = {2018},
+  doi     = {10.1109/TKDE.2017.2781227}
+}
+
+@inproceedings{merkle1988signature,
+  author    = {Merkle, Ralph C.},
+  title     = {A Digital Signature Based on a Conventional Encryption Function},
+  booktitle = {Advances in Cryptology: CRYPTO '87},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {293},
+  pages     = {369--378},
+  year      = {1988},
+  doi       = {10.1007/3-540-48184-2_32}
+}
+
+@article{benet2014ipfs,
+  author  = {Benet, Juan},
+  title   = {{IPFS}: Content Addressed, Versioned, P2P File System},
+  journal = {arXiv preprint arXiv:1407.3561},
+  year    = {2014},
+  note    = {\url{https://arxiv.org/abs/1407.3561}}
+}
+
+% ---------------------------------------------------------------------------
+% Blockchain combined with federated learning
+% ---------------------------------------------------------------------------
+
+@article{kim2020blockfl,
+  author  = {Kim, Hyesung and Park, Jihong and Bennis, Mehdi and Kim, Seong-Lyun},
+  title   = {Blockchained On-Device Federated Learning},
+  journal = {IEEE Communications Letters},
+  volume  = {24},
+  number  = {6},
+  pages   = {1279--1283},
+  year    = {2020},
+  doi     = {10.1109/LCOMM.2019.2921755}
+}
+
+@article{lu2020blockchainfl,
+  author  = {Lu, Yunlong and Huang, Xiaohong and Dai, Yueyue and
+             Maharjan, Sabita and Zhang, Yan},
+  title   = {Blockchain and Federated Learning for Privacy-Preserved Data
+             Sharing in Industrial {IoT}},
+  journal = {IEEE Transactions on Industrial Informatics},
+  volume  = {16},
+  number  = {6},
+  pages   = {4177--4186},
+  year    = {2020},
+  doi     = {10.1109/TII.2019.2942190}
+}
+
+@article{nguyen2021flblockchain,
+  author  = {Nguyen, Dinh C. and Ding, Ming and Pham, Quoc-Viet and
+             Pathirana, Pubudu N. and Le, Long Bao and others},
+  title   = {Federated Learning Meets Blockchain in Edge Computing:
+             Opportunities and Challenges},
+  journal = {IEEE Internet of Things Journal},
+  volume  = {8},
+  number  = {16},
+  pages   = {12806--12825},
+  year    = {2021},
+  doi     = {10.1109/JIOT.2021.3072611}
+}
+
+@inproceedings{ramanan2020baffle,
+  author    = {Ramanan, Paritosh and Nakayama, Kiyoshi},
+  title     = {{BAFFLE}: Blockchain Based Aggregator Free Federated Learning},
+  booktitle = {2020 IEEE International Conference on Blockchain (Blockchain)},
+  pages     = {72--81},
+  year      = {2020},
+  doi       = {10.1109/Blockchain50366.2020.00017},
+  note      = {\url{https://arxiv.org/abs/1909.07452}}
+}
+
+@article{peng2022vfchain,
+  author  = {Peng, Zhe and Xu, Jianliang and Chu, Xiaowen and Gao, Shang and
+             Yao, Yuan and Gu, Rong and Tang, Yuzhe},
+  title   = {{VFChain}: Enabling Verifiable and Auditable Federated Learning
+             via Blockchain Systems},
+  journal = {IEEE Transactions on Network Science and Engineering},
+  volume  = {9},
+  number  = {1},
+  pages   = {173--186},
+  year    = {2022},
+  doi     = {10.1109/TNSE.2021.3050781}
+}
+
+@article{li2021committee,
+  author  = {Li, Yuzheng and Chen, Chuan and Liu, Nan and Huang, Huawei and
+             Zheng, Zibin and Yan, Qiang},
+  title   = {A Blockchain-Based Decentralized Federated Learning Framework with
+             Committee Consensus},
+  journal = {IEEE Network},
+  volume  = {35},
+  number  = {1},
+  pages   = {234--241},
+  year    = {2021},
+  doi     = {10.1109/MNET.011.2000263}
+}
+
+@article{warnat2021swarm,
+  author  = {Warnat-Herresthal, Stefanie and Schultze, Hartmut and
+             Shastry, Krishnaprasad Lingadahalli and Manamohan, Sathyanarayanan
+             and Mukherjee, Saikat and others},
+  title   = {Swarm Learning for Decentralized and Confidential Clinical
+             Machine Learning},
+  journal = {Nature},
+  volume  = {594},
+  number  = {7862},
+  pages   = {265--270},
+  year    = {2021},
+  doi     = {10.1038/s41586-021-03583-3}
+}
+
+% ---------------------------------------------------------------------------
+% Blockchain in supply chains
+% ---------------------------------------------------------------------------
+
+@article{saberi2019blockchain,
+  author  = {Saberi, Sara and Kouhizadeh, Mahtab and Sarkis, Joseph and
+             Shen, Lejia},
+  title   = {Blockchain Technology and Its Relationships to Sustainable Supply
+             Chain Management},
+  journal = {International Journal of Production Research},
+  volume  = {57},
+  number  = {7},
+  pages   = {2117--2135},
+  year    = {2019},
+  doi     = {10.1080/00207543.2018.1533261}
+}
+
+@article{kshetri2018blockchain,
+  author  = {Kshetri, Nir},
+  title   = {Blockchain's Roles in Meeting Key Supply Chain Management
+             Objectives},
+  journal = {International Journal of Information Management},
+  volume  = {39},
+  pages   = {80--89},
+  year    = {2018},
+  doi     = {10.1016/j.ijinfomgt.2017.12.005}
+}
+
+% ---------------------------------------------------------------------------
+% Law and regulation
+% ---------------------------------------------------------------------------
+
+@misc{eu2024aiact,
+  author       = {{European Union}},
+  title        = {{Regulation (EU) 2024/1689 of the European Parliament and of
+                  the Council of 13 June 2024 laying down harmonised rules on
+                  artificial intelligence (Artificial Intelligence Act)}},
+  year         = {2024},
+  howpublished = {Official Journal of the European Union, L series, 12 July
+                  2024. \url{https://eur-lex.europa.eu/eli/reg/2024/1689/oj}}
+}
+
+@misc{eu2024espr,
+  author       = {{European Union}},
+  title        = {{Regulation (EU) 2024/1781 of the European Parliament and of
+                  the Council of 13 June 2024 establishing a framework for the
+                  setting of ecodesign requirements for sustainable products}},
+  year         = {2024},
+  howpublished = {Official Journal of the European Union, L series, 28 June
+                  2024. \url{https://eur-lex.europa.eu/eli/reg/2024/1781/oj}}
+}
+
+@misc{eu2024csddd,
+  author       = {{European Union}},
+  title        = {{Directive (EU) 2024/1760 of the European Parliament and of
+                  the Council of 13 June 2024 on corporate sustainability due
+                  diligence}},
+  year         = {2024},
+  howpublished = {Official Journal of the European Union, L series, 5 July
+                  2024. \url{https://eur-lex.europa.eu/eli/dir/2024/1760/oj}}
+}
+
+@misc{ec2026csddd,
+  author       = {{European Commission}},
+  title        = {{Corporate Sustainability Due Diligence: Directive and
+                  Simplification Omnibus}},
+  year         = {2026},
+  howpublished = {European Commission, Business and Industry.
+                  \url{https://commission.europa.eu/topics/business-and-industry/doing-business-eu/sustainability-due-diligence-responsible-business/corporate-sustainability-due-diligence_en}
+                  (accessed 14 August 2026)}
+}
+
+@misc{bd2026pdpa,
+  author       = {{Government of the People's Republic of Bangladesh}},
+  title        = {{Personal Data Protection Ordinance, 2025, and the Personal
+                  Data Protection Act, 2026}},
+  year         = {2026},
+  howpublished = {Ordinance gazetted 6 November 2025; permanent Act passed by
+                  Parliament in April 2026. Summary:
+                  \url{https://www.thedailystar.net/tech-startup/news/bangladeshs-personal-data-protection-ordinance-2025-key-takeaways-4015401}
+                  (accessed 14 August 2026)}
+}
+
+@misc{ictd2020blockchain,
+  author       = {Ferdous, Md. Sadek and Sultana, Jakia and Reza, Mirza Selim},
+  title        = {{National Blockchain Strategy: Bangladesh}},
+  year         = {2020},
+  howpublished = {Information and Communication Technology Division, Government
+                  of Bangladesh.
+                  \url{https://ictd.portal.gov.bd/sites/default/files/files/ictd.portal.gov.bd/page/6c9773a2_7556_4395_bbec_f132b9d819f0/National\%20Blockchain\%20Strategy\%20-\%20Bangladesh.pdf}}
+}
+
+% ---------------------------------------------------------------------------
+% Sector data and institutional sources
+% ---------------------------------------------------------------------------
+
+@misc{bgmea2026export,
+  author       = {{Bangladesh Garment Manufacturers and Exporters Association}},
+  title        = {{Export Performance of the Ready-Made Garment Sector}},
+  year         = {2026},
+  howpublished = {BGMEA trade information.
+                  \url{https://www.bgmea.com.bd/page/Export_Performance}
+                  (accessed 14 August 2026)}
+}
+
+@misc{hrw2023audits,
+  author       = {{Human Rights Watch}},
+  title        = {{Bangladesh: Social Audits Shortchange Workers}},
+  year         = {2023},
+  howpublished = {Human Rights Watch, 14 September 2023.
+                  \url{https://www.hrw.org/news/2023/09/14/bangladesh-social-audits-shortchange-workers}}
+}
+
+@misc{bgmea2026aware,
+  author       = {{Bangladesh Garment Manufacturers and Exporters Association}},
+  title        = {{{BGMEA} and {AWARE} Sign Memorandum of Understanding on
+                  Blockchain-Based Digital Product Passport Readiness}},
+  year         = {2026},
+  howpublished = {Signed in Dhaka, 10 May 2026. Reported by Just Style.
+                  \url{https://www.just-style.com/news/bgmea-aware-dpp-bangaldesh-garment/}
+                  (accessed 14 August 2026)}
+}
+
+@misc{bgmea2025digiprod,
+  author       = {{DigiProd Pass Ltd. and Bangladesh Garment Manufacturers and
+                  Exporters Association}},
+  title        = {{Memorandum of Understanding on a Blockchain-Enabled Digital
+                  Product Passport Pilot for Bangladeshi Garment Manufacturers}},
+  year         = {2025},
+  howpublished = {BGMEA news release, May 2025.
+                  \url{https://bgmea.com.bd/page/DigiProd_Pass_signs_MoU_with_BGMEA:_Preparing_Bangladesh\%E2\%80\%99s_Garment_Supply_Chain_for_EU_Market_Compliance}
+                  (accessed 14 August 2026)}
+}
+
+@misc{un2026ldc,
+  author       = {{United Nations Committee for Development Policy}},
+  title        = {{Least Developed Country Category: Bangladesh Profile and
+                  Graduation Status}},
+  year         = {2026},
+  howpublished = {UN Department of Economic and Social Affairs.
+                  \url{https://www.un.org/development/desa/dpad/least-developed-country-category-bangladesh.html}
+                  (accessed 14 August 2026)}
+}
+
+@misc{un2015sdg,
+  author       = {{United Nations General Assembly}},
+  title        = {{Transforming Our World: The 2030 Agenda for Sustainable
+                  Development. Resolution A/RES/70/1}},
+  year         = {2015},
+  howpublished = {\url{https://sdgs.un.org/2030agenda}}
+}
+
+@misc{calmon2021patent,
+  author       = {Calmon, Flavio du Pin and Franceschini, Michele and
+                  Jagmohan, Ashish and Sahu, Sambit},
+  title        = {{Learning Service Blockchain}},
+  year         = {2021},
+  howpublished = {United States Patent US 11,157,833 B2, granted 26 October
+                  2021, assigned to International Business Machines Corporation.
+                  \url{https://patents.google.com/patent/US11157833B2/en}}
+}
+
+@article{chen2025lifechain,
+  author  = {Chen, Handi and Deng, Jing and Wu, Xiuzhe and Jiang, Zhihan and
+             Zhang, Xinchen and Chen, Xianhao and Ngai, Edith C. H.},
+  title   = {{LiFeChain}: Lightweight Blockchain for Secure and Efficient
+             Federated Lifelong Learning in {IoT}},
+  journal = {arXiv preprint arXiv:2509.01434},
+  year    = {2025},
+  note    = {To appear in IEEE Network.
+             \url{https://arxiv.org/abs/2509.01434}}
+}
+
+@misc{eu2026aiomnibus,
+  author       = {{European Union}},
+  title        = {{Regulation (EU) 2026/1744 of the European Parliament and of
+                  the Council amending Regulation (EU) 2024/1689 as regards the
+                  dates of application of certain provisions (Digital Omnibus
+                  on Artificial Intelligence)}},
+  year         = {2026},
+  howpublished = {Official Journal of the European Union, published 24 July
+                  2026, in force 27 July 2026. Defers Annex III high-risk
+                  obligations to 2 December 2027 and Annex I to 2 August 2028.
+                  \url{https://eur-lex.europa.eu/eli/reg/2026/1744/oj}}
+}
+
+@misc{bd2026residency,
+  author       = {{Government of the People's Republic of Bangladesh}},
+  title        = {{Personal Data Protection (Amendment) Ordinance, 2026
+                  (Ordinance No. 23 of 2026)}},
+  year         = {2026},
+  howpublished = {Promulgated 5 February 2026. Requires a synchronised
+                  real-time in-country copy for restricted data and critical
+                  information infrastructure.
+                  \url{https://digitalpolicyalert.org/change/18757-personal-data-protection-amendment-ordinance-2026-ordinance-no-23-of-2026}
+                  (accessed 14 August 2026)}
+}

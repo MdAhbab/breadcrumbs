@@ -1,0 +1,32 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "synthetic_records_per_class": 4000,
+  "results": {
+    "gaussian_data": {
+      "central_on_synthetic_only_ACC": 77.4,
+      "federated_prototype_replay_ACC": 77.9,
+      "chance_ACC": 50.0,
+      "per_stage_central": [
+        77.2,
+        76.9,
+        77.9
+      ]
+    },
+    "hard_data": {
+      "central_on_synthetic_only_ACC": 78.1,
+      "federated_prototype_replay_ACC": 79.0,
+      "chance_ACC": 50.0,
+      "per_stage_central": [
+        77.1,
+        77.5,
+        79.8
+      ]
+    }
+  }
+}

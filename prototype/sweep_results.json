@@ -1,0 +1,156 @@
+{
+  "0.3": {
+    "fedavg": {
+      "ACC": 50.1,
+      "FGT": 36.5
+    },
+    "ewc": {
+      "ACC": 46.8,
+      "FGT": 36.2
+    },
+    "replay": {
+      "ACC": 57.0,
+      "FGT": 13.5
+    },
+    "breadcrumbs": {
+      "ACC": 56.2,
+      "FGT": 11.0
+    },
+    "joint": {
+      "ACC": 59.4,
+      "FGT": 0.0
+    }
+  },
+  "0.4": {
+    "fedavg": {
+      "ACC": 55.1,
+      "FGT": 40.1
+    },
+    "ewc": {
+      "ACC": 58.2,
+      "FGT": 29.7
+    },
+    "replay": {
+      "ACC": 68.2,
+      "FGT": 10.6
+    },
+    "breadcrumbs": {
+      "ACC": 65.3,
+      "FGT": 9.0
+    },
+    "joint": {
+      "ACC": 70.7,
+      "FGT": 0.0
+    }
+  },
+  "0.5": {
+    "fedavg": {
+      "ACC": 60.0,
+      "FGT": 42.0
+    },
+    "ewc": {
+      "ACC": 68.6,
+      "FGT": 22.2
+    },
+    "replay": {
+      "ACC": 77.9,
+      "FGT": 7.6
+    },
+    "breadcrumbs": {
+      "ACC": 74.0,
+      "FGT": 6.5
+    },
+    "joint": {
+      "ACC": 81.0,
+      "FGT": 0.0
+    }
+  },
+  "0.6": {
+    "fedavg": {
+      "ACC": 64.6,
+      "FGT": 41.3
+    },
+    "ewc": {
+      "ACC": 77.4,
+      "FGT": 15.9
+    },
+    "replay": {
+      "ACC": 85.5,
+      "FGT": 5.0
+    },
+    "breadcrumbs": {
+      "ACC": 81.1,
+      "FGT": 4.3
+    },
+    "joint": {
+      "ACC": 88.3,
+      "FGT": 0.0
+    }
+  },
+  "0.8": {
+    "fedavg": {
+      "ACC": 76.0,
+      "FGT": 31.2
+    },
+    "ewc": {
+      "ACC": 88.7,
+      "FGT": 8.3
+    },
+    "replay": {
+      "ACC": 93.9,
+      "FGT": 2.2
+    },
+    "breadcrumbs": {
+      "ACC": 90.7,
+      "FGT": 2.2
+    },
+    "joint": {
+      "ACC": 95.7,
+      "FGT": 0.0
+    }
+  },
+  "1.0": {
+    "fedavg": {
+      "ACC": 86.1,
+      "FGT": 19.1
+    },
+    "ewc": {
+      "ACC": 94.8,
+      "FGT": 4.2
+    },
+    "replay": {
+      "ACC": 97.6,
+      "FGT": 0.8
+    },
+    "breadcrumbs": {
+      "ACC": 95.8,
+      "FGT": 0.7
+    },
+    "joint": {
+      "ACC": 98.3,
+      "FGT": 0.0
+    }
+  },
+  "1.5": {
+    "fedavg": {
+      "ACC": 97.3,
+      "FGT": 3.9
+    },
+    "ewc": {
+      "ACC": 99.4,
+      "FGT": 0.5
+    },
+    "replay": {
+      "ACC": 99.8,
+      "FGT": 0.1
+    },
+    "breadcrumbs": {
+      "ACC": 99.2,
+      "FGT": -0.1
+    },
+    "joint": {
+      "ACC": 99.9,
+      "FGT": 0.0
+    }
+  }
+}

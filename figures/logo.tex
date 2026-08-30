@@ -1,0 +1,24 @@
+% Breadcrumbs logo, standalone. Compile with pdfLaTeX or tectonic.
+\documentclass[border=8pt]{standalone}
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric}
+\definecolor{tcblue}{HTML}{2563EB}
+\definecolor{tcorange}{HTML}{E8710A}
+\definecolor{tcgreen}{HTML}{059669}
+\definecolor{tcgrey}{HTML}{6B7280}
+\begin{document}
+\begin{tikzpicture}[scale=1.6,every node/.style={transform shape}]
+  \node[regular polygon,regular polygon sides=6,draw=tcblue,line width=1.5pt,
+        minimum size=2.35cm,rotate=90] (hex) at (0,0) {};
+  \draw[tcgrey!45,line width=1.0pt,dash pattern=on 1pt off 2.6pt,line cap=round]
+        (-0.53,-0.36) -- (0.53,0.36);
+  \fill[tcgrey!55] (-0.53,-0.36) circle (0.085);
+  \fill[tcgrey]    (-0.27,-0.17) circle (0.110);
+  \fill[tcblue]    ( 0.00, 0.00) circle (0.135);
+  \fill[tcorange]  ( 0.27, 0.17) circle (0.155);
+  \fill[tcgreen]   ( 0.53, 0.36) circle (0.180);
+\end{tikzpicture}
+\end{document}
