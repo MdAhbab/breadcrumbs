@@ -1,0 +1,226 @@
+"""
+Records, grants and verification — Plane A over HTTP.
+
+The verification endpoint is the one that matters. It builds the Merkle proof
+from the off-chain document, hands it to a verifier that recomputes the root
+from the disclosure alone, and writes the receipt through chaincode — which
+refuses if the grant does not cover the requested field. The scope check is the
+contract's, not this file's.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from model.consortium import DOCUMENT_CHANNEL
+from model.merkle import MerkleTree, verify_disclosure
+
+from .. import ledger_service as ledger
+from ..auth import CurrentUser, deny_read_only
+from ..db import StoredDocument, as_dict, get_session
+
+router = APIRouter(tags=["records"])
+
+NOW = "2026-08-31T12:00:00Z"
+
+
+class CommitRequest(BaseModel):
+    record_id: str
+    record_type: str
+    period: str
+    site: str = "Gazipur"
+    schema_version: str = "v2.1.0"
+    rows: list[dict[str, Any]] = Field(min_length=1)
+
+
+class GrantRequest(BaseModel):
+    grant_id: str
+    record_id: str
+    requester_msp: str
+    purpose_code: str
+    field_name: str
+    expires_at: str
+
+
+class VerifyRequest(BaseModel):
+    grant_id: str
+    record_id: str
+    row_index: int = Field(ge=0)
+    field_name: str
+    receipt_id: str
+
+
+def _fail(exc: ledger.LedgerError) -> HTTPException:
+    code = (
+        status.HTTP_403_FORBIDDEN
+        if "does not own" in exc.message or "grant covers" in exc.message
+        else status.HTTP_400_BAD_REQUEST
+    )
+    return HTTPException(code, {"message": exc.message, "code": exc.code})
+
+
+@router.get("/records")
+def list_records(user: CurrentUser) -> list[dict]:
+    return ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_records", {}, user.role
+    )
+
+
+@router.get("/records/{record_id}")
+def get_record(record_id: str, user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    record = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "get_record", {"record_id": record_id}, user.role
+    )
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {record_id}")
+
+    stored = db.get(StoredDocument, record_id)
+    receipts = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_receipts",
+        {"record_id": record_id}, user.role,
+    )
+    return {
+        "record": record,
+        "receipts": receipts,
+        # Deliberately not the rows. The API never serves a document body; the
+        # only way data leaves is one row at a time, through a proof.
+        "rows_held_off_chain": len(stored.rows) if stored else 0,
+    }
+
+
+@router.post("/records", status_code=status.HTTP_201_CREATED)
+def commit_record(
+    body: CommitRequest, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """Hash the rows, commit the root, keep the body off-chain."""
+    deny_read_only(user)
+    tree = MerkleTree(body.rows)
+    try:
+        result = ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "commit_record",
+            {
+                "record_id": body.record_id, "merkle_root": tree.root,
+                "record_type": body.record_type, "period": body.period,
+                "site": body.site, "row_count": len(body.rows),
+                "schema_version": body.schema_version, "timestamp": NOW,
+            },
+            role=user.role, timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise _fail(exc)
+
+    db.merge(
+        StoredDocument(
+            record_id=body.record_id, owner_msp=user.msp_id, record_type=body.record_type,
+            period=body.period, site=body.site, schema_version=body.schema_version,
+            merkle_root=tree.root, rows=body.rows, salts=tree.salts, committed_at=NOW,
+        )
+    )
+    db.commit()
+    return {
+        "record_id": body.record_id,
+        "merkle_root": tree.root,
+        "row_count": len(body.rows),
+        "tx_id": result["tx_id"],
+        "block": result["block"],
+    }
+
+
+@router.get("/grants")
+def list_grants(user: CurrentUser) -> list[dict]:
+    args = (
+        {"requester_msp": user.msp_id}
+        if user.role in ("buyer", "auditor")
+        else {"owner_msp": user.msp_id}
+    )
+    return ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_grants", args, user.role)
+
+
+@router.post("/grants", status_code=status.HTTP_201_CREATED)
+def grant_access(body: GrantRequest, user: CurrentUser) -> dict:
+    deny_read_only(user)
+    try:
+        return ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "grant_access",
+            {**body.model_dump(), "timestamp": NOW}, role=user.role, timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise _fail(exc)
+
+
+@router.post("/grants/{grant_id}/revoke")
+def revoke_access(grant_id: str, reason: str, user: CurrentUser) -> dict:
+    deny_read_only(user)
+    try:
+        return ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "revoke_access",
+            {"grant_id": grant_id, "reason": reason, "timestamp": NOW},
+            role=user.role, timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise _fail(exc)
+
+
+@router.post("/verify")
+def verify_one_row(
+    body: VerifyRequest, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    Prove one row against the committed root.
+
+    Everything a verifier needs is in the response and nothing else is: the
+    disclosed value, its salt, the sibling hashes, and the root already on the
+    ledger. The other rows are not sent and cannot be recovered from what is.
+    """
+    deny_read_only(user)
+    stored = db.get(StoredDocument, body.record_id)
+    if stored is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {body.record_id}")
+    if body.row_index >= len(stored.rows):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"row {body.row_index} is outside this record's {len(stored.rows)} rows",
+        )
+
+    tree = MerkleTree(stored.rows, stored.salts)
+    disclosure = tree.prove(body.row_index, body.record_id, body.field_name)
+    ok, computed, trace = verify_disclosure(disclosure, stored.merkle_root)
+
+    # The contract decides whether this verification was in scope.
+    try:
+        receipt = ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "record_verification",
+            {
+                "receipt_id": body.receipt_id, "grant_id": body.grant_id,
+                "field_name": body.field_name, "result": "match" if ok else "no_match",
+                "computed_root": computed, "timestamp": NOW,
+            },
+            role=user.role, timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise _fail(exc)
+
+    return {
+        "verified": ok,
+        "verdict": "Verified — record is genuine" if ok else "Proof failed — do not rely on this record",
+        "disclosed": {
+            "field_name": body.field_name,
+            "value": disclosure.value.get(body.field_name, disclosure.value),
+        },
+        "proof": {
+            "computed_root": computed,
+            "on_chain_root": stored.merkle_root,
+            "match": ok,
+            "steps": [s.to_dict() for s in disclosure.path],
+            "ladder": trace,
+            "rows_in_record": len(stored.rows),
+            "rows_disclosed": 1,
+        },
+        "receipt": receipt["response"],
+        "tx_id": receipt["tx_id"],
+        "block": receipt["block"],
+    }

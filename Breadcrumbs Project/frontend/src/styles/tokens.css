@@ -1,0 +1,146 @@
+/*
+ * Design tokens — the single source of colour, type and spacing.
+ *
+ * These match designs_instructions.md §4 exactly. Nothing in the application
+ * should contain a hex value; every colour resolves to a variable here, so a
+ * palette change is one edit rather than a search.
+ *
+ * Deliberately no dark mode. This is evidence software for a regulated industry
+ * and it commits to one appearance.
+ */
+
+:root {
+  /* -- colour ------------------------------------------------------------ */
+  --ink: #141a22;
+  --ink-70: rgba(20, 26, 34, 0.7);
+  --ink-45: rgba(20, 26, 34, 0.45);
+  --ink-12: rgba(20, 26, 34, 0.12);
+
+  --indigo-900: #1e2a44;
+  --indigo-700: rgba(38, 53, 83, 0.5);
+  --indigo-600: #33456b;
+
+  --loom-100: #edeae0;
+  --loom-50: #f7f5ef;
+  --white: #ffffff;
+
+  --brass: #b08a3e;
+  --brass-12: rgba(176, 138, 62, 0.12);
+
+  --verified: #2e6b5e;
+  --verified-12: rgba(46, 107, 94, 0.12);
+
+  --rust: #9c4a34;
+  --rust-12: rgba(156, 74, 52, 0.12);
+
+  --thread: #9b9384;
+  --thread-40: rgba(155, 147, 132, 0.4);
+
+  /* -- type -------------------------------------------------------------- */
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+
+  /* -- spacing ----------------------------------------------------------- */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 64px;
+  --space-3xl: 96px;
+
+  /* -- radius ------------------------------------------------------------ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* -- elevation --------------------------------------------------------- */
+  --e1: 0 1px 2px rgba(20, 26, 34, 0.06);
+  --e2: 0 8px 24px rgba(20, 26, 34, 0.1);
+  --e3: 0 16px 48px rgba(20, 26, 34, 0.16);
+
+  /* -- motion ------------------------------------------------------------ */
+  --motion-instant: 90ms ease-out;
+  --motion-fast: 160ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-base: 260ms cubic-bezier(0.2, 0, 0, 1);
+  --motion-slow: 420ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* -- layout ------------------------------------------------------------ */
+  --sidebar-width: 248px;
+  --content-max: 1240px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--loom-100);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers that stack must line up. Tables, KPIs, hashes, everything. */
+table,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: 44px; line-height: 1.12; }
+h2 { font-size: 26px; line-height: 1.2; }
+h3 { font-size: 20px; line-height: 1.3; }
+
+code,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* The eyebrow / stamp / table-header style. */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Focus is never removed. It is moved, at most. */
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* Every scroll effect degrades to its final state. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

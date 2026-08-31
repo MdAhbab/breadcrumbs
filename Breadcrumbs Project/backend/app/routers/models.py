@@ -1,0 +1,181 @@
+"""
+The learning plane over HTTP — the screens the existing frontend has none of.
+
+Model registry, rounds, benchmarks, memory bank, and the Continuity Gate
+decision. The gate endpoint is the one the demo runs from: it takes signed
+evaluations and returns exactly what the contract recorded, including the
+per-task table the interface renders.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field
+
+from model.consortium import MODEL_CHANNEL
+
+from .. import ledger_service as ledger
+from ..auth import CurrentUser, deny_read_only
+
+router = APIRouter(prefix="/model", tags=["model"])
+
+NOW = "2026-08-31T12:00:00Z"
+
+
+class BenchmarkRequest(BaseModel):
+    task_id: str
+    benchmark_hash: str = Field(min_length=64, max_length=64)
+    contributors: list[str]
+    size: int
+
+
+class RoundRequest(BaseModel):
+    round_id: str
+    tasks: list[str]
+    contributors: list[str]
+    memory_bank_hash: str
+
+
+class GateRequest(BaseModel):
+    round_id: str
+    candidate_id: str
+    candidate_hash: str
+    parent_id: str
+    new_task: str
+    submissions: list[dict[str, Any]]
+    gamma_bp: int = 200
+    tau_bp: int = 500
+    k: int = 3
+    delta_bp: int = 100
+
+
+@router.get("/current")
+def current_model(user: CurrentUser) -> dict | None:
+    return ledger.query(
+        MODEL_CHANNEL, "fedmodel", "get_current_model", {}, user.role
+    )
+
+
+@router.get("/registry")
+def registry(user: CurrentUser) -> list[dict]:
+    """
+    Every model version, promoted and rejected alike.
+
+    Rejected versions stay visible with their reason. The audit trail is the
+    feature: a registry that only lists what shipped cannot answer "what did you
+    try, and why was it refused?".
+    """
+    return ledger.query(MODEL_CHANNEL, "fedmodel", "list_models", {}, user.role)
+
+
+@router.get("/rounds")
+def rounds(user: CurrentUser) -> list[dict]:
+    return ledger.query(MODEL_CHANNEL, "fedmodel", "list_rounds", {}, user.role)
+
+
+@router.get("/benchmarks")
+def benchmarks(user: CurrentUser) -> list[dict]:
+    """
+    Committed benchmarks, sealed or revealed.
+
+    A sealed row shows only its hash. That is the anti-gaming design: the
+    organisations training in a round do not hold the set they will be judged
+    against, so training on the benchmark requires collusion rather than being
+    something any member can do quietly.
+    """
+    return ledger.query(MODEL_CHANNEL, "fedmodel", "list_benchmarks", {}, user.role)
+
+
+@router.get("/decisions/{candidate_id}")
+def decision(candidate_id: str, user: CurrentUser) -> dict:
+    found = ledger.query(
+        MODEL_CHANNEL, "fedmodel", "get_decision", {"candidate_id": candidate_id}, user.role
+    )
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no decision for {candidate_id}")
+    return found
+
+
+@router.post("/benchmarks", status_code=status.HTTP_201_CREATED)
+def commit_benchmark(body: BenchmarkRequest, user: CurrentUser) -> dict:
+    deny_read_only(user)
+    try:
+        return ledger.invoke(
+            MODEL_CHANNEL, "fedmodel", "commit_benchmark",
+            {**body.model_dump(), "timestamp": NOW},
+            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message)
+
+
+@router.post("/rounds", status_code=status.HTTP_201_CREATED)
+def open_round(body: RoundRequest, user: CurrentUser) -> dict:
+    deny_read_only(user)
+    try:
+        return ledger.invoke(
+            MODEL_CHANNEL, "fedmodel", "open_round",
+            {**body.model_dump(), "timestamp": NOW},
+            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message)
+
+
+@router.post("/gate")
+def evaluate_gate(body: GateRequest, user: CurrentUser) -> dict:
+    """
+    Run the Continuity Gate.
+
+    The contract does not evaluate the model — it cannot, because the weights are
+    off-chain and a floating-point forward pass is not identical across hardware.
+    Each endorsing organisation evaluates the candidate itself against the
+    committed benchmark and signs what it measured; the contract verifies those
+    signatures, requires enough distinct organisations, checks they agree, takes
+    medians and applies the threshold rule.
+    """
+    deny_read_only(user)
+    try:
+        result = ledger.invoke(
+            MODEL_CHANNEL, "fedmodel", "evaluate_gate",
+            {**body.model_dump(), "timestamp": NOW},
+            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=NOW,
+        )
+    except ledger.LedgerError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message)
+
+    decision = result["response"]
+    return {
+        **decision,
+        "tx_id": result["tx_id"],
+        "block": result["block"],
+        "guarantee": (
+            "Promotion required a threshold of independent organisations to have "
+            "evaluated the same committed benchmark and signed compatible results. "
+            "No single participant, including whoever ran the aggregation, can "
+            "promote a model alone."
+        ),
+    }
+
+
+@router.get("/memory-bank")
+def memory_bank(user: CurrentUser) -> dict:
+    """
+    What the shared memory holds, and the honest label for it.
+
+    The privacy note is served from the model package rather than written here,
+    so no interface can quietly soften it.
+    """
+    from model.ai import MemoryBank
+
+    rounds_list = ledger.query(MODEL_CHANNEL, "fedmodel", "list_rounds", {}, user.role)
+    return {
+        "anchored_hashes": [
+            {"round_id": r["round_id"], "memory_bank_hash": r["memory_bank_hash"]}
+            for r in rounds_list
+        ],
+        "privacy_note": MemoryBank.privacy_note(),
+        "contains": "cluster centres, spreads and counts per category. No original record.",
+    }
