@@ -18,3 +18,22 @@ __pycache__/
 
 # local agent config
 .claude/
+
+# Python envs
+venv/
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Local databases and ledger state
+*.db
+*.sqlite
+*.sqlite3
+ledger_data/
+
+# generated corpus (reproducible with model.datagen)
+Breadcrumbs Project/model/datagen/corpus/

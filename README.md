@@ -44,13 +44,13 @@ to 21) and replace the two bracketed placeholders:
 | `ref.bib` | 53 references. Every author list fetched from a primary source, not written from memory. |
 | `REVIEW.md` | **Read this before presenting.** The adversarial review log: the hardest questions thrown at the submission and exactly what we changed in response. |
 | `figures/` | The four figures exported standalone as `.tex`, `.pdf` and 300 dpi `.png`, for slides and posters. Not needed to compile the report. |
-| `prototype/` | The simulation behind Table 4, Table 5 and Figure 3, plus the self-test that went against us. |
-| `.claude/skills/` | The two agent personas used while preparing this: a hostile reviewer and a veteran blockchain architect. |
+| `Breadcrumbs Project/` | The working system: `model/` (permissioned ledger, chaincode, Merkle, federated learning), `backend/` (FastAPI), `frontend/`, `deck/`. |
+| `Breadcrumbs Project/model/experiments/` | The simulation behind Table 4, Table 5 and Figure 3, plus the self-test that went against us. |
 
 Reproduce every number in the report:
 
 ```bash
-cd prototype
+cd "Breadcrumbs Project/model/experiments"
 python3 fcl_sim.py           # Table 4 and Figure 3
 python3 sweep_difficulty.py  # Table 5
 python3 probe_sufficiency.py # the test in Section 7.3 that we failed
