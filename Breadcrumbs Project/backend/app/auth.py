@@ -39,7 +39,7 @@ def issue_token(role: str) -> str:
     if role not in ROLES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unknown role {role}")
     profile = ROLES[role]
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.UTC)
     claims = {
         "sub": profile["identity"],
         "role": role,
@@ -60,7 +60,9 @@ def current_principal(
             credentials.credentials, settings.secret_key, algorithms=[settings.algorithm]
         )
     except JWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "session expired, sign in again")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "session expired, sign in again"
+        ) from None
 
     role = claims.get("role")
     if role not in ROLES:
@@ -98,6 +100,35 @@ def require_roles(*allowed: str):
         return user
 
     return dependency
+
+
+def require_capability(user: Principal, capability: str) -> None:
+    """
+    Check a named capability rather than a role.
+
+    Role checks scattered through handlers are how gaps appear: a new endpoint
+    gets written, nobody remembers to add the check, and it silently serves
+    everyone. Reads were exactly that gap here — the regulator, whose entire
+    screen promises it sees no factory data, could list every committed record
+    through the API.
+    """
+    from .config import CAPABILITIES
+
+    if capability not in CAPABILITIES.get(user.role, set()):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            {
+                "code": "CAPABILITY_DENIED",
+                "message": (
+                    f"{user.label} may not {capability.replace('_', ' ')}. "
+                    "Read-only observer access covers aggregate governance "
+                    "statistics and events only; factory-level records require a "
+                    "separate lawful-basis access grant."
+                    if user.read_only
+                    else f"{user.label} may not {capability.replace('_', ' ')}."
+                ),
+            },
+        )
 
 
 def deny_read_only(user: Principal) -> None:

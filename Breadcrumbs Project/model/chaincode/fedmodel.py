@@ -44,7 +44,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..ledger.crypto import TAG_BENCH, hash_object, load_public, verify
+from ..ledger.crypto import TAG_BENCH, hash_object, verify
 from ..ledger.network import ChaincodeError, Context
 
 BENCH = "benchmark:"
@@ -163,7 +163,7 @@ def evaluate_gate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
 
     args:
       round_id, candidate_id, candidate_hash, parent_id
-      submissions: [{endorser_msp, public_key, signature, accuracies:
+      submissions: [{endorser_msp, certificate_pem, signature, accuracies:
                      {task_id: {candidate_bp, previous_bp}}}]
       gamma_bp   minimum gain required on the new task
       tau_bp     maximum tolerated loss on any earlier task
@@ -187,14 +187,18 @@ def evaluate_gate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
         bench = ctx.get(BENCH + task_id)
         ctx.require(bench is not None, f"no benchmark committed for {task_id}")
 
-    # --- step 2: accept only signatures that verify, one vote per organisation ---
+    # --- step 2: accept only certified signatures, one vote per organisation ---
+    #
+    # The certificate must be resolved against the MSP *before* the signature is
+    # checked, and the public key must come out of that validated certificate.
+    # Verifying against a key the submission carried would prove only that
+    # somebody holds some private key — so one actor could generate three
+    # keypairs, label them with three organisations, and promote any model it
+    # liked. That defeats the entire guarantee this contract exists to provide.
     accepted: dict[str, dict[str, dict[str, int]]] = {}
     rejected: list[dict[str, str]] = []
     for sub in args["submissions"]:
         msp_id = sub["endorser_msp"]
-        if msp_id not in ctx.msp.authorities:
-            rejected.append({"endorser_msp": msp_id, "reason": "unknown organisation"})
-            continue
         if msp_id in accepted:
             rejected.append({"endorser_msp": msp_id, "reason": "duplicate submission"})
             continue
@@ -204,12 +208,11 @@ def evaluate_gate(ctx: Context, args: dict[str, Any]) -> dict[str, Any]:
             "candidate_hash": args["candidate_hash"],
             "accuracies": sub["accuracies"],
         }
-        try:
-            pub = load_public(sub["public_key"])
-        except ValueError:
-            rejected.append({"endorser_msp": msp_id, "reason": "malformed public key"})
+        public_key, reason = ctx.msp.public_key_for(msp_id, sub.get("certificate_pem", ""))
+        if public_key is None:
+            rejected.append({"endorser_msp": msp_id, "reason": reason})
             continue
-        if not verify(pub, payload, sub["signature"]):
+        if not verify(public_key, payload, sub["signature"]):
             rejected.append({"endorser_msp": msp_id, "reason": "signature does not verify"})
             continue
         missing = [t for t in tasks if t not in sub["accuracies"]]

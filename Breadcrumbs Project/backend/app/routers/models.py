@@ -9,6 +9,7 @@ per-task table the interface renders.
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -17,11 +18,14 @@ from pydantic import BaseModel, Field
 from model.consortium import MODEL_CHANNEL
 
 from .. import ledger_service as ledger
-from ..auth import CurrentUser, deny_read_only
+from ..auth import CurrentUser, require_capability
 
 router = APIRouter(prefix="/model", tags=["model"])
 
-NOW = "2026-08-31T12:00:00Z"
+
+def now() -> str:
+    """A real timestamp, passed to the contract as an argument."""
+    return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class BenchmarkRequest(BaseModel):
@@ -100,28 +104,28 @@ def decision(candidate_id: str, user: CurrentUser) -> dict:
 
 @router.post("/benchmarks", status_code=status.HTTP_201_CREATED)
 def commit_benchmark(body: BenchmarkRequest, user: CurrentUser) -> dict:
-    deny_read_only(user)
+    require_capability(user, "write_model")
     try:
         return ledger.invoke(
             MODEL_CHANNEL, "fedmodel", "commit_benchmark",
-            {**body.model_dump(), "timestamp": NOW},
-            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=NOW,
+            {**body.model_dump(), "timestamp": now()},
+            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message) from exc
 
 
 @router.post("/rounds", status_code=status.HTTP_201_CREATED)
 def open_round(body: RoundRequest, user: CurrentUser) -> dict:
-    deny_read_only(user)
+    require_capability(user, "write_model")
     try:
         return ledger.invoke(
             MODEL_CHANNEL, "fedmodel", "open_round",
-            {**body.model_dump(), "timestamp": NOW},
-            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=NOW,
+            {**body.model_dump(), "timestamp": now()},
+            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message) from exc
 
 
 @router.post("/gate")
@@ -136,15 +140,15 @@ def evaluate_gate(body: GateRequest, user: CurrentUser) -> dict:
     signatures, requires enough distinct organisations, checks they agree, takes
     medians and applies the threshold rule.
     """
-    deny_read_only(user)
+    require_capability(user, "write_model")
     try:
         result = ledger.invoke(
             MODEL_CHANNEL, "fedmodel", "evaluate_gate",
-            {**body.model_dump(), "timestamp": NOW},
-            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=NOW,
+            {**body.model_dump(), "timestamp": now()},
+            role=user.role, endorsers=ledger.gate_endorsers(), timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, exc.message) from exc
 
     decision = result["response"]
     return {

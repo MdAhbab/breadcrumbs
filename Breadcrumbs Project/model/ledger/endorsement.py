@@ -17,11 +17,12 @@ decoration. Every satisfied() call below deduplicates by MSP ID first.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 from .block import Endorsement
-from .crypto import load_public, verify
+from .crypto import verify
 from .identity import MSP
 
 
@@ -113,20 +114,23 @@ class EndorsementValidator:
     ) -> tuple[set[str], list[str]]:
         """
         Returns (organisations with at least one good signature, rejection notes).
+
+        Order matters and is the security property. The certificate is resolved
+        and validated against the MSP *first*, and only the public key from that
+        validated certificate is used to check the signature. Verifying against
+        a key the endorsement supplied would prove nothing at all: an attacker
+        would simply generate a keypair, attach any organisation's name, and
+        satisfy the policy alone.
         """
         good: set[str] = set()
         notes: list[str] = []
         for e in endorsements:
-            try:
-                pub = load_public(e.public_key)
-            except ValueError:
-                notes.append(f"{e.identity_id}: malformed public key")
+            public_key, reason = self.msp.public_key_for(e.msp_id, e.certificate_pem)
+            if public_key is None:
+                notes.append(f"{e.identity_id}: {reason}")
                 continue
-            if not verify(pub, payload, e.signature):
+            if not verify(public_key, payload, e.signature):
                 notes.append(f"{e.identity_id}: signature does not verify")
-                continue
-            if e.msp_id not in self.msp.authorities:
-                notes.append(f"{e.identity_id}: unknown MSP {e.msp_id}")
                 continue
             good.add(e.msp_id)
         return good, notes

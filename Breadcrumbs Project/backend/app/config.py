@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -21,8 +21,7 @@ class Settings(BaseSettings):
     ]
     debug: bool = True
 
-    class Config:
-        env_prefix = "BREADCRUMBS_"
+    model_config = SettingsConfigDict(env_prefix="BREADCRUMBS_")
 
 
 settings = Settings()
@@ -80,3 +79,31 @@ ROLES: dict[str, dict[str, str]] = {
 # The regulator sees aggregates and governance events, never factory records.
 # Enforced in the dependency, not merely in the interface.
 READ_ONLY_ROLES = {"regulator"}
+
+# What each role may do, named as capabilities rather than checked ad hoc at
+# each handler. A new endpoint has to choose a capability, which makes forgetting
+# the check a visible omission rather than a silent one.
+#
+# Note what the regulator does NOT have: read_records and read_grants. Its screen
+# promises it sees no factory data, and this table is where that becomes true.
+CAPABILITIES: dict[str, set[str]] = {
+    "factory": {
+        "read_records", "write_records", "read_grants", "write_grants",
+        "read_model", "read_ledger",
+    },
+    "buyer": {
+        "read_records", "read_grants", "write_requests", "verify_records",
+        "read_model", "read_ledger",
+    },
+    "auditor": {
+        "read_records", "read_grants", "verify_records", "write_attestations",
+        "read_model", "read_ledger",
+    },
+    "consortium": {
+        "read_records", "read_grants", "read_model", "write_model",
+        "read_governance", "write_governance", "read_sla", "read_ledger",
+    },
+    "regulator": {
+        "read_governance", "read_sla", "read_ledger", "read_model",
+    },
+}

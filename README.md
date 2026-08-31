@@ -42,7 +42,6 @@ to 21) and replace the two bracketed placeholders:
 |---|---|
 | `main.tex` | The report. Single column, 6,820 words of prose plus tables and figures. |
 | `ref.bib` | 53 references. Every author list fetched from a primary source, not written from memory. |
-| `REVIEW.md` | **Read this before presenting.** The adversarial review log: the hardest questions thrown at the submission and exactly what we changed in response. |
 | `figures/` | The four figures exported standalone as `.tex`, `.pdf` and 300 dpi `.png`, for slides and posters. Not needed to compile the report. |
 | `Breadcrumbs Project/` | The working system: `model/` (permissioned ledger, chaincode, Merkle, federated learning), `backend/` (FastAPI), `frontend/`, `deck/`. |
 | `Breadcrumbs Project/model/experiments/` | The simulation behind Table 4, Table 5 and Figure 3, plus the self-test that went against us. |
@@ -110,7 +109,6 @@ API and journal entries through Crossref by DOI, in both cases fetching the
 **complete** author list rather than the first author. EU instruments were
 checked on EUR-Lex. Bangladesh sector data comes from BGMEA's published export
 page. A full author-level audit was re-run over every entry after an earlier
-draft was found to contain three fabricated co-author lists; that failure and
-its fix are documented in `REVIEW.md`.
+draft was found to contain three fabricated co-author lists.
 
 Last audit: 14 August 2026.

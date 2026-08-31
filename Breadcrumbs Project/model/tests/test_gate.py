@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from model.consortium import GATE_ORGS, MODEL_CHANNEL, build
-from model.ledger.crypto import TAG_BENCH, hash_object, public_bytes, sign
+from model.ledger.crypto import TAG_BENCH, hash_object, sign
 
 TS = "2026-08-20T10:00:00Z"
 
@@ -37,7 +37,7 @@ def signed_submission(consortium, msp_id, candidate_id, candidate_hash, accuraci
     }
     return {
         "endorser_msp": msp_id,
-        "public_key": public_bytes(ident.public_key),
+        "certificate_pem": ident.certificate_pem(),
         "signature": sign(ident.private_key, payload),
         "accuracies": accuracies,
     }
@@ -189,7 +189,7 @@ def test_a_rejection_leaves_the_previous_model_in_force(ready):
         }
         bad.append({
             "endorser_msp": m,
-            "public_key": public_bytes(ident.public_key),
+            "certificate_pem": ident.certificate_pem(),
             "signature": sign(ident.private_key, payload),
             "accuracies": acc,
         })
@@ -300,6 +300,77 @@ def test_tampering_with_the_accuracies_after_signing_is_caught(ready):
     assert any("signature does not verify" in r["reason"] for r in d["rejected_submissions"])
 
 
+# -- the vulnerability that defeated the whole guarantee ------------------
+def test_one_actor_cannot_forge_every_organisations_evaluation(ready):
+    """
+    Regression test for the worst bug this project had.
+
+    The contract used to verify each submission against a public key the
+    *submission itself carried*, checking only that the organisation's name was
+    known. So a single actor could generate three keypairs, label them with
+    three organisations, sign whatever accuracies flattered its model, and
+    promote it alone — which is precisely the thing the Continuity Gate exists to
+    make impossible.
+
+    The fix: resolve the certificate against the MSP first, and take the public
+    key out of the validated certificate.
+    """
+    from model.ledger.crypto import generate_signing_key
+
+    flattering = accuracies(9200, 9800, 10000, prev=(9160, 9780, 4800))
+    subs = []
+    for msp_id in GATE_ORGS[:3]:
+        attacker_key = generate_signing_key()  # certified by nobody
+        payload = {
+            "round_id": "round-8", "candidate_id": "m-forged",
+            "candidate_hash": "b" * 64, "accuracies": flattering,
+        }
+        subs.append({
+            "endorser_msp": msp_id,
+            "certificate_pem": "-----BEGIN CERTIFICATE-----\nnope\n-----END CERTIFICATE-----",
+            "signature": sign(attacker_key, payload),
+            "accuracies": flattering,
+        })
+
+    d = run_gate(ready, "m-forged", subs)
+    assert d["outcome"] == "reject"
+    assert d["reason_code"] == "INSUFFICIENT_ENDORSEMENTS"
+    assert d["endorsers"] == []
+    assert len(d["rejected_submissions"]) == 3
+
+
+def test_a_real_certificate_from_the_wrong_organisation_is_rejected(ready):
+    """
+    Subtler variant: a genuine, validly-issued certificate, but presented as
+    though it belonged to a different organisation. The subject must match the
+    MSP it claims.
+    """
+    acc = accuracies(7790, 7700, 7990)
+    impostor = ready.org_identity("PrimarkSourcingMSP")  # a real member...
+    payload = {
+        "round_id": "round-8", "candidate_id": "m-wrongorg",
+        "candidate_hash": "b" * 64, "accuracies": acc,
+    }
+    subs = [
+        signed_submission(ready, GATE_ORGS[0], "m-wrongorg", "b" * 64, acc),
+        signed_submission(ready, GATE_ORGS[1], "m-wrongorg", "b" * 64, acc),
+        {
+            "endorser_msp": GATE_ORGS[2],          # ...claiming to be someone else
+            "certificate_pem": impostor.certificate_pem(),
+            "signature": sign(impostor.private_key, payload),
+            "accuracies": acc,
+        },
+    ]
+    d = run_gate(ready, "m-wrongorg", subs)
+    assert d["outcome"] == "reject"
+    assert d["reason_code"] == "INSUFFICIENT_ENDORSEMENTS"
+    assert any(
+        "not issued by this organisation" in r["reason"]
+        or "does not belong to" in r["reason"]
+        for r in d["rejected_submissions"]
+    )
+
+
 def test_one_organisation_cannot_submit_twice_to_reach_the_threshold(ready):
     """Three submissions, one organisation. The threshold is organisations."""
     acc = accuracies(7790, 7700, 7990)
@@ -324,7 +395,7 @@ def test_an_endorser_that_skipped_a_task_is_not_counted(ready):
     }
     subs[2] = {
         "endorser_msp": GATE_ORGS[2],
-        "public_key": public_bytes(ident.public_key),
+        "certificate_pem": ident.certificate_pem(),
         "signature": sign(ident.private_key, payload),
         "accuracies": partial,
     }

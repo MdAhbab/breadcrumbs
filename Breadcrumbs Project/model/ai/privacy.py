@@ -26,7 +26,6 @@ later through committee decryption or ranking under multi-party computation.
 
 from __future__ import annotations
 
-import numpy as np
 import torch
 
 CLIP_NORM = 5.0
@@ -78,11 +77,11 @@ def trimmed_mean(
     if n <= 2 * trim:
         # Not enough participants to trim; fall back to a plain mean rather than
         # silently dropping everybody.
-        return [torch.stack(p).mean(dim=0) for p in zip(*updates)], [0] * n
+        return [torch.stack(p).mean(dim=0) for p in zip(*updates, strict=False)], [0] * n
 
     trimmed_counts = [0] * n
     out: list[torch.Tensor] = []
-    for coordinate_group in zip(*updates):
+    for coordinate_group in zip(*updates, strict=False):
         stacked = torch.stack(coordinate_group)  # (n, *shape)
         flat = stacked.reshape(n, -1)
         order = flat.argsort(dim=0)
@@ -111,8 +110,14 @@ def weighted_average(
     if total == 0:
         raise ValueError("weights sum to zero")
     fractions = [w / total for w in weights_bp]
+    if len(fractions) != len(updates):
+        raise ValueError(
+            f"{len(updates)} updates but {len(fractions)} weights; a mismatch here"
+            " would silently drop a participant from the round"
+        )
     return [
-        sum(f * t for f, t in zip(fractions, group)) for group in zip(*updates)
+        sum(f * t for f, t in zip(fractions, group, strict=True))
+        for group in zip(*updates, strict=True)
     ]
 
 
@@ -127,4 +132,4 @@ def fedprox_penalty(
     drag the global model a long way in one round. This penalises drift from the
     global weights and is what makes non-IID participation stable.
     """
-    return (mu / 2) * sum(((l - g) ** 2).sum() for l, g in zip(local, global_weights))
+    return (mu / 2) * sum(((l - g) ** 2).sum() for l, g in zip(local, global_weights, strict=False))

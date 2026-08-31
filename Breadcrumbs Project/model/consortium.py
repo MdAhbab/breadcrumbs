@@ -19,16 +19,15 @@ participant, and no pair of factories, can promote a model.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from .chaincode import doccustody, fedmodel, reputation
 from .ledger import (
     AND,
-    NOutOf,
+    MSP,
     CertificateAuthority,
     Identity,
-    MSP,
     Network,
+    NOutOf,
     OrderingService,
     WorldState,
 )

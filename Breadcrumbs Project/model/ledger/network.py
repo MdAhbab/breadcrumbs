@@ -30,14 +30,14 @@ everyone, because a model version is a consortium-wide fact.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from .block import Block, Endorsement, ReadKey, Transaction, WriteKey, genesis_block
-from .crypto import canonical, hash_object, new_salt, public_bytes, sign
-from .crypto import TAG_BLOCK
+from .crypto import TAG_BLOCK, canonical, hash_object, new_salt, sign
 from .endorsement import EndorsementValidator, Policy
-from .identity import Identity, MSP
+from .identity import MSP, Identity
 from .orderer import OrderingService
 from .state import WorldState
 
@@ -126,6 +126,11 @@ class Channel:
         self.state = state
         self.blocks: list[Block] = []
         self.validation: dict[str, ValidationResult] = {}
+        # Every transaction id ever committed on this channel. Without it a
+        # transaction can simply be resubmitted: MVCC catches a replay only when
+        # the transaction happens to read a key it also writes, so any blind
+        # write replays cleanly and applies twice.
+        self.committed_tx_ids: set[str] = set()
         gb = genesis_block(name, config, timestamp)
         self._append(gb)
         for w in gb.transactions[0].write_set:
@@ -282,7 +287,7 @@ class Network:
                 Endorsement(
                     msp_id=ident.msp_id,
                     identity_id=ident.id,
-                    public_key=public_bytes(ident.public_key),
+                    certificate_pem=ident.certificate_pem(),
                     signature=sign(ident.private_key, payload),
                 )
             )
@@ -292,23 +297,39 @@ class Network:
         """Stage 4. Hand to the ordering service."""
         return self.orderer.submit(tx)
 
-    def commit(self, timestamp: str) -> Block | None:
+    def commit(self, timestamp: str, channel_name: str | None = None) -> Block | None:
         """
         Stage 5. Cut a block, validate every transaction in it, apply what passes.
 
-        Two independent checks per transaction, and both must pass:
-          - the endorsement policy, re-evaluated from the signatures themselves
+        Three independent checks per transaction, and all must pass:
+          - the transaction id has not been committed before (replay)
+          - the endorsement policy, re-evaluated from the certificates themselves
           - the read set, re-checked against current versions (MVCC)
+
+        A block belongs to exactly one channel. Pass `channel_name` to cut a
+        specific one; otherwise the first channel with work waiting is chosen.
         """
-        ch_name = self.orderer._pending[0].channel if self.orderer._pending else None
-        if ch_name is None:
-            return None
-        channel = self.channels[ch_name]
-        block = self.orderer.cut(channel.height, channel.head.block_hash, timestamp)
+        if channel_name is None:
+            waiting = self.orderer.pending_channels()
+            if not waiting:
+                return None
+            channel_name = waiting[0]
+        channel = self.channels[channel_name]
+        block = self.orderer.cut(
+            channel_name, channel.height, channel.head.block_hash, timestamp
+        )
         if block is None:
             return None
 
         for tx in block.transactions:
+            if tx.tx_id in channel.committed_tx_ids:
+                channel.validation[tx.tx_id] = ValidationResult(
+                    tx.tx_id, False, "DUPLICATE_TXID",
+                    "this transaction has already been committed on this channel",
+                )
+                continue
+            channel.committed_tx_ids.add(tx.tx_id)
+
             cc = self.chaincodes.get(tx.chaincode)
             if cc is None:
                 channel.validation[tx.tx_id] = ValidationResult(
@@ -361,7 +382,7 @@ class Network:
         ok, why = self.submit(tx)
         if not ok:
             return None, ValidationResult(tx.tx_id, False, "ORDERING_FAILURE", why), None
-        block = self.commit(timestamp)
+        block = self.commit(timestamp, channel_name=channel)
         result = self.channels[channel].validation[tx.tx_id]
         return block, result, tx.response
 

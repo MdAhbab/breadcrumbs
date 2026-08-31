@@ -22,7 +22,11 @@ class RoleOption(BaseModel):
 
 class VerifyRequest(BaseModel):
     role: str
-    code: str = Field(min_length=1, max_length=12)
+    # Deliberately unconstrained here so that *every* bad code gets the same
+    # helpful sentence from the handler below. A Pydantic length rule would
+    # return a generic 422 for an empty field and the handler's 400 for a
+    # five-digit one, which is two different experiences for one mistake.
+    code: str = Field(default="", max_length=32)
 
 
 class TokenResponse(BaseModel):

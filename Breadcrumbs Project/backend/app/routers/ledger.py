@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from ..auth import CurrentUser
 from .. import ledger_service as ledger
+from ..auth import CurrentUser, require_capability
 
 router = APIRouter(prefix="/ledger", tags=["ledger"])
 
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/ledger", tags=["ledger"])
 @router.get("/channels")
 def channels(user: CurrentUser) -> list[dict]:
     """Height and live integrity check for every channel."""
+    require_capability(user, "read_ledger")
     return ledger.chain_summary()
 
 
@@ -26,7 +27,7 @@ def blocks(
     try:
         return ledger.blocks(channel, limit, offset)
     except KeyError:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no channel {channel}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no channel {channel}") from None
 
 
 @router.get("/blocks/{number}")

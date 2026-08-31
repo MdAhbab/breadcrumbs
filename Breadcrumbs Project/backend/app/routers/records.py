@@ -10,6 +10,7 @@ contract's, not this file's.
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,12 +21,22 @@ from model.consortium import DOCUMENT_CHANNEL
 from model.merkle import MerkleTree, verify_disclosure
 
 from .. import ledger_service as ledger
-from ..auth import CurrentUser, deny_read_only
-from ..db import StoredDocument, as_dict, get_session
+from ..auth import CurrentUser, require_capability
+from ..db import StoredDocument, get_session
 
 router = APIRouter(tags=["records"])
 
-NOW = "2026-08-31T12:00:00Z"
+
+def now() -> str:
+    """
+    A real timestamp, in the format the chaincode compares against.
+
+    Every write used to carry one hardcoded constant, so an entire demo's
+    records shared a single commit time and the grant-expiry comparison was
+    meaningless. The value still arrives at the contract as an argument — the
+    contract itself must never read a clock, or two endorsers would disagree.
+    """
+    return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class CommitRequest(BaseModel):
@@ -65,13 +76,31 @@ def _fail(exc: ledger.LedgerError) -> HTTPException:
 
 @router.get("/records")
 def list_records(user: CurrentUser) -> list[dict]:
-    return ledger.query(
-        DOCUMENT_CHANNEL, "doccustody", "list_records", {}, user.role
-    )
+    """
+    Records this caller is entitled to see.
+
+    A factory sees its own. A buyer or auditor sees only records it holds a live
+    grant against — not every record on the channel, which is what an unscoped
+    listing used to return.
+    """
+    require_capability(user, "read_records")
+    records = ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_records", {}, user.role)
+
+    if user.role == "factory":
+        return [r for r in records if r["owner_msp"] == user.msp_id]
+    if user.role in ("buyer", "auditor"):
+        grants = ledger.query(
+            DOCUMENT_CHANNEL, "doccustody", "list_grants",
+            {"requester_msp": user.msp_id}, user.role,
+        )
+        granted = {g["record_id"] for g in grants if g["status"] == "active"}
+        return [r for r in records if r["record_id"] in granted]
+    return records
 
 
 @router.get("/records/{record_id}")
 def get_record(record_id: str, user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    require_capability(user, "read_records")
     record = ledger.query(
         DOCUMENT_CHANNEL, "doccustody", "get_record", {"record_id": record_id}, user.role
     )
@@ -97,7 +126,7 @@ def commit_record(
     body: CommitRequest, user: CurrentUser, db: Session = Depends(get_session)
 ) -> dict:
     """Hash the rows, commit the root, keep the body off-chain."""
-    deny_read_only(user)
+    require_capability(user, "write_records")
     tree = MerkleTree(body.rows)
     try:
         result = ledger.invoke(
@@ -106,18 +135,18 @@ def commit_record(
                 "record_id": body.record_id, "merkle_root": tree.root,
                 "record_type": body.record_type, "period": body.period,
                 "site": body.site, "row_count": len(body.rows),
-                "schema_version": body.schema_version, "timestamp": NOW,
+                "schema_version": body.schema_version, "timestamp": now(),
             },
-            role=user.role, timestamp=NOW,
+            role=user.role, timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise _fail(exc)
+        raise _fail(exc) from exc
 
     db.merge(
         StoredDocument(
             record_id=body.record_id, owner_msp=user.msp_id, record_type=body.record_type,
             period=body.period, site=body.site, schema_version=body.schema_version,
-            merkle_root=tree.root, rows=body.rows, salts=tree.salts, committed_at=NOW,
+            merkle_root=tree.root, rows=body.rows, salts=tree.salts, committed_at=now(),
         )
     )
     db.commit()
@@ -132,6 +161,7 @@ def commit_record(
 
 @router.get("/grants")
 def list_grants(user: CurrentUser) -> list[dict]:
+    require_capability(user, "read_grants")
     args = (
         {"requester_msp": user.msp_id}
         if user.role in ("buyer", "auditor")
@@ -142,27 +172,27 @@ def list_grants(user: CurrentUser) -> list[dict]:
 
 @router.post("/grants", status_code=status.HTTP_201_CREATED)
 def grant_access(body: GrantRequest, user: CurrentUser) -> dict:
-    deny_read_only(user)
+    require_capability(user, "write_grants")
     try:
         return ledger.invoke(
             DOCUMENT_CHANNEL, "doccustody", "grant_access",
-            {**body.model_dump(), "timestamp": NOW}, role=user.role, timestamp=NOW,
+            {**body.model_dump(), "timestamp": now()}, role=user.role, timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise _fail(exc)
+        raise _fail(exc) from exc
 
 
 @router.post("/grants/{grant_id}/revoke")
 def revoke_access(grant_id: str, reason: str, user: CurrentUser) -> dict:
-    deny_read_only(user)
+    require_capability(user, "write_grants")
     try:
         return ledger.invoke(
             DOCUMENT_CHANNEL, "doccustody", "revoke_access",
-            {"grant_id": grant_id, "reason": reason, "timestamp": NOW},
-            role=user.role, timestamp=NOW,
+            {"grant_id": grant_id, "reason": reason, "timestamp": now()},
+            role=user.role, timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise _fail(exc)
+        raise _fail(exc) from exc
 
 
 @router.post("/verify")
@@ -176,7 +206,7 @@ def verify_one_row(
     disclosed value, its salt, the sibling hashes, and the root already on the
     ledger. The other rows are not sent and cannot be recovered from what is.
     """
-    deny_read_only(user)
+    require_capability(user, "verify_records")
     stored = db.get(StoredDocument, body.record_id)
     if stored is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {body.record_id}")
@@ -197,12 +227,12 @@ def verify_one_row(
             {
                 "receipt_id": body.receipt_id, "grant_id": body.grant_id,
                 "field_name": body.field_name, "result": "match" if ok else "no_match",
-                "computed_root": computed, "timestamp": NOW,
+                "computed_root": computed, "timestamp": now(),
             },
-            role=user.role, timestamp=NOW,
+            role=user.role, timestamp=now(),
         )
     except ledger.LedgerError as exc:
-        raise _fail(exc)
+        raise _fail(exc) from exc
 
     return {
         "verified": ok,

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from model.consortium import ORGS
 
 from .. import ledger_service as ledger
-from ..auth import CurrentUser, deny_read_only
+from ..auth import CurrentUser, require_capability
 from ..db import Incident, Notification, Proposal, SlaPoint, as_dict, get_session
 
 router = APIRouter(tags=["governance"])
@@ -16,6 +16,7 @@ router = APIRouter(tags=["governance"])
 
 @router.get("/governance/proposals")
 def proposals(user: CurrentUser, db: Session = Depends(get_session)) -> list[dict]:
+    require_capability(user, "read_governance")
     out = []
     for p in db.query(Proposal).order_by(Proposal.opened_at.desc()).all():
         d = as_dict(p)
@@ -27,7 +28,7 @@ def proposals(user: CurrentUser, db: Session = Depends(get_session)) -> list[dic
 
 @router.post("/governance/proposals/{proposal_id}/endorse")
 def endorse(proposal_id: str, user: CurrentUser, db: Session = Depends(get_session)) -> dict:
-    deny_read_only(user)
+    require_capability(user, "write_governance")
     p = db.get(Proposal, proposal_id)
     if p is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"no proposal {proposal_id}")
@@ -51,6 +52,7 @@ def endorse(proposal_id: str, user: CurrentUser, db: Session = Depends(get_sessi
 
 @router.get("/governance/members")
 def members(user: CurrentUser) -> list[dict]:
+    require_capability(user, "read_governance")
     return [
         {"org": name, "msp_id": msp_id, "role": kind, "country": country, "status": "active"}
         for msp_id, name, kind, country in ORGS
@@ -59,6 +61,7 @@ def members(user: CurrentUser) -> list[dict]:
 
 @router.get("/ops/sla")
 def sla(user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    require_capability(user, "read_sla")
     points = db.query(SlaPoint).order_by(SlaPoint.day).all()
     if not points:
         return {"points": [], "kpis": {}}

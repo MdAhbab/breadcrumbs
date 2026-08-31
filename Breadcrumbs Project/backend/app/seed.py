@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from model.consortium import DOCUMENT_CHANNEL, MODEL_CHANNEL
+from model.consortium import DOCUMENT_CHANNEL
 from model.merkle import MerkleTree
 
 from . import ledger_service as ledger

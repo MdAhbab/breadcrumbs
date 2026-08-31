@@ -53,7 +53,11 @@ class OrderingService:
         self.nodes[self.leader_id].is_leader = True
         self.max_batch = max_batch
         self.term = 1
-        self._pending: list[Transaction] = []
+        # One queue per channel. A single shared queue would let a block cut for
+        # one channel sweep up transactions belonging to another, which destroys
+        # the confidentiality that channels exist to provide: a buyer's peer
+        # would receive, and be able to replay, another buyer's transactions.
+        self._pending: dict[str, list[Transaction]] = {}
 
     # -- membership -------------------------------------------------------
     @property
@@ -112,17 +116,24 @@ class OrderingService:
             acks += 1
         if acks < self.quorum:
             return False, f"replicated to {acks} nodes, {self.quorum} required"
-        self._pending.append(tx)
+        self._pending.setdefault(tx.channel, []).append(tx)
         return True, ""
 
-    def ready(self) -> bool:
-        return len(self._pending) >= self.max_batch
+    def pending_channels(self) -> list[str]:
+        """Channels with transactions waiting, in a stable order."""
+        return sorted(c for c, q in self._pending.items() if q)
 
-    def cut(self, number: int, previous_hash: str, timestamp: str) -> Block | None:
-        """Cut the pending batch into a block. None when there is nothing to cut."""
-        if not self._pending:
+    def ready(self, channel: str) -> bool:
+        return len(self._pending.get(channel, [])) >= self.max_batch
+
+    def cut(
+        self, channel: str, number: int, previous_hash: str, timestamp: str
+    ) -> Block | None:
+        """Cut one channel's pending batch into a block. None if nothing waits."""
+        queue = self._pending.get(channel, [])
+        if not queue:
             return None
-        batch, self._pending = self._pending[: self.max_batch], self._pending[self.max_batch :]
+        batch, self._pending[channel] = queue[: self.max_batch], queue[self.max_batch :]
         return Block(
             number=number,
             previous_hash=previous_hash,

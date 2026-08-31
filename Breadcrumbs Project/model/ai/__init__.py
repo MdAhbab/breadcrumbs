@@ -1,5 +1,5 @@
 from .federated import FederatedTrainer, RoundReport, build_stages
-from .net import Detector, TASK_IDS, accuracy_bp, get_weights, set_weights
+from .net import TASK_IDS, Detector, accuracy_bp, get_weights, set_weights
 from .privacy import add_noise, clip_update, trimmed_mean, weighted_average
 from .replay import MemoryBank, Prototype
 

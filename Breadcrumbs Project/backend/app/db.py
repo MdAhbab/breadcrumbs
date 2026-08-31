@@ -17,10 +17,10 @@ difference is worth naming rather than glossing.
 
 from __future__ import annotations
 
-import json
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Integer, String, Text, create_engine
+from sqlalchemy import JSON, Boolean, Column, Integer, String, Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import settings

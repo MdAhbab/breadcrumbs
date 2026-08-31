@@ -34,7 +34,7 @@ import torch
 import torch.nn as nn
 
 from ..datagen import DocumentGenerator, build_dataset
-from ..ledger.crypto import TAG_MODEL, hash_object, public_bytes, sign
+from ..ledger.crypto import TAG_MODEL, hash_object, sign
 from .net import (
     STAGE_CLASSES,
     TASK_IDS,
@@ -258,7 +258,7 @@ class FederatedTrainer:
                 set_weights(local, global_weights)
                 train_local(local, cx, cy, global_weights)
 
-                delta = [lw - gw for lw, gw in zip(get_weights(local), global_weights)]
+                delta = [lw - gw for lw, gw in zip(get_weights(local), global_weights, strict=False)]
                 delta, norm = clip_update(delta)
                 delta = add_noise(delta)
                 updates.append(delta)
@@ -277,11 +277,11 @@ class FederatedTrainer:
             worst = max(trimmed) or 1
             effective = [
                 max(1, int(w * (1.0 - 0.5 * t / worst)))
-                for w, t in zip(weights_bp, trimmed)
+                for w, t in zip(weights_bp, trimmed, strict=False)
             ]
             averaged = weighted_average(updates, effective)
             set_weights(
-                self.model, [g + a for g, a in zip(get_weights(self.model), averaged)]
+                self.model, [g + a for g, a in zip(get_weights(self.model), averaged, strict=False)]
             )
 
         # End of stage: contribute noised summaries to the shared memory.
@@ -354,7 +354,7 @@ class FederatedTrainer:
             submissions.append(
                 {
                     "endorser_msp": msp_id,
-                    "public_key": public_bytes(identity.public_key),
+                    "certificate_pem": identity.certificate_pem(),
                     "signature": sign(identity.private_key, payload),
                     "accuracies": accuracies,
                 }

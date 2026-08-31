@@ -1,6 +1,6 @@
 from .block import Block, Endorsement, ReadKey, Transaction, WriteKey
-from .endorsement import AND, NOutOf, OR, OutOf, Policy, SignedBy
-from .identity import CertificateAuthority, Identity, MSP
+from .endorsement import AND, OR, NOutOf, OutOf, Policy, SignedBy
+from .identity import MSP, CertificateAuthority, Identity
 from .network import ChaincodeError, Channel, Context, Network
 from .orderer import OrderingService
 from .state import WorldState

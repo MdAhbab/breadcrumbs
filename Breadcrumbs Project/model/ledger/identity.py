@@ -38,7 +38,7 @@ OrgKind = Literal["factory", "buyer", "auditor", "consortium", "regulator"]
 # thing with its own OID for "hf.Type".
 ROLE_OID = x509.ObjectIdentifier("1.3.6.1.4.1.57264.1.1")
 
-_EPOCH = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
+_EPOCH = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
 
 
 @dataclass(frozen=True)
@@ -161,29 +161,75 @@ class MSP:
 
     def validate(self, identity: Identity) -> tuple[bool, str]:
         """Returns (ok, reason). Reason is empty when ok."""
-        ca = self.authorities.get(identity.msp_id)
-        if ca is None:
-            return False, f"unknown MSP {identity.msp_id}"
+        return self.validate_certificate(identity.msp_id, identity.certificate)
 
-        if identity.certificate.issuer != ca.root.subject:
+    def validate_certificate(
+        self, msp_id: str, certificate: x509.Certificate, now: dt.datetime | None = None
+    ) -> tuple[bool, str]:
+        """
+        The single place a certificate is judged.
+
+        Everything that accepts a signature must come through here, because the
+        signature alone proves only that whoever holds *some* private key signed
+        the bytes. It says nothing about who they are. Binding the key to a
+        certificate this MSP issued is what turns a signature into an identity.
+        """
+        ca = self.authorities.get(msp_id)
+        if ca is None:
+            return False, f"unknown MSP {msp_id}"
+
+        if certificate.issuer != ca.root.subject:
             return False, "certificate was not issued by this organisation's CA"
 
         try:
             ca.root.public_key().verify(
-                identity.certificate.signature,
-                identity.certificate.tbs_certificate_bytes,
+                certificate.signature, certificate.tbs_certificate_bytes
             )
         except Exception:
             return False, "certificate signature does not verify against the CA"
 
-        if identity.fingerprint() in ca.revoked:
+        fingerprint = certificate.fingerprint(hashes.SHA256()).hex()
+        if fingerprint in ca.revoked:
             return False, "certificate has been revoked"
 
-        not_after = identity.certificate.not_valid_after_utc
-        if not_after < _EPOCH:
-            return False, "certificate has expired"
+        # Compare against the actual clock. Comparing against the issuance epoch
+        # made this branch unreachable, so an expired certificate would have been
+        # accepted for as long as the process ran.
+        now = now or dt.datetime.now(dt.UTC)
+        if certificate.not_valid_after_utc < now:
+            return False, f"certificate expired on {certificate.not_valid_after_utc:%Y-%m-%d}"
+        if certificate.not_valid_before_utc > now:
+            return False, "certificate is not yet valid"
 
         return True, ""
+
+    def public_key_for(
+        self, msp_id: str, certificate_pem: str
+    ) -> tuple[Ed25519PublicKey | None, str]:
+        """
+        Resolve a PEM certificate to a usable public key, or say why not.
+
+        This is what an endorsement carries. Accepting a bare public key instead
+        would mean anyone could generate a keypair, name any organisation, and
+        have the signature counted — which makes an endorsement policy
+        decorative.
+        """
+        try:
+            certificate = x509.load_pem_x509_certificate(certificate_pem.encode())
+        except Exception:
+            return None, "malformed certificate"
+
+        ok, reason = self.validate_certificate(msp_id, certificate)
+        if not ok:
+            return None, reason
+
+        subject_ou = certificate.subject.get_attributes_for_oid(
+            NameOID.ORGANIZATIONAL_UNIT_NAME
+        )
+        if not subject_ou or subject_ou[0].value != msp_id:
+            return None, f"certificate subject does not belong to {msp_id}"
+
+        return certificate.public_key(), ""
 
     def role_of(self, identity: Identity) -> Role | None:
         """Read the role from the certificate, not from the caller's claim."""

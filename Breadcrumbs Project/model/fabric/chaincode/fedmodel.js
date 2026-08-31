@@ -65,20 +65,35 @@ function medianBp(values) {
     return Math.floor((s[mid - 1] + s[mid]) / 2);
 }
 
+/*
+ * Verify a submission against the public key inside its certificate.
+ *
+ * The certificate must come first and the key must be taken out of it. Checking
+ * the signature against a key the submission itself supplied would prove only
+ * that somebody holds some private key — one actor could generate three
+ * keypairs, label them with three organisations, and promote any model it liked.
+ *
+ * On Fabric the certificate is additionally checked against the channel MSP by
+ * the peer before chaincode runs, and `ctx.clientIdentity` exposes the validated
+ * caller. This function covers the submissions carried *inside* the transaction,
+ * which the peer does not validate for us.
+ */
 function verifySubmission(sub, payload) {
     try {
-        const key = crypto.createPublicKey({
-            key: Buffer.concat([
-                Buffer.from('302a300506032b6570032100', 'hex'), // Ed25519 SPKI prefix
-                Buffer.from(sub.public_key, 'hex'),
-            ]),
-            format: 'der',
-            type: 'spki',
-        });
+        if (!sub.certificate_pem) return false;
+        const cert = new crypto.X509Certificate(sub.certificate_pem);
+
+        // The certificate must name the organisation it claims to speak for.
+        const ou = /OU=([^,\n/]+)/.exec(cert.subject);
+        if (!ou || ou[1].trim() !== sub.endorser_msp) return false;
+
+        const now = new Date();
+        if (new Date(cert.validTo) < now || new Date(cert.validFrom) > now) return false;
+
         return crypto.verify(
             null,
             Buffer.from(stableStringify(payload), 'utf8'),
-            key,
+            cert.publicKey,
             Buffer.from(sub.signature, 'hex'),
         );
     } catch (err) {
@@ -194,7 +209,7 @@ class FedModel extends Contract {
                 accuracies: sub.accuracies,
             };
             if (!verifySubmission(sub, payload)) {
-                rejected.push({ endorser_msp: mspId, reason: 'signature does not verify' });
+                rejected.push({ endorser_msp: mspId, reason: 'certificate or signature did not validate' });
                 continue;
             }
             const missing = tasks.filter((t) => !(t in sub.accuracies));

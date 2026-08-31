@@ -19,8 +19,21 @@ Breadcrumbs Project/
 │   └── experiments/  The original NumPy simulation. Provenance for every number in the report.
 ├── backend/          FastAPI + SQLite. Serves the frontend; wraps model/, never reimplements it.
 ├── frontend/         React + TypeScript client, and the design specifications.
-└── deck/             Presentation prompt and assets.
+├── deck/             Presentation prompt and assets.
+├── AUDIT.md          Security review: findings, fixes, and what is still open.
+└── SETUP.md          Getting this running on a fresh machine.
 ```
+
+## Start here
+
+```bash
+make setup    # venv + all dependencies + frontend node modules
+make demo     # the eight-act end-to-end cycle
+make test     # 91 tests
+```
+
+`SETUP.md` covers a fresh machine. `AUDIT.md` is the security review: five
+serious findings, all fixed, plus what is still open and why.
 
 ## Two ledgers, on purpose
 

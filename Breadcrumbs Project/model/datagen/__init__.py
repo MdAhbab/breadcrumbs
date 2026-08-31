@@ -1,11 +1,11 @@
 from .generate import (
     ANOMALY_KINDS,
-    Document,
-    DocumentGenerator,
     FEATURE_NAMES,
     N_FEATURES,
     RECORD_TYPES,
     SITES,
+    Document,
+    DocumentGenerator,
     build_dataset,
     extract_features,
 )

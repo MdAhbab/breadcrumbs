@@ -134,7 +134,7 @@ def main() -> None:
     gate_endorsers = consortium.endorsers(GATE_ORGS[:3])
 
     print(f"  {DIM}Each task's benchmark is committed by hash and revealed only after the")
-    print(f"  decision. The organisations training this round do not hold the set they")
+    print("  decision. The organisations training this round do not hold the set they")
     print(f"  will be judged against.{OFF}\n")
 
     trainer = FederatedTrainer(use_replay=True)
@@ -156,7 +156,7 @@ def main() -> None:
     # ---------------------------------------------------------------- Act 5
     act(5, "Six factories train, no data moves")
     print(f"  {DIM}Each factory trains locally, clips and noises its update, and the")
-    print(f"  aggregator combines them with a trimmed mean weighted by on-chain")
+    print("  aggregator combines them with a trimmed mean weighted by on-chain")
     print(f"  reputation. Raw records never leave a building.{OFF}\n")
 
     for stage in (0, 1):
@@ -219,8 +219,8 @@ def main() -> None:
     # ---------------------------------------------------------------- Act 7
     act(7, "Candidate B has forgotten. Watch the contract refuse it.")
     print(f"  {DIM}This model was trained the ordinary way, without rehearsal. It is the")
-    print(f"  best model yet at the newest problem. It has also lost most of what it")
-    print(f"  knew about wages — and a committee scoring this round's data would not")
+    print("  best model yet at the newest problem. It has also lost most of what it")
+    print("  knew about wages — and a committee scoring this round's data would not")
     print(f"  notice, because forgetting does not make an update look bad.{OFF}\n")
 
     print(f"  {DIM}{'task':<34}{'m-v7':>8}{'cand. B':>10}{'change':>9}{OFF}")
@@ -274,7 +274,7 @@ def main() -> None:
         line(name, f"{channel.height} blocks · integrity {'OK' if ok else 'FAILED: ' + why}",
              GREEN if ok else RED)
     print(f"\n  {DIM}Every decision above can be recomputed by any member from the ledger:")
-    print(f"  the benchmark hashes, the signed metrics, the endorser set and the")
+    print("  the benchmark hashes, the signed metrics, the endorser set and the")
     print(f"  outcome are all committed.{OFF}\n")
 
 

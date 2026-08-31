@@ -11,11 +11,11 @@ from __future__ import annotations
 import pytest
 
 from model.consortium import DOCUMENT_CHANNEL, MODEL_CHANNEL, build
-from model.ledger import AND, NOutOf, OR, SignedBy
+from model.ledger import AND, OR, NOutOf, SignedBy
 from model.ledger.block import Endorsement
-from model.ledger.crypto import public_bytes, sign
-from model.ledger.identity import CertificateAuthority, MSP
-from model.merkle import MerkleTree, verify_disclosure
+from model.ledger.crypto import generate_signing_key, sign
+from model.ledger.identity import CertificateAuthority
+from model.merkle import MerkleTree
 
 TS = "2026-08-05T09:14:00Z"
 
@@ -124,7 +124,7 @@ def test_forged_endorsement_signature_is_rejected(committed):
     # Corrupt the auditor's signature.
     good = tx.endorsements[1]
     tx.endorsements[1] = Endorsement(
-        good.msp_id, good.identity_id, good.public_key, "00" * 64
+        good.msp_id, good.identity_id, good.certificate_pem, "00" * 64
     )
     net.submit(tx)
     net.commit(TS)
@@ -160,7 +160,7 @@ def test_endorsement_by_an_outsider_does_not_satisfy_the_policy(committed):
         Endorsement(
             outsider.msp_id,
             outsider.id,
-            public_bytes(outsider.public_key),
+            outsider.certificate_pem(),
             sign(outsider.private_key, tx.payload()),
         )
     )
@@ -427,3 +427,136 @@ def test_nondeterministic_chaincode_is_caught_at_endorsement(consortium):
             consortium.endorsers(["ApexTextileMSP", "BVCertificationMSP"]),
             TS,
         )
+
+
+# -- replay, channel isolation and certificate lifetime -------------------
+def test_a_transaction_cannot_be_committed_twice(consortium):
+    """
+    Regression test. MVCC only catches a replay when the transaction happens to
+    read a key it also writes, so a blind write used to replay cleanly and apply
+    twice. Every committed transaction id is now remembered per channel.
+    """
+    import copy
+
+    def blind(ctx, function, args):
+        ctx.put(f"paid:{args['invoice']}", {"amount": args["amount"]})
+        return "ok"
+
+    net = consortium.network
+    net.install(
+        "blind", blind, AND("ApexTextileMSP", "BVCertificationMSP"),
+        ["ApexTextileMSP", "BVCertificationMSP"],
+    )
+    tx = net.propose(
+        MODEL_CHANNEL, "blind", "pay", {"invoice": "INV-1", "amount": 50_000},
+        consortium.who("fatema.begum"),
+        consortium.endorsers(["ApexTextileMSP", "BVCertificationMSP"]), TS,
+    )
+    assert tx.read_set == []  # nothing for MVCC to catch
+
+    net.submit(tx)
+    net.commit(TS, MODEL_CHANNEL)
+    assert net.channels[MODEL_CHANNEL].validation[tx.tx_id].valid
+
+    replay = copy.deepcopy(tx)
+    net.submit(replay)
+    net.commit(TS, MODEL_CHANNEL)
+    result = net.channels[MODEL_CHANNEL].validation[replay.tx_id]
+    assert not result.valid
+    assert result.code == "DUPLICATE_TXID"
+
+
+def test_a_block_never_mixes_channels(consortium):
+    """
+    Regression test. The ordering service used to hold one shared queue, so a
+    block cut for one channel could sweep up another channel's transactions —
+    which would put a buyer's data in front of a peer that must never see it.
+    Channels are the confidentiality boundary; a block belongs to exactly one.
+    """
+    net = consortium.network
+    net.orderer.max_batch = 10
+
+    doc_tx = net.propose(
+        DOCUMENT_CHANNEL, "doccustody", "commit_record",
+        {
+            "record_id": "rc-iso", "merkle_root": "a" * 64,
+            "record_type": "payroll_register", "period": "2026-07", "site": "Gazipur",
+            "row_count": 5, "schema_version": "v2.1.0", "timestamp": TS,
+        },
+        consortium.who("fatema.begum"),
+        consortium.endorsers(["ApexTextileMSP", "BVCertificationMSP"]), TS,
+    )
+    model_tx = net.propose(
+        MODEL_CHANNEL, "fedmodel", "commit_benchmark",
+        {
+            "task_id": "iso", "benchmark_hash": "c" * 64,
+            "contributors": ["NoorGarmentsMSP"], "size": 1, "timestamp": TS,
+        },
+        consortium.who("rafiqul.islam"),
+        consortium.endorsers(["ApexTextileMSP", "BGMEAConsortiumMSP", "NoorGarmentsMSP"]), TS,
+    )
+    net.submit(doc_tx)
+    net.submit(model_tx)
+
+    block = net.commit(TS, DOCUMENT_CHANNEL)
+    assert {t.channel for t in block.transactions} == {DOCUMENT_CHANNEL}
+    assert model_tx.tx_id not in [t.tx_id for t in block.transactions]
+
+    block = net.commit(TS, MODEL_CHANNEL)
+    assert {t.channel for t in block.transactions} == {MODEL_CHANNEL}
+
+
+def test_an_expired_certificate_is_rejected(consortium):
+    """
+    Regression test. The expiry branch compared the certificate's end date
+    against the fixed issuance epoch rather than the clock, so it could never
+    fire and an expired certificate would have been accepted indefinitely.
+    """
+    import datetime as dt
+
+    ident = consortium.who("fatema.begum")
+    msp = consortium.msp
+
+    assert msp.validate_certificate(ident.msp_id, ident.certificate)[0]
+
+    long_after = ident.certificate.not_valid_after_utc + dt.timedelta(days=1)
+    ok, reason = msp.validate_certificate(ident.msp_id, ident.certificate, now=long_after)
+    assert not ok and "expired" in reason
+
+    long_before = ident.certificate.not_valid_before_utc - dt.timedelta(days=1)
+    ok, reason = msp.validate_certificate(ident.msp_id, ident.certificate, now=long_before)
+    assert not ok and "not yet valid" in reason
+
+
+def test_an_endorsement_key_must_be_bound_to_a_certificate(consortium):
+    """
+    Regression test for the ledger half of the worst bug this project had.
+
+    The validator used to verify a signature against a public key the
+    endorsement itself carried, checking only that the MSP name was known. Any
+    attacker could therefore satisfy any policy alone.
+    """
+    net = consortium.network
+    tx = net.propose(
+        DOCUMENT_CHANNEL, "doccustody", "commit_record",
+        {
+            "record_id": "rc-forged", "merkle_root": "a" * 64,
+            "record_type": "payroll_register", "period": "2026-07", "site": "Gazipur",
+            "row_count": 1, "schema_version": "v2.1.0", "timestamp": TS,
+        },
+        consortium.who("fatema.begum"),
+        consortium.endorsers(["ApexTextileMSP"]), TS,
+    )
+    attacker = generate_signing_key()
+    tx.endorsements.append(
+        Endorsement(
+            "BVCertificationMSP", "BVCertificationMSP::not.meera",
+            "-----BEGIN CERTIFICATE-----\nforged\n-----END CERTIFICATE-----",
+            sign(attacker, tx.payload()),
+        )
+    )
+    net.submit(tx)
+    net.commit(TS, DOCUMENT_CHANNEL)
+    result = net.channels[DOCUMENT_CHANNEL].validation[tx.tx_id]
+    assert not result.valid
+    assert result.code == "ENDORSEMENT_POLICY_FAILURE"

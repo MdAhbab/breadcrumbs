@@ -30,7 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .crypto import TAG_BLOCK, TAG_NODE, TAG_TX, canonical, h, hash_object
+from .crypto import TAG_BLOCK, TAG_NODE, TAG_TX, h, hash_object
 
 
 @dataclass
@@ -57,18 +57,26 @@ class WriteKey:
 
 @dataclass
 class Endorsement:
-    """One organisation's signature over a proposal's outcome."""
+    """
+    One organisation's signature over a proposal's outcome.
+
+    It carries the endorser's *certificate*, not a bare public key. That
+    distinction is the whole security property: a signature proves someone holds
+    a private key, and only a certificate issued by the organisation's CA proves
+    which someone. Carrying a raw key would let anyone generate a keypair, claim
+    any MSP, and have the signature counted toward the policy.
+    """
 
     msp_id: str
     identity_id: str
-    public_key: str
+    certificate_pem: str
     signature: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "msp_id": self.msp_id,
             "identity_id": self.identity_id,
-            "public_key": self.public_key,
+            "certificate_pem": self.certificate_pem,
             "signature": self.signature,
         }
 

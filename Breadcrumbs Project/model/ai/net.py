@@ -71,7 +71,7 @@ def get_weights(model: nn.Module) -> list[torch.Tensor]:
 
 def set_weights(model: nn.Module, weights: list[torch.Tensor]) -> None:
     with torch.no_grad():
-        for p, w in zip(model.parameters(), weights):
+        for p, w in zip(model.parameters(), weights, strict=True):
             p.copy_(w)
 
 

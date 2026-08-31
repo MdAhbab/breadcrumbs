@@ -18,8 +18,9 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS world_state (

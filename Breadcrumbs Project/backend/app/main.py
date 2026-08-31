@@ -20,7 +20,9 @@ from fastapi.responses import JSONResponse
 
 # The model package lives one directory up; it is the system, not a dependency
 # of the API, so it is imported rather than vendored.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_ROOT = Path(__file__).resolve().parents[2]
+if str(_ROOT) not in sys.path:  # allows running without an editable install
+    sys.path.insert(0, str(_ROOT))
 
 from .config import settings  # noqa: E402
 from .db import SessionLocal, init_db  # noqa: E402

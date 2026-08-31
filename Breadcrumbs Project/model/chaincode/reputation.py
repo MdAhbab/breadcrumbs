@@ -124,7 +124,7 @@ def aggregation_weights(ctx: Context, args: dict[str, Any]) -> dict[str, int]:
     remainder = 10000 - sum(weights)
     if remainder:
         weights[scores.index(max(scores))] += remainder
-    return dict(zip(members, weights))
+    return dict(zip(members, weights, strict=True))
 
 
 def get_score(ctx: Context, args: dict[str, Any]) -> Any:

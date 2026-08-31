@@ -17,7 +17,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from model.consortium import DOCUMENT_CHANNEL, GATE_ORGS, MODEL_CHANNEL, Consortium, build
+from model.consortium import GATE_ORGS, Consortium, build
 from model.ledger import ChaincodeError
 
 from .config import ROLES, settings

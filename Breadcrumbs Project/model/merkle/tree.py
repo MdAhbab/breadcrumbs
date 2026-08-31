@@ -81,7 +81,7 @@ class MerkleTree:
         self.salts = salts or [new_salt() for _ in rows]
         if len(self.salts) != len(rows):
             raise ValueError("need exactly one salt per row")
-        self.leaves = [leaf_hash(r, s) for r, s in zip(rows, self.salts)]
+        self.leaves = [leaf_hash(r, s) for r, s in zip(rows, self.salts, strict=True)]
         self.levels: list[list[str]] = [list(self.leaves)]
         self._build()
 
