@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..ledger.crypto import leaf_hash, new_salt, node_hash
+from ..ledger.crypto import TAG_PUBLIC_LEAF, canonical, h, leaf_hash, new_salt, node_hash
 
 
 @dataclass
@@ -151,3 +151,33 @@ def verify_disclosure(disclosure: Disclosure, committed_root: str) -> tuple[bool
             current = node_hash(step.sibling, current)
         trace.append(current)
     return current == committed_root, current, trace
+
+
+def public_root(items: list[str]) -> str:
+    """
+    A Merkle root over a list of public values, with no salts.
+
+    Salts exist in the tree above because wage rows have low entropy and a
+    verifier holding one proof could otherwise brute-force its neighbours. That
+    reasoning does not apply to a list of record identifiers: both sides already
+    hold them, they are not secret, and a salt would make the root impossible for
+    a verifier to recompute independently — which is the entire job here.
+
+    This is what a period seal commits to. A factory that later hands over a
+    shortened list produces a different root, and the seal on the ledger refuses
+    it. That is how "nothing is missing" becomes checkable rather than asserted.
+
+    The list is sorted before hashing so that two parties holding the same set in
+    different orders derive the same root.
+    """
+    if not items:
+        return h(TAG_PUBLIC_LEAF, b"")
+    level = [h(TAG_PUBLIC_LEAF, canonical(item)) for item in sorted(items)]
+    while len(level) > 1:
+        nxt: list[str] = []
+        for i in range(0, len(level) - 1, 2):
+            nxt.append(node_hash(level[i], level[i + 1]))
+        if len(level) % 2 == 1:
+            nxt.append(level[-1])  # promoted, never duplicated: CVE-2012-2459
+        level = nxt
+    return level[0]

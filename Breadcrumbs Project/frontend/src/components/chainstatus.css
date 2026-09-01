@@ -1,0 +1,146 @@
+/* The state of the chain, as a control. */
+
+.chainstat {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--r-md);
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--m-instant);
+}
+
+.chainstat:hover { background: rgba(244, 241, 232, 0.05); }
+
+.chainstat__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chainstat__label { color: var(--thread-lit); }
+
+.chainstat__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--verdigris-lit);
+  flex: 0 0 auto;
+}
+
+.chainstat__height {
+  display: block;
+  color: var(--brass-type);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* -- the selvedge itself: one tick per block, accumulating toward the head -- */
+.chainstat__edge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.chainstat__tick {
+  flex: 0 0 auto;
+  width: 2px;
+  height: 3px;
+  background: var(--brass);
+  border-radius: 1px;
+  transform-origin: center;
+  transition: opacity var(--m-base);
+}
+
+/* One new tick weaves in at the head, and the height lifts once. */
+.chainstat.is-pulse .chainstat__tick:last-child {
+  animation: weave-in var(--m-weave);
+}
+
+@keyframes weave-in {
+  0% { opacity: 0; transform: scaleY(0); }
+  60% { background: var(--brass-bright); }
+  100% { opacity: 0.94; }
+}
+
+.chainstat.is-pulse .chainstat__height { animation: lift var(--m-weave); }
+
+@keyframes lift {
+  0%, 100% { color: var(--brass-type); }
+  40% { color: var(--brass-bright); }
+}
+
+/* -- in the sidebar -------------------------------------------------------- */
+.chainstat--nav {
+  padding: var(--s3) var(--s5);
+}
+
+.chainstat--nav .chainstat__height {
+  font-size: 19px;
+  margin: 2px 0 7px;
+}
+
+/* -- in the top bar: a chip ------------------------------------------------ */
+.chainstat--bar {
+  width: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 40px;
+  padding: 0 var(--s3);
+}
+
+ /* The dot leads, so the chip says what it is before it says a number. */
+.chainstat--bar .chainstat__meta { flex-direction: row-reverse; gap: 6px; }
+
+.chainstat--bar .chainstat__height { font-size: 14px; }
+
+.chainstat--bar .chainstat__edge { height: 12px; }
+
+@media (max-width: 560px) {
+  .chainstat--bar .chainstat__edge { display: none; }
+}
+
+@media (max-width: 359px) {
+  .chainstat--bar .chainstat__label { display: none; }
+}
+
+/* -- the list, inside the dialog ------------------------------------------- */
+.chainstat__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--slub-40);
+}
+
+.chainstat__row {
+  display: grid;
+  grid-template-columns: 74px 1fr auto;
+  grid-template-areas: 'num cc flag' 'hash hash hash';
+  gap: 3px var(--s3);
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(61, 78, 107, 0.3);
+  align-items: center;
+  font-size: 12px;
+}
+
+.chainstat__num { grid-area: num; color: var(--brass-type); font-size: 12px; }
+.chainstat__cc { grid-area: cc; color: rgba(244, 241, 232, 0.8); }
+
+.chainstat__flag {
+  grid-area: flag;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.chainstat__flag.ok { color: var(--verdigris-lit); }
+.chainstat__flag.bad { color: var(--madder-lit); }
+
+.chainstat__hash { grid-area: hash; color: var(--slub-type); font-size: 10px; }
+
+.chainstat__note { color: var(--slub-type); }

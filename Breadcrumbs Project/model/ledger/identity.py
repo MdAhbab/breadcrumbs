@@ -21,15 +21,13 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-    Ed25519PrivateKey,
-    Ed25519PublicKey,
-)
 from cryptography.x509.oid import NameOID
+
+from .suites import DEFAULT_SUITE_ID, Suite, suite
 
 Role = Literal["admin", "operator", "reader", "orderer", "peer"]
 OrgKind = Literal["factory", "buyer", "auditor", "consortium", "regulator"]
@@ -49,7 +47,8 @@ class Identity:
     common_name: str
     role: Role
     certificate: x509.Certificate
-    private_key: Ed25519PrivateKey
+    private_key: Any
+    suite_id: str = DEFAULT_SUITE_ID
 
     @property
     def id(self) -> str:
@@ -57,8 +56,12 @@ class Identity:
         return f"{self.msp_id}::{self.common_name}"
 
     @property
-    def public_key(self) -> Ed25519PublicKey:
+    def public_key(self) -> Any:
         return self.certificate.public_key()
+
+    @property
+    def suite(self) -> Suite:
+        return suite(self.suite_id)
 
     def certificate_pem(self) -> str:
         return self.certificate.public_bytes(serialization.Encoding.PEM).decode()
@@ -76,15 +79,28 @@ class CertificateAuthority:
     would use the actual date; determinism matters more here than realism.
     """
 
-    def __init__(self, msp_id: str, org_name: str, kind: OrgKind, country: str = "BD"):
+    def __init__(
+        self,
+        msp_id: str,
+        org_name: str,
+        kind: OrgKind,
+        country: str = "BD",
+        suite_id: str = DEFAULT_SUITE_ID,
+    ):
         self.msp_id = msp_id
         self.org_name = org_name
         self.kind = kind
         self.country = country
-        self._key = Ed25519PrivateKey.generate()
+        self.suite = suite(suite_id)
+        self.suite_id = suite_id
+        self._key = self.suite.generate()
         self._serial = 1000
         self.root = self._self_sign()
         self.revoked: set[str] = set()
+        # Bumped on every revocation. Anything caching a validation decision has
+        # to notice when a certificate is withdrawn, and a counter is the cheapest
+        # way to make a stale cache entry impossible rather than merely unlikely.
+        self.generation = 0
 
     def _name(self, common_name: str) -> x509.Name:
         return x509.Name(
@@ -111,12 +127,12 @@ class CertificateAuthority:
             .not_valid_before(_EPOCH)
             .not_valid_after(_EPOCH + dt.timedelta(days=3650))
             .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
-            .sign(self._key, None)
+            .sign(self._key, self.suite.certificate_hash)
         )
 
     def issue(self, common_name: str, role: Role) -> Identity:
         """Issue a member certificate carrying its role."""
-        member_key = Ed25519PrivateKey.generate()
+        member_key = self.suite.generate()
         cert = (
             x509.CertificateBuilder()
             .subject_name(self._name(common_name))
@@ -129,13 +145,14 @@ class CertificateAuthority:
             .add_extension(
                 x509.UnrecognizedExtension(ROLE_OID, role.encode("utf-8")), critical=False
             )
-            .sign(self._key, None)
+            .sign(self._key, self.suite.certificate_hash)
         )
-        return Identity(self.msp_id, common_name, role, cert, member_key)
+        return Identity(self.msp_id, common_name, role, cert, member_key, self.suite_id)
 
     def revoke(self, identity: Identity) -> None:
         """Add a certificate to this CA's revocation set."""
         self.revoked.add(identity.fingerprint())
+        self.generation += 1
 
 
 class MSP:
@@ -151,6 +168,10 @@ class MSP:
 
     def __init__(self) -> None:
         self.authorities: dict[str, CertificateAuthority] = {}
+        # (msp_id, generation, pem) -> (certificate, public key). See public_key_for.
+        self._resolved: dict[tuple[str, int, str], tuple[x509.Certificate, Any]] = {}
+        self.cache_hits = 0
+        self.cache_misses = 0
 
     def register(self, ca: CertificateAuthority) -> None:
         self.authorities[ca.msp_id] = ca
@@ -174,6 +195,20 @@ class MSP:
         the bytes. It says nothing about who they are. Binding the key to a
         certificate this MSP issued is what turns a signature into an identity.
         """
+        ok, reason = self._check_chain(msp_id, certificate)
+        if not ok:
+            return False, reason
+        return self._check_standing(msp_id, certificate, now)
+
+    def _check_chain(self, msp_id: str, certificate: x509.Certificate) -> tuple[bool, str]:
+        """
+        The part of validation that can never change: who issued this certificate.
+
+        Split out from `_check_standing` because it is the expensive half — an RSA
+        signature verification over the certificate body — and because its answer
+        is fixed for the life of the certificate. That combination is exactly what
+        makes it safe to cache, and the other half is exactly what is not.
+        """
         ca = self.authorities.get(msp_id)
         if ca is None:
             return False, f"unknown MSP {msp_id}"
@@ -182,11 +217,29 @@ class MSP:
             return False, "certificate was not issued by this organisation's CA"
 
         try:
-            ca.root.public_key().verify(
-                certificate.signature, certificate.tbs_certificate_bytes
-            )
+            # Delegated rather than hand-rolled, because the verification differs
+            # per algorithm — RSA needs a padding scheme and a hash that Ed25519
+            # does not take at all — and a hand-rolled check that silently used
+            # the wrong padding would accept certificates it should refuse.
+            certificate.verify_directly_issued_by(ca.root)
         except Exception:
             return False, "certificate signature does not verify against the CA"
+        return True, ""
+
+    def _check_standing(
+        self, msp_id: str, certificate: x509.Certificate, now: dt.datetime | None = None
+    ) -> tuple[bool, str]:
+        """
+        The part of validation that changes with time and with governance.
+
+        Never cached, and re-run on every single resolution including cache hits.
+        A revoked certificate must stop working the moment it is revoked, and an
+        expired one the moment it expires; an optimisation that skipped either
+        would be the kind that turns a fast system into a broken one.
+        """
+        ca = self.authorities.get(msp_id)
+        if ca is None:
+            return False, f"unknown MSP {msp_id}"
 
         fingerprint = certificate.fingerprint(hashes.SHA256()).hex()
         if fingerprint in ca.revoked:
@@ -203,9 +256,7 @@ class MSP:
 
         return True, ""
 
-    def public_key_for(
-        self, msp_id: str, certificate_pem: str
-    ) -> tuple[Ed25519PublicKey | None, str]:
+    def public_key_for(self, msp_id: str, certificate_pem: str) -> tuple[Any | None, str]:
         """
         Resolve a PEM certificate to a usable public key, or say why not.
 
@@ -214,6 +265,33 @@ class MSP:
         have the signature counted — which makes an endorsement policy
         decorative.
         """
+        ca = self.authorities.get(msp_id)
+        if ca is None:
+            return None, f"unknown MSP {msp_id}"
+
+        # The expensive half is cached; the time-varying half never is.
+        #
+        # Parsing a PEM certificate and verifying the CA's RSA signature over it
+        # costs far more than everything else in transaction validation, and the
+        # same handful of certificates arrive on every transaction a consortium
+        # ever processes. Caching that is the single change that pays for RSA
+        # identities.
+        #
+        # What is deliberately NOT cached is revocation and the validity window,
+        # because both change with time and with governance. The cache key carries
+        # the CA's revocation generation so a revoked certificate cannot be served
+        # from a stale entry, and the dates are re-checked on every hit. A cache
+        # that skipped those would turn a performance optimisation into a
+        # security hole, which is the usual way this optimisation goes wrong.
+        key = (msp_id, ca.generation, certificate_pem)
+        cached = self._resolved.get(key)
+        if cached is not None:
+            self.cache_hits += 1
+            certificate, public_key = cached
+            ok, reason = self._check_standing(msp_id, certificate)
+            return (public_key, "") if ok else (None, reason)
+
+        self.cache_misses += 1
         try:
             certificate = x509.load_pem_x509_certificate(certificate_pem.encode())
         except Exception:
@@ -229,7 +307,9 @@ class MSP:
         if not subject_ou or subject_ou[0].value != msp_id:
             return None, f"certificate subject does not belong to {msp_id}"
 
-        return certificate.public_key(), ""
+        public_key = certificate.public_key()
+        self._resolved[key] = (certificate, public_key)
+        return public_key, ""
 
     def role_of(self, identity: Identity) -> Role | None:
         """Read the role from the certificate, not from the caller's claim."""

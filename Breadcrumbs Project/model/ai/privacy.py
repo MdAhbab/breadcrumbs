@@ -132,4 +132,6 @@ def fedprox_penalty(
     drag the global model a long way in one round. This penalises drift from the
     global weights and is what makes non-IID participation stable.
     """
-    return (mu / 2) * sum(((l - g) ** 2).sum() for l, g in zip(local, global_weights, strict=False))
+    return (mu / 2) * sum(
+        ((w - g) ** 2).sum() for w, g in zip(local, global_weights, strict=False)
+    )

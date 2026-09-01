@@ -1,146 +1,127 @@
 /*
- * Design tokens — the single source of colour, type and spacing.
+ * SELVEDGE — design tokens.
  *
- * These match designs_instructions.md §4 exactly. Nothing in the application
- * should contain a hex value; every colour resolves to a variable here, so a
- * palette change is one edit rather than a search.
+ * Every colour in this application resolves to a variable declared here. No hex
+ * value appears anywhere else in the codebase; a palette change is one edit.
  *
- * Deliberately no dark mode. This is evidence software for a regulated industry
- * and it commits to one appearance.
+ * The palette is drawn from the materials of the industry it serves: indigo dye
+ * vats, raw cotton, brass loom hardware, madder root, verdigris on aged metal.
  */
 
 :root {
-  /* -- colour ------------------------------------------------------------ */
-  --ink: #141a22;
-  --ink-70: rgba(20, 26, 34, 0.7);
-  --ink-45: rgba(20, 26, 34, 0.45);
-  --ink-12: rgba(20, 26, 34, 0.12);
+  /* -- ground and structure --------------------------------------------- */
+  --ink: #12161c;
+  --ink-80: rgba(18, 22, 28, 0.8);
+  --ink-60: rgba(18, 22, 28, 0.66); /* body-weight secondary: 5.1:1 on cotton */
+  --ink-40: rgba(18, 22, 28, 0.4);
+  --ink-12: rgba(18, 22, 28, 0.12);
 
-  --indigo-900: #1e2a44;
-  --indigo-700: rgba(38, 53, 83, 0.5);
-  --indigo-600: #33456b;
+  --indigo-vat: #16233d;
+  --indigo-deep: #0c1425;
+  --indigo-mid: #2a3b5c;
+  --slub: #3d4e6b;
+  --slub-40: rgba(61, 78, 107, 0.4);
 
-  --loom-100: #edeae0;
-  --loom-50: #f7f5ef;
-  --white: #ffffff;
+  /* -- light field ------------------------------------------------------- */
+  --raw-cotton: #f4f1e8;
+  --calico: #fbf9f4;
+  --unbleached: #e8e3d6;
+  --thread-grey: #8e8879;
+  --thread-35: rgba(142, 136, 121, 0.35);
+  --thread-20: rgba(142, 136, 121, 0.2);
 
-  --brass: #b08a3e;
-  --brass-12: rgba(176, 138, 62, 0.12);
+  /* -- accent: exactly one per screen carries weight --------------------- */
+  --brass: #b8934a;
+  --brass-bright: #d4ae63;
+  --brass-wash: rgba(184, 147, 74, 0.1);
+  --brass-30: rgba(184, 147, 74, 0.3);
 
-  --verified: #2e6b5e;
-  --verified-12: rgba(46, 107, 94, 0.12);
+  /* -- semantics: never decorative --------------------------------------- */
+  --verdigris: #2f6b5c;
+  --verdigris-wash: rgba(47, 107, 92, 0.1);
+  --verdigris-30: rgba(47, 107, 92, 0.3);
+  --madder: #9a4332;
+  --madder-wash: rgba(154, 67, 50, 0.1);
+  --madder-30: rgba(154, 67, 50, 0.3);
+  --ochre: #a97d28;
+  --ochre-wash: rgba(169, 125, 40, 0.1);
 
-  --rust: #9c4a34;
-  --rust-12: rgba(156, 74, 52, 0.12);
+  /* On dark grounds the semantic colours need lifting to stay legible. */
+  --verdigris-lit: #5fae99;
+  --madder-lit: #d97f6a;
+  --ochre-lit: #d6a94a;
 
-  --thread: #9b9384;
-  --thread-40: rgba(155, 147, 132, 0.4);
+  /* -- type colour ------------------------------------------------------
+   * The palette above is chosen for surfaces. Several of its values fail
+   * badly as small type — brass on raw cotton is 2.5:1, slub on indigo is
+   * 1.9:1 — so secondary and tertiary text resolve to their own scale, every
+   * value of which clears 4.5:1 on the ground it belongs to.
+   */
+  --ink-quiet: rgba(18, 22, 28, 0.64); /* secondary type on the light field  */
+  --thread-type: #6f6a5e; /*              tertiary type on the light field   */
+  --brass-ink: #7e5f22; /*                the accent, as type on the light   */
+  --slub-type: #8095b5; /*                secondary type on the dark field   */
+  --thread-lit: #a8a294; /*               tertiary type on the dark field    */
+
+  /* Brass as type, and the inert button, both resolve per ground; see
+     base.css. */
+  --brass-type: #b8934a;
+  --btn-off-bg: rgba(142, 136, 121, 0.2);
+  --btn-off-fg: rgba(18, 22, 28, 0.64); /* inert, but still readable   */
+
+  /* -- member kinds: one set for the mesh, the legend and the register --- */
+  --kind-factory: #2f4468;
+  --kind-buyer: #3c4f5e;
+  --kind-auditor: #3d4a5f;
+  --kind-regulator: #2b3550;
+  --kind-consortium: #b8934a;
+
+  /* Type set on a brass ground, and slub lifted for a dark ground. */
+  --ink-on-brass: #1a1408;
+  --slub-lit: #93a6c8;
 
   /* -- type -------------------------------------------------------------- */
   --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
 
-  /* -- spacing ----------------------------------------------------------- */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 40px;
-  --space-2xl: 64px;
-  --space-3xl: 96px;
+  /* -- space ------------------------------------------------------------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 40px;
+  --s7: 64px;
+  --s8: 96px;
+  --s9: 160px;
 
-  /* -- radius ------------------------------------------------------------ */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* -- radius: nothing larger than 10 ------------------------------------ */
+  --r-sm: 2px;
+  --r-md: 6px;
+  --r-lg: 10px;
 
-  /* -- elevation --------------------------------------------------------- */
-  --e1: 0 1px 2px rgba(20, 26, 34, 0.06);
-  --e2: 0 8px 24px rgba(20, 26, 34, 0.1);
-  --e3: 0 16px 48px rgba(20, 26, 34, 0.16);
+  /* -- elevation means "above", never "prettier" ------------------------- */
+  --e1: 0 1px 2px rgba(18, 22, 28, 0.06);
+  --e2: 0 10px 30px -8px rgba(18, 22, 28, 0.14);
+  --e3: 0 24px 60px -12px rgba(18, 22, 28, 0.22);
 
   /* -- motion ------------------------------------------------------------ */
-  --motion-instant: 90ms ease-out;
-  --motion-fast: 160ms cubic-bezier(0.2, 0, 0, 1);
-  --motion-base: 260ms cubic-bezier(0.2, 0, 0, 1);
-  --motion-slow: 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  --m-instant: 90ms ease-out;
+  --m-fast: 180ms cubic-bezier(0.2, 0, 0, 1);
+  --m-base: 280ms cubic-bezier(0.2, 0, 0, 1);
+  --m-slow: 460ms cubic-bezier(0.16, 1, 0.3, 1);
+  --m-weave: 700ms cubic-bezier(0.65, 0, 0.35, 1);
 
   /* -- layout ------------------------------------------------------------ */
-  --sidebar-width: 248px;
-  --content-max: 1240px;
+  --nav: 244px;
+  --topbar: 56px;
+  --measure: 1320px;
+  --pad: 32px;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  background: var(--loom-100);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Numbers that stack must line up. Tables, KPIs, hashes, everything. */
-table,
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-h1 { font-size: 44px; line-height: 1.12; }
-h2 { font-size: 26px; line-height: 1.2; }
-h3 { font-size: 20px; line-height: 1.3; }
-
-code,
-.mono {
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-
-/* The eyebrow / stamp / table-header style. */
-.mono-label {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* Focus is never removed. It is moved, at most. */
-:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-/* Every scroll effect degrades to its final state. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+@media (max-width: 767px) {
+  :root {
+    --pad: 20px;
   }
 }

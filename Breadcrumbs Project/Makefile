@@ -11,7 +11,7 @@ BIN := $(VENV)/Scripts
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help setup test test-fast lint demo api web build clean fabric-up fabric-deploy fabric-down verify
+.PHONY: help setup test test-fast lint demo api web build clean fabric-up fabric-deploy fabric-down verify bench bench-quick attacks
 
 help:
 	@echo "Breadcrumbs"
@@ -19,7 +19,10 @@ help:
 	@echo "  make test          run all tests (ledger, gate, merkle, learning, API)"
 	@echo "  make test-fast     skip the tests that train models"
 	@echo "  make lint          ruff"
-	@echo "  make demo          the eight-act end-to-end demo"
+	@echo "  make demo          the twelve-act end-to-end demo"
+	@echo "  make attacks       run only the tests that attack the system"
+	@echo "  make bench         measure everything; writes ../results/*.json and results.tex"
+	@echo "  make bench-quick   the same, smaller, for a sanity check"
 	@echo "  make verify        prove the ledger's integrity from scratch"
 	@echo "  make api           start the API on :8000"
 	@echo "  make web           start the frontend on :5173"
@@ -47,6 +50,24 @@ lint:
 
 demo:
 	$(BIN)/python -m model.demo
+
+attacks:
+	$(BIN)/python -m pytest -k "attack or forge or collud or withhold or trapdoor or fork" -v
+
+# Every number in the report comes from here. to_latex writes results.tex beside
+# main.tex; anything not measured renders as a bold ?? in the PDF rather than
+# quietly appearing as something plausible.
+bench:
+	$(BIN)/python -m model.bench.bench_identity
+	$(BIN)/python -m model.bench.bench_ledger --documents 200
+	$(BIN)/python -m model.bench.bench_accumulator --bits 3072
+	$(BIN)/python -m model.bench.to_latex
+
+bench-quick:
+	$(BIN)/python -m model.bench.bench_identity
+	$(BIN)/python -m model.bench.bench_ledger --documents 60
+	$(BIN)/python -m model.bench.bench_accumulator --bits 2048 --quick
+	$(BIN)/python -m model.bench.to_latex
 
 verify:
 	@$(BIN)/python -c "from model.consortium import build; \

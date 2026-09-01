@@ -1,114 +1,123 @@
-# Breadcrumbs — Blockchain Olympiad submission
+# Breadcrumbs
 
-Team CookieMonsters, United International University.
+**A permissioned blockchain that proves nothing is missing.**
 
-**One line:** a permissioned blockchain that makes a garment factory's own
-internal records provable without publishing them, plus a shared fraud detector
-that many factories train together without handing over data, governed by a
-smart contract that refuses a new model version if it has forgotten what the
-network already knew.
+Blockchain Olympiad Bangladesh submission · Team CookieMonsters · United International
+University, Dhaka.
 
 ---
 
-## What to submit
+## The idea in one paragraph
 
-Upload **two files** to Overleaf and compile with **pdfLaTeX**:
+Bangladesh exports about 39 billion dollars of clothing a year, and every shipment rests on
+paperwork a buyer does not trust: wage registers, safety inspections, chemical inventories.
+So buyers send auditors instead, factories pay for audit after audit, and the documents
+behind them can still be edited afterwards.
 
-```
-main.tex
-ref.bib
-```
+Breadcrumbs makes a factory's own internal records provable without publishing them. Only
+commitments go on the chain; the files stay in the factory. But the part we would defend
+hardest is not that a document can be proved genuine — notarisation services have done that
+for years. It is that a factory can be made to prove **nothing is missing**.
 
-That is everything. Every figure and the logo are drawn in TikZ inside
-`main.tex`, so there are no images to upload and nothing can go missing.
-Overleaf runs BibTeX automatically.
+Every provenance system on the market answers *"is this document real?"*. None answers *"is
+this every document, and was anything withheld?"* — which is the question that matters,
+because the fraud that actually happens is not a forged register but a second one and a
+decision about which to show.
 
-Verified locally with Tectonic 0.17: no errors, no undefined references, no
-overfull lines, no sentence over 40 words.
+## What that looks like
 
-**Before submitting**, edit the team block at the top of `main.tex` (lines 15
-to 21) and replace the two bracketed placeholders:
+A factory hands a buyer four payroll registers. All four are genuine. Every hash matches,
+every Merkle proof verifies. Every comparable system reports success.
 
-```latex
-\newcommand{\TeamMembers}{[MEMBER 1], [MEMBER 2], [MEMBER 3]}   % <-- fill in
-\newcommand{\TeamContact}{[TEAM EMAIL ADDRESS]}                 % <-- fill in
-```
-
----
-
-## Folder contents
-
-| Path | What it is |
-|---|---|
-| `main.tex` | The report. Single column, 6,820 words of prose plus tables and figures. |
-| `ref.bib` | 53 references. Every author list fetched from a primary source, not written from memory. |
-| `figures/` | The four figures exported standalone as `.tex`, `.pdf` and 300 dpi `.png`, for slides and posters. Not needed to compile the report. |
-| `Breadcrumbs Project/` | The working system: `model/` (permissioned ledger, chaincode, Merkle, federated learning), `backend/` (FastAPI), `frontend/`, `deck/`. |
-| `Breadcrumbs Project/model/experiments/` | The simulation behind Table 4, Table 5 and Figure 3, plus the self-test that went against us. |
-
-Reproduce every number in the report:
+Breadcrumbs closes a reporting period into a **seal**: the contract enumerates every record
+the ledger holds for that site, type and period, refuses to close unless the declaration
+matches, and commits a count and a root. The buyer recomputes and the arithmetic does not
+add up. One register is missing, and nobody had to be trusted to notice.
 
 ```bash
-cd "Breadcrumbs Project/model/experiments"
-python3 fcl_sim.py           # Table 4 and Figure 3
-python3 sweep_difficulty.py  # Table 5
-python3 probe_sufficiency.py # the test in Section 7.3 that we failed
+cd "Breadcrumbs Project" && make setup && make demo   # watch Act 6
 ```
 
-Each writes a JSON file next to it (`fcl_results.json`, `sweep_results.json`,
-`probe_results.json`). Every number in the report traces back to one of those
-three files.
+## Four mechanisms, one piece of mathematics
 
-NumPy is the only dependency. Everything runs in under a minute.
+RSA gives a *group of unknown order*. That single object does four jobs, which is why RSA is
+here rather than a faster signature scheme:
 
----
-
-## Where the answers live
-
-| A judge asks | Section |
+| | |
 |---|---|
-| Why not just a database? | §3, Table 2, and §11 |
-| What is the energy cost? | §3, on ordering-based consensus |
-| BGMEA already signed two blockchain deals. Why do you exist? | §4 and §11 |
-| Isn't this federated learning with a ledger bolted on? | §4.1 |
-| IBM has a patent on on-chain model gating. | §4.1 and §11 |
-| Your chain records a lie perfectly. So what? | §11, first question |
-| Did you tune the experiment to win? | §7.2 and Table 5 |
-| What can't you do? | §12 |
+| **Membership witnesses** | The whole record set commits to one number. A verifier holds 384 bytes instead of a copy of every commitment. |
+| **Non-membership witnesses** | "No such certificate was ever committed" becomes cryptographic evidence rather than a filing failure. A Merkle tree cannot answer this at any price. |
+| **Batching proofs** | An epoch of any size verifies in ~9 ms. Measured at 500 records: **403× faster** than recomputing, and flat as the count grows. |
+| **A delay function** | Hash chains prove order, not duration. This stops a colluding majority manufacturing months of history over a weekend. |
 
----
+Beside them sits the answer to the limitation every system of this kind concedes and none
+solves — that a ledger makes a record unchangeable but says nothing about whether it was
+true when written. Each record is counter-signed by a second organisation that is
+**assigned, not chosen**, from a commit–reveal seed no single member controls, and that
+loses more than four times what honest attestation earns if the record is later found false.
 
-## Know these before you present
+That does not make records true. It converts unilateral falsification into two-party
+collusion that is recorded and attributable, and we say it in exactly those words.
 
-These are all stated in the report. Do not be surprised by them on stage.
+## Three attacks in our own test suite succeed
 
-1. **The results are a simulation on invented data.** Not real factory
-   documents. Never let anyone summarise it as "we measured 77.9 percent
-   accuracy in factories".
-2. **Chance accuracy is 50 percent**, because each stage's test set has two
-   categories. The meaningful band runs 50 to 81, not 0 to 100. The baseline's
-   45.2 is *below* chance.
-3. **The Continuity Gate, our main contribution, is specified but not built.**
-   No accuracy number in the report involves a ledger.
-4. **We removed one of our own mechanisms** after an ablation showed it cost 3.9
-   points of accuracy. The method changed during the work. That is a strength,
-   not an embarrassment: say so.
-5. **Our benchmark cannot validate the learning claim.** A model trained only on
-   synthetic summaries matches our full system, and making the data harder did
-   not change it. Section 7.3.
-6. **Audit costs are vendor list prices** and the revenue model is an assumption
-   set. The audit saving does not fully cover the subscription, and the report
-   says so.
+They are in the report as successes, and `make attacks` runs them:
 
----
+- A model poisoned just inside the Continuity Gate's tolerance is **promoted**. The gate
+  bounds regression per round, not cumulatively.
+- A colluding assigned witness is **not stopped**. Nothing in this design class can stop it.
+- Whoever holds the factorisation of the accumulator modulus **can forge** a membership
+  witness — against the accumulator alone. It still fails the ledger check and the anchored
+  index, which is why the accumulator is an accelerator and never the authority.
 
-## How the references were checked
+A security section where everything fails is not evidence of a secure system.
 
-Nothing was cited from memory. arXiv entries were resolved through the arXiv
-API and journal entries through Crossref by DOI, in both cases fetching the
-**complete** author list rather than the first author. EU instruments were
-checked on EUR-Lex. Bangladesh sector data comes from BGMEA's published export
-page. A full author-level audit was re-run over every entry after an earlier
-draft was found to contain three fabricated co-author lists.
+## Repository
 
-Last audit: 14 August 2026.
+```
+├── main.tex                  The report. Compiles on Overleaf with pdfLaTeX.
+├── supplementary.tex         Reproduction, parameters, the full attack catalogue.
+├── results.tex               GENERATED. Every measured number in the report.
+├── results/                  Benchmark output as JSON, plus an index of macros.
+├── ref.bib                   Bibliography.
+├── figures/                  TikZ sources.
+└── Breadcrumbs Project/      The system.
+    ├── model/                Ledger, chaincode, accumulator, Merkle, learning plane.
+    ├── backend/              FastAPI + SQLite. Wraps model/, never reimplements it.
+    ├── frontend/             React + TypeScript client.
+    ├── docs/                 Handoff prompts, corpus spec, future work.
+    ├── AUDIT.md              Security review: findings, fixes, what is still open.
+    └── SETUP.md              A fresh machine.
+```
+
+## Running it
+
+```bash
+cd "Breadcrumbs Project"
+make setup      # venv, dependencies, node modules
+make demo       # twelve acts, end to end, on a real ledger
+make test       # 210 tests
+make attacks    # only the tests that attack the system
+make bench      # measure everything; regenerates results.tex
+make api        # backend on :8000
+make web        # frontend on :5173
+```
+
+No Docker required. The report's numbers regenerate from `make bench` — nothing in the
+document is typed by hand, and an unmeasured figure renders as a bold `??` on the page.
+
+## Honest positioning
+
+`model/ledger/` is a permissioned blockchain written in Python, modelled on Hyperledger
+Fabric's execute–order–validate architecture. **It is Fabric-modelled, not Fabric.** The same
+three chaincodes are also written as real Fabric contracts in `model/fabric/` with a
+docker-compose network, and no Fabric peer has ever run them. Where a number comes from the
+Python chain, that is what we claim.
+
+All learning results are on invented data, and our own probe cannot yet separate "the
+mechanism works" from "this data is easy to summarise". `Breadcrumbs Project/docs/future_works.md`
+sets out what closes that.
+
+## Team
+
+Ahbab, Ruhi, Rohan, Ishmam, Adnan — United International University, Dhaka.

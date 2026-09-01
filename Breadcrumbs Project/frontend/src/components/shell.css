@@ -1,0 +1,222 @@
+/* The application shell: top bar, navigation, content. */
+
+.shellwrap {
+  min-height: 100%;
+  display: flex;
+  background: var(--raw-cotton);
+}
+
+/* -- navigation ----------------------------------------------------------- */
+.nav {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--nav);
+  background: var(--indigo-vat);
+  color: var(--raw-cotton);
+  display: flex;
+  flex-direction: column;
+  padding: var(--s6) 0 var(--s5);
+  z-index: 50;
+  border-right: 1px solid rgba(61, 78, 107, 0.5);
+}
+
+.nav__brand {
+  padding: 0 var(--s5) var(--s6);
+}
+
+.nav__wordmark {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-weight: 600;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  color: var(--raw-cotton);
+  text-decoration: none;
+  display: block;
+}
+
+.nav__instrument {
+  color: var(--brass-type);
+  margin-top: 5px;
+  font-size: 10px;
+}
+
+.nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px var(--s5);
+  color: rgba(244, 241, 232, 0.72);
+  text-decoration: none;
+  font-size: 14px;
+  border-left: 2px solid transparent;
+  transition: color var(--m-instant), background var(--m-instant),
+    border-color var(--m-instant);
+}
+
+.nav__item:hover {
+  color: var(--raw-cotton);
+  background: rgba(244, 241, 232, 0.04);
+}
+
+.nav__item.is-active {
+  color: var(--brass-type);
+  background: var(--brass-wash);
+  border-left-color: var(--brass);
+}
+
+.nav__foot {
+  padding: var(--s5) var(--s5) 0;
+  border-top: 1px solid rgba(61, 78, 107, 0.5);
+  margin-top: var(--s4);
+}
+
+.nav__person {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nav__org {
+  color: rgba(244, 241, 232, 0.55);
+}
+
+.nav__msp {
+  color: var(--slub-type);
+  font-size: 10px;
+  margin-top: 3px;
+}
+
+.nav__out {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--s4);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: rgba(244, 241, 232, 0.55);
+  font-size: 13px;
+  transition: color var(--m-instant);
+}
+
+.nav__out:hover {
+  color: var(--raw-cotton);
+}
+
+/* -- content -------------------------------------------------------------- */
+.shellmain {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--nav);
+  padding: var(--s7) var(--s6) var(--s8);
+}
+
+/* -- the top bar exists only below the sidebar breakpoint ----------------- */
+.topbar {
+  display: none;
+}
+
+.navscrim {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--topbar);
+    z-index: 58;
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: 0 var(--s3) 0 var(--s2);
+    background: var(--indigo-vat);
+    border-bottom: 1px solid var(--slub-40);
+  }
+
+  .topbar__burger {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    background: none;
+    border: 0;
+    border-radius: var(--r-md);
+    color: var(--raw-cotton);
+    transition: background var(--m-instant);
+  }
+
+  .topbar__burger:hover { background: rgba(244, 241, 232, 0.06); }
+
+  .topbar__wordmark {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-display);
+    font-variation-settings: 'SOFT' 0, 'WONK' 1;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    color: var(--raw-cotton);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .navscrim {
+    display: block;
+    position: fixed;
+    inset: var(--topbar) 0 0;
+    z-index: 49;
+    background: rgba(12, 20, 37, 0.6);
+    animation: navscrim-in var(--m-fast);
+  }
+
+  @keyframes navscrim-in {
+    from { opacity: 0; }
+  }
+
+  .nav {
+    top: var(--topbar);
+    width: min(var(--nav), 82vw);
+    transform: translateX(-100%);
+    box-shadow: var(--e3);
+    padding-top: var(--s5);
+    /* Hidden rather than merely translated: an off-screen drawer that is still
+       in the tab order is a keyboard trap waiting to happen. */
+    visibility: hidden;
+    transition: transform var(--m-base), visibility 0s linear 280ms;
+  }
+
+  .nav.is-open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform var(--m-base), visibility 0s;
+  }
+
+  /* The top bar already carries the wordmark. */
+  .nav__brand { display: none; }
+
+  .shellmain {
+    margin-left: 0;
+    padding: calc(var(--topbar) + var(--s6)) var(--s5) var(--s7);
+  }
+}
+
+@media (max-width: 767px) {
+  .shellmain {
+    padding: calc(var(--topbar) + var(--s5)) var(--pad) var(--s7);
+  }
+}

@@ -41,6 +41,19 @@ WEIGHTS = {
     "endorsement_disagreed": -150,
     "grant_scope_violation": -600,
     "unavailable_for_round": -100,
+    # Witnessing. The asymmetry between these two numbers is the mechanism, not an
+    # accident of tuning: attesting honestly earns a little, and attesting to
+    # something that turns out to be false costs roughly four years of it. A
+    # witness with nothing to lose is a rubber stamp, and a rubber stamp is worse
+    # than no witness at all because it looks like a control.
+    "witness_attested": 180,
+    "witness_of_falsified_record": -800,
+    "record_falsified": -1200,
+    "disclosure_mismatch": -900,
+    # Amending a sealed period is legitimate and sometimes necessary. It is priced
+    # rather than forbidden, so that a factory which genuinely finds a record late
+    # can declare it, while one that amends constantly pays for the privilege.
+    "seal_amended": -120,
 }
 
 

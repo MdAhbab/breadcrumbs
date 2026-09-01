@@ -1,119 +1,186 @@
-/*
- * The application shell: a fixed indigo sidebar and a loom-coloured content
- * area, per designs_instructions.md §6.
- *
- * Navigation is role-scoped. A regulator does not see a link to a factory
- * record, and the API refuses one anyway — the two agree, which is the point.
- */
+import {
+  Binary, Boxes, CalendarCheck, FileStack, Gauge, GitBranch, KeyRound,
+  LayoutGrid, LogOut, Menu, ScrollText, Search, ShieldCheck,
+  Upload as UploadIcon, X,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import type { RoleId } from '../lib/data';
+import { useSession } from '../lib/session';
+import { useBelow } from '../lib/useMotionPref';
+import { ChainStatus } from './ChainStatus';
+import './shell.css';
 
-import { clearSession, loadSession, type Role } from '../lib/api';
-
-const NAV: Record<Role, { to: string; label: string }[]> = {
+const NAV: Record<RoleId, { to: string; label: string; icon: typeof LayoutGrid }[]> = {
   factory: [
-    { to: '/factory/dashboard', label: 'Dashboard' },
-    { to: '/factory/upload', label: 'Upload record' },
-    { to: '/factory/records', label: 'Records' },
-    { to: '/factory/access', label: 'Access grants' },
+    { to: '/factory/dashboard', label: 'Loom floor', icon: LayoutGrid },
+    { to: '/factory/upload', label: 'Seal a record', icon: UploadIcon },
+    { to: '/factory/records/rc-001', label: 'Bolts', icon: FileStack },
+    { to: '/periods', label: 'Closed periods', icon: CalendarCheck },
+    { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   buyer: [
-    { to: '/buyer/portal', label: 'Request portal' },
-    { to: '/verify', label: 'Verify a record' },
+    { to: '/buyer/portal', label: 'Request a fact', icon: Search },
+    { to: '/periods', label: 'Completeness', icon: CalendarCheck },
+    { to: '/verify/vr-001', label: 'A verification', icon: ShieldCheck },
+    { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   auditor: [
-    { to: '/auditor/workspace', label: 'Batch workspace' },
-    { to: '/verify', label: 'Verify a record' },
+    { to: '/auditor/workspace', label: 'The bench', icon: Gauge },
+    { to: '/periods', label: 'Completeness & absence', icon: CalendarCheck },
+    { to: '/verify/vr-001', label: 'A verification', icon: ShieldCheck },
+    { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   consortium: [
-    { to: '/governance', label: 'Governance' },
-    { to: '/ops/sla', label: 'SLA & operations' },
-    { to: '/model/registry', label: 'Model registry' },
-    { to: '/model/rounds', label: 'Training rounds' },
-    { to: '/model/benchmarks', label: 'Benchmarks' },
-    { to: '/ledger', label: 'Ledger explorer' },
+    { to: '/governance', label: 'The chamber', icon: ScrollText },
+    { to: '/model/gate/m-v8-rc2', label: 'Gate decision', icon: KeyRound },
+    { to: '/model/registry', label: 'Model lineage', icon: GitBranch },
+    { to: '/anchor', label: 'Accumulator', icon: Binary },
+    { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   regulator: [
-    { to: '/regulator', label: 'Observer view' },
-    { to: '/ops/sla', label: 'SLA dashboard' },
-    { to: '/ledger', label: 'Ledger explorer' },
+    { to: '/regulator', label: 'Observatory', icon: LayoutGrid },
+    // Consortium-wide facts about the ledger, naming no document. The observer
+    // may read these; it may not read a seal, a grant or a record.
+    { to: '/anchor', label: 'Accumulator', icon: Binary },
+    { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
 };
 
-export function Shell() {
-  const session = loadSession();
-  const navigate = useNavigate();
-  if (!session) return null;
+const TABBABLE = 'a[href],button:not([disabled])';
 
-  const signOut = () => {
-    clearSession();
-    navigate('/login', { replace: true });
-  };
+/**
+ * The application shell.
+ *
+ * Navigation is role-scoped, and the API refuses anything the navigation does
+ * not offer — the two agree, which is the point.
+ *
+ * Below 1024px the sidebar becomes a drawer with a real top bar above it. The
+ * previous arrangement — a lone burger pinned into the top-right whitespace,
+ * with an unlabelled 22px ledger strip above it — was two orphans rather than a
+ * navigation pattern.
+ */
+export function Shell() {
+  const { role, signOut } = useSession();
+  const { pathname } = useLocation();
+  const compact = useBelow(1024);
+  const [open, setOpen] = useState(false);
+  const burger = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLElement>(null);
+
+  // Widening the window past the breakpoint reveals the sidebar; the drawer
+  // state must not survive that, or the scrim outlives its drawer.
+  useEffect(() => {
+    if (!compact) setOpen(false);
+  }, [compact]);
+
+  // Any navigation closes it. An effect on the path is more reliable than a
+  // handler on each item, which misses back, forward and in-page links.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // An open drawer is modal: it traps Tab, closes on Escape, holds the page
+  // behind it still, and gives focus back to the control that opened it.
+  useEffect(() => {
+    if (!open) return;
+    const held = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    drawer.current?.querySelector<HTMLElement>(TABBABLE)?.focus();
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== 'Tab' || !drawer.current) return;
+      const items = Array.from(drawer.current.querySelectorAll<HTMLElement>(TABBABLE));
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = held;
+      if (burger.current && document.body.contains(burger.current)) burger.current.focus();
+    };
+  }, [open]);
+
+  if (!role) return null;
+
+  const items = NAV[role.id];
+  const modal = compact && open;
 
   return (
-    <div style={{ display: 'flex', minHeight: '100%' }}>
+    <div className={`shellwrap shellwrap--${role.id}`}>
+      {/* -- the top bar, below 1024px ----------------------------------- */}
+      <header className="topbar">
+        <button
+          type="button"
+          ref={burger}
+          className="topbar__burger"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls="shellnav"
+          aria-label={open ? 'Close navigation' : 'Open navigation'}
+        >
+          {open ? <X size={19} strokeWidth={1.75} /> : <Menu size={19} strokeWidth={1.75} />}
+        </button>
+
+        <NavLink to="/" className="topbar__wordmark">Breadcrumbs</NavLink>
+
+        <ChainStatus variant="bar" />
+      </header>
+
+      {modal && <div className="navscrim" onClick={() => setOpen(false)} />}
+
       <nav
-        style={{
-          width: 'var(--sidebar-width)',
-          flexShrink: 0,
-          background: 'var(--indigo-900)',
-          color: 'var(--loom-50)',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: 'var(--space-lg) 0',
-        }}
+        id="shellnav"
+        ref={drawer}
+        className={`nav grain ${open ? 'is-open' : ''}`}
+        {...(modal
+          ? { role: 'dialog', 'aria-modal': true, 'aria-label': 'Navigation' }
+          : { 'aria-label': 'Main' })}
       >
-        <div style={{ padding: '0 var(--space-lg) var(--space-xl)' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600 }}>
-            Breadcrumbs
-          </div>
-          <div className="mono-label" style={{ color: 'var(--thread)', marginTop: 2 }}>
-            Ledger Portal
-          </div>
+        <div className="nav__brand">
+          <NavLink to="/" className="nav__wordmark">Breadcrumbs</NavLink>
+          <p className="stamp-type nav__instrument">{role.instrument}</p>
         </div>
 
-        <div style={{ flex: 1 }}>
-          {NAV[session.role].map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              style={({ isActive }) => ({
-                display: 'block',
-                padding: 'var(--space-sm) var(--space-lg)',
-                color: isActive ? 'var(--brass)' : 'var(--loom-100)',
-                background: isActive ? 'var(--brass-12)' : 'transparent',
-                borderLeft: `2px solid ${isActive ? 'var(--brass)' : 'transparent'}`,
-                textDecoration: 'none',
-                fontWeight: isActive ? 500 : 400,
-                transition: 'background var(--motion-instant)',
-              })}
-            >
-              {item.label}
-            </NavLink>
+        <ul className="nav__list">
+          {items.map(({ to, label, icon: Icon }) => (
+            <li key={to}>
+              <NavLink
+                to={to}
+                className={({ isActive }) => `nav__item ${isActive ? 'is-active' : ''}`}
+              >
+                <Icon size={16} strokeWidth={1.75} />
+                {label}
+              </NavLink>
+            </li>
           ))}
-        </div>
+        </ul>
 
-        <div style={{ padding: 'var(--space-lg) var(--space-lg) 0', borderTop: '1px solid var(--indigo-700)' }}>
-          <div style={{ fontWeight: 500 }}>{session.person}</div>
-          <div style={{ color: 'var(--thread)', fontSize: 13 }}>{session.org}</div>
-          <button
-            onClick={signOut}
-            style={{
-              marginTop: 'var(--space-md)',
-              background: 'none',
-              border: 'none',
-              color: 'var(--loom-100)',
-              cursor: 'pointer',
-              padding: 0,
-              font: 'inherit',
-            }}
-          >
-            Sign out
+        <ChainStatus />
+
+        <div className="nav__foot">
+          <div className="nav__who">
+            <p className="nav__person">{role.person}</p>
+            <p className="small nav__org">{role.org}</p>
+            <p className="mono nav__msp">{role.mspId}</p>
+          </div>
+          <button type="button" className="nav__out" onClick={signOut}>
+            <LogOut size={14} strokeWidth={1.75} /> Sign out
           </button>
         </div>
       </nav>
 
-      <main style={{ flex: 1, minWidth: 0 }}>
+      <main className="shellmain">
         <Outlet />
       </main>
     </div>

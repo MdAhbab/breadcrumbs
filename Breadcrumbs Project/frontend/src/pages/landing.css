@@ -1,0 +1,655 @@
+/* -- the header: transparent over the hero, grounded once past it --------- */
+.lhead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  transition: background var(--m-base), border-color var(--m-base),
+    backdrop-filter var(--m-base);
+  border-bottom: 1px solid transparent;
+}
+
+.lhead.is-stuck {
+  background: rgba(12, 20, 37, 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom-color: var(--slub-40);
+}
+
+.lhead__in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s5);
+  height: 68px;
+}
+
+.lhead__mark {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--raw-cotton);
+  text-decoration: none;
+}
+
+.lhead__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+}
+
+.lhead__link {
+  font-size: 14px;
+  color: rgba(244, 241, 232, 0.78);
+  text-decoration: none;
+  transition: color var(--m-instant);
+}
+
+.lhead__link:hover { color: var(--raw-cotton); }
+
+@media (max-width: 560px) {
+  .lhead__in { height: 60px; }
+  .lhead__link { display: none; }
+}
+
+/* The landing page: a scroll-driven narrative in eight beats. */
+
+.landing {
+  background: var(--indigo-deep);
+  color: var(--raw-cotton);
+}
+
+.on-dark {
+  color: var(--raw-cotton);
+}
+.on-dark-muted {
+  color: rgba(244, 241, 232, 0.66);
+}
+
+/* -- the weave track: three beats over one pinned canvas ------------------ */
+.weave-track {
+  position: relative;
+}
+
+.weave-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 72% 18%, rgba(42, 59, 92, 0.55), transparent 62%),
+    var(--indigo-deep);
+}
+
+.woven-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+}
+
+/* Keeps type legible over the scene without a scrim that reads as a box. The
+   beats alternate sides, so both edges are protected: without the mirrored
+   gradient the right-hand beat had brass trace bars running through its
+   sentences. */
+.weave-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(12, 20, 37, 0.93) 0%, rgba(12, 20, 37, 0.66) 26%, transparent 48%),
+    linear-gradient(270deg, rgba(12, 20, 37, 0.9) 0%, rgba(12, 20, 37, 0.6) 24%, transparent 46%),
+    linear-gradient(0deg, rgba(12, 20, 37, 0.7) 0%, transparent 26%);
+}
+
+.beat {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.beat > * {
+  pointer-events: auto;
+}
+
+/* Only the first beat is pulled back over the pinned stage. The others follow
+   it in normal flow, so the track is three viewports tall and the scrubbed
+   timeline has room to run. */
+.beat--hero {
+  margin-top: -100vh;
+}
+
+/* -- hero ----------------------------------------------------------------- */
+.hero {
+  max-width: 640px;
+  padding-block: var(--s7);
+}
+
+.hero__eyebrow {
+  color: var(--brass-type);
+  margin-bottom: var(--s5);
+}
+
+.hero__lede {
+  margin-top: var(--s5);
+  max-width: 50ch;
+  color: rgba(244, 241, 232, 0.78);
+}
+
+.hero__actions {
+  display: flex;
+  gap: var(--s3);
+  margin-top: var(--s6);
+  flex-wrap: wrap;
+}
+
+.hero__stamp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--s6);
+  color: var(--slub-type);
+}
+
+.scroll-cue {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 58px;
+  background: rgba(184, 147, 74, 0.22);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.scroll-cue span {
+  display: block;
+  width: 100%;
+  height: 18px;
+  background: var(--brass);
+  animation: cue 2.4s ease-in-out infinite;
+}
+
+@keyframes cue {
+  0% { transform: translateY(-20px); }
+  60%, 100% { transform: translateY(56px); }
+}
+
+/* -- copy beats ----------------------------------------------------------- */
+.beat--copy .beat-copy {
+  max-width: 500px;
+  padding-block: var(--s7);
+}
+
+.beat--right {
+  justify-content: flex-end;
+}
+
+.beat--right .shell {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The copy carries its own ground. The vignette cannot win against a bright
+   trace bar that lands exactly on a line of text, and a sentence with a brass
+   rod through it is not a sentence. */
+.beat--copy .beat-copy {
+  padding: var(--s5);
+  margin: calc(var(--s5) * -1);
+  background: radial-gradient(
+    118% 96% at 50% 50%,
+    rgba(12, 20, 37, 0.88) 40%,
+    rgba(12, 20, 37, 0.55) 76%,
+    transparent 100%
+  );
+}
+
+.beat--right .beat-copy {
+  text-shadow: 0 2px 30px rgba(12, 20, 37, 0.9);
+}
+
+.beat__num {
+  color: var(--brass-type);
+  margin-bottom: var(--s4);
+}
+
+.beat--copy h2 {
+  color: var(--raw-cotton);
+  margin-bottom: var(--s4);
+}
+
+.beat--copy .lead {
+  color: rgba(244, 241, 232, 0.72);
+}
+
+.beat--copy .lead + .lead {
+  margin-top: var(--s4);
+}
+
+.beat__muted {
+  color: rgba(244, 241, 232, 0.48) !important;
+}
+
+.beat__accent {
+  color: var(--brass-type) !important;
+  border-left: 2px solid var(--brass-30);
+  padding-left: var(--s4);
+}
+
+/* -- generic blocks below the weave --------------------------------------- */
+.beat-block {
+  position: relative;
+  padding-block: clamp(72px, 11vw, 150px);
+  background: var(--raw-cotton);
+  color: var(--ink);
+}
+
+.beat-block--cotton {
+  background: var(--raw-cotton);
+}
+
+.beat-block--dark {
+  background: var(--indigo-vat);
+  color: var(--raw-cotton);
+}
+
+.beat-block--close {
+  background: var(--indigo-deep);
+  color: var(--raw-cotton);
+  text-align: center;
+}
+
+.section-head {
+  max-width: 660px;
+  margin-bottom: var(--s7);
+  position: relative;
+  z-index: 2;
+}
+
+.section-head__eyebrow {
+  color: var(--brass-type);
+  margin-bottom: var(--s4);
+}
+
+.section-head__lede {
+  color: var(--ink-60);
+  margin-top: var(--s4);
+}
+
+.beat-block--dark .section-head__lede {
+  color: rgba(244, 241, 232, 0.66);
+}
+
+/* -- the Decision Loom ---------------------------------------------------- */
+.loom {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: var(--s7);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .loom {
+    grid-template-columns: 1fr;
+    gap: var(--s5);
+  }
+}
+
+.loom__shuttles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shuttle {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s4) 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--thread-20);
+  text-align: left;
+  color: var(--ink-quiet);
+  font-size: 16px;
+  transition: color var(--m-fast);
+}
+
+.shuttle.is-on {
+  color: var(--ink);
+}
+
+/* The shuttle slides in its track, the way it does on a loom. */
+.shuttle__track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 22px;
+  border: 1px solid var(--thread-35);
+  border-radius: 2px;
+  background: var(--unbleached);
+  transition: background var(--m-fast), border-color var(--m-fast);
+}
+
+.shuttle.is-on .shuttle__track {
+  background: var(--brass-wash);
+  border-color: var(--brass-30);
+}
+
+.shuttle__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 14px;
+  background: var(--thread-grey);
+  /* A weaver's shuttle: pointed at both ends. */
+  clip-path: polygon(0 50%, 22% 0, 78% 0, 100% 50%, 78% 100%, 22% 100%);
+  transition: transform var(--m-base), background var(--m-base);
+}
+
+.shuttle.is-on .shuttle__knob {
+  transform: translateX(24px);
+  background: var(--brass);
+}
+
+.shuttle__label {
+  line-height: 1.4;
+}
+
+.verdict {
+  padding: var(--s6);
+  border: 1px solid var(--thread-35);
+  border-radius: var(--r-md);
+  background: var(--calico);
+  transition: border-color var(--m-base), background var(--m-base);
+}
+
+.verdict.is-yes {
+  border-color: var(--verdigris-30);
+  background: var(--verdigris-wash);
+}
+
+.verdict__line {
+  margin: var(--s4) 0 var(--s3);
+}
+
+.verdict__why {
+  color: var(--ink-60);
+  max-width: 42ch;
+}
+
+/* -- the comparison matrix ------------------------------------------------ */
+.matrix-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--ink-12);
+}
+
+.matrix {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.matrix th,
+.matrix td {
+  padding: 16px 14px;
+  border-bottom: 1px solid var(--thread-20);
+  text-align: center;
+}
+
+.matrix thead th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+  vertical-align: bottom;
+  padding-bottom: 12px;
+}
+
+.matrix thead th.is-ours {
+  color: var(--brass-type);
+}
+
+.matrix thead th:first-child {
+  text-align: left;
+}
+
+.matrix tbody th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--ink-80);
+  white-space: nowrap;
+}
+
+.matrix td svg {
+  color: var(--thread-grey);
+}
+
+.matrix .dash {
+  opacity: 0.4;
+}
+
+.matrix tr.is-ours th,
+.matrix tr.is-ours td {
+  background: var(--brass-wash);
+  border-bottom-color: var(--brass-30);
+}
+
+.matrix tr.is-ours th {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.matrix td.is-key svg {
+  color: var(--brass-type);
+}
+
+/* -- the constrained store ------------------------------------------------ */
+.beat-block--vat {
+  background:
+    radial-gradient(70% 55% at 78% 22%, rgba(42, 59, 92, 0.55), transparent 62%),
+    var(--indigo-vat);
+  color: var(--raw-cotton);
+  /* clip, not hidden: an overflow:hidden box is a scroll container, and the
+     pinned store inside would stick to it instead of to the viewport. */
+  overflow: clip;
+}
+
+.unwind-stage {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 52%;
+  pointer-events: none;
+}
+
+.unwind-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.chained-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+}
+
+/* The copy sits in the clear left field; the store occupies the right. */
+.unwind-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(22, 35, 61, 0.92) 0%,
+    rgba(22, 35, 61, 0.4) 22%,
+    transparent 46%
+  );
+}
+
+.unwind-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.unwind-note {
+  color: var(--slub-type);
+  margin-top: var(--s5);
+}
+
+/* -- limitations ---------------------------------------------------------- */
+.limits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 620px;
+  border-top: 1px solid var(--slub-40);
+}
+
+.limit {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: var(--s4);
+  padding: var(--s5) 0;
+  border-bottom: 1px solid var(--slub-40);
+  align-items: baseline;
+}
+
+.limit__n {
+  color: var(--brass-type);
+  font-size: 12px;
+}
+
+.limit p {
+  color: rgba(244, 241, 232, 0.82);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+/* -- close ---------------------------------------------------------------- */
+.close {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s6);
+}
+
+.close__line {
+  color: var(--raw-cotton);
+}
+
+.close__actions {
+  display: flex;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.close__meta {
+  color: var(--slub-type);
+  margin-top: var(--s4);
+}
+
+@media (max-width: 767px) {
+  /* On a phone the copy occupies the whole width, so the cloth cannot sit
+     beside it — it sits behind, quieter, and the scrim is stronger. Legibility
+     wins over decoration every time. */
+  .woven-still {
+    opacity: 0.4;
+  }
+
+  .weave-stage {
+    height: 80vh;
+  }
+  .beat {
+    min-height: 80vh;
+  }
+  .beat--hero {
+    margin-top: -80vh;
+  }
+  .beat--right .shell {
+    justify-content: flex-start;
+  }
+
+  /* On a phone the store stops being a background and becomes a plate: full
+     width, full strength, above the admissions it belongs to. A drawing washed
+     out to 28% behind body copy is neither legible nor decorative. */
+  .beat-block--vat {
+    display: flex;
+    flex-direction: column;
+  }
+  .unwind-stage {
+    position: static;
+    width: 100%;
+    height: 268px;
+    margin-bottom: var(--s5);
+  }
+  .unwind-pin {
+    position: relative;
+    height: 100%;
+  }
+  .chained-still { opacity: 1; }
+  .unwind-veil { display: none; }
+  /* On a phone the copy runs the full width, so the cloth cannot sit beside
+     it — it sits behind, and far enough back that a trace line cannot land
+     across a sentence. Legibility beats decoration every time. */
+  .weave-vignette {
+    background:
+      linear-gradient(0deg, rgba(12, 20, 37, 0.97) 26%, rgba(12, 20, 37, 0.9) 66%, rgba(12, 20, 37, 0.62) 100%);
+  }
+
+  /* Two actions of different widths stacked on top of each other read as a
+     mistake; stacked, they share an edge. */
+  .hero__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hero__actions .btn { width: 100%; }
+}
+
+/* -- the chained still: the drawn twin of the constrained store ------------ */
+.cs-body {
+  fill: var(--unbleached);
+  stroke: var(--indigo-deep);
+  stroke-width: 1;
+}
+
+.cs-rim {
+  fill: none;
+  stroke: var(--indigo-mid);
+  stroke-width: 1.4;
+}
+
+.cs-rim.is-freed {
+  stroke: var(--brass);
+}
+
+.cs-link {
+  fill: none;
+  stroke: var(--thread-grey);
+  stroke-width: 1.2;
+}
+
+.cs-link.is-slack {
+  stroke: var(--slub);
+  opacity: 0.85;
+}
+
+/* The woven still uses the same two tokens the scene does. */
+.ws-warp { stroke: var(--slub); }
+.ws-trace { stroke: var(--brass-bright); }
+.ws-node { fill: var(--brass-bright); }

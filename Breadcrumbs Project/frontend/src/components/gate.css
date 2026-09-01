@@ -1,0 +1,247 @@
+/* The Continuity Gate, rendered as a lock mechanism. */
+
+.gate {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: var(--s7);
+  align-items: start;
+  position: relative;
+  z-index: 2;
+}
+
+.gate--compact {
+  grid-template-columns: 96px 1fr;
+  gap: var(--s5);
+}
+
+@media (max-width: 860px) {
+  .gate {
+    grid-template-columns: 1fr;
+    gap: var(--s5);
+  }
+}
+
+/* -- the mechanism -------------------------------------------------------- */
+.gate__mech {
+  position: sticky;
+  top: 120px;
+}
+
+.gate__shaft {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 0;
+  border-left: 1px solid var(--slub-40);
+  border-right: 1px solid var(--slub-40);
+  width: 78px;
+}
+
+@media (max-width: 860px) {
+  .gate__mech {
+    position: static;
+  }
+  .gate__shaft {
+    flex-direction: row;
+    width: 100%;
+    border: 0;
+    border-top: 1px solid var(--slub-40);
+    border-bottom: 1px solid var(--slub-40);
+    padding: 14px 0;
+    gap: 8px;
+  }
+}
+
+.tumbler {
+  position: relative;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.tumbler__pin {
+  display: block;
+  height: 5px;
+  width: 34%;
+  margin-left: 0;
+  background: var(--slub);
+  border-radius: 1px;
+  transition: width var(--m-base), margin var(--m-base), background var(--m-base);
+}
+
+@media (max-width: 860px) {
+  .tumbler {
+    height: 34px;
+    align-items: flex-end;
+  }
+  .tumbler__pin {
+    width: 100%;
+    height: 34%;
+    margin-left: 0;
+    margin-top: auto;
+  }
+}
+
+/* A set tumbler slides across the shaft. */
+.tumbler.is-set .tumbler__pin {
+  width: 100%;
+  background: var(--brass);
+  box-shadow: 0 0 12px rgba(184, 147, 74, 0.35);
+}
+
+@media (max-width: 860px) {
+  .tumbler.is-set .tumbler__pin {
+    height: 100%;
+  }
+}
+
+/* The jam: it tries, judders, and stops short. */
+.tumbler.is-jammed .tumbler__pin {
+  width: 68%;
+  background: var(--madder-lit);
+  box-shadow: 0 0 12px rgba(217, 127, 106, 0.4);
+  animation: judder 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes judder {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(3px); }
+  40% { transform: translateX(-2px); }
+  60% { transform: translateX(2px); }
+  80% { transform: translateX(-1px); }
+}
+
+.gate__mech-label {
+  margin-top: 14px;
+  color: var(--thread-lit);
+  font-size: 10px;
+  max-width: 110px;
+  line-height: 1.5;
+}
+
+.gate.is-promote .gate__mech-label { color: var(--verdigris-lit); }
+.gate.is-reject .gate__mech-label { color: var(--madder-lit); }
+
+/* -- the panel ------------------------------------------------------------ */
+.gate__prompt {
+  max-width: 54ch;
+  margin-bottom: var(--s5);
+}
+
+.gate__actions {
+  display: flex;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.gate__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gate__steps li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 0;
+  color: var(--slub-type);
+  font-size: 14px;
+  transition: color var(--m-fast);
+}
+
+.gate__steps li.is-done { color: rgba(244, 241, 232, 0.72); }
+.gate__steps li.is-active { color: var(--brass-type); }
+
+.gate__step-n { font-size: 11px; opacity: 0.6; }
+
+/* -- outcome -------------------------------------------------------------- */
+.outcome {
+  animation: settle var(--m-slow);
+}
+
+@keyframes settle {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+.outcome__head {
+  font-size: clamp(24px, 3.2vw, 34px);
+  color: var(--raw-cotton);
+  margin: var(--s4) 0 10px;
+}
+
+.outcome--reject .outcome__head { color: var(--madder-lit); }
+.outcome--promote .outcome__head { color: var(--verdigris-lit); }
+
+.outcome__reason {
+  color: var(--slub-type);
+  font-size: 12px;
+  margin-bottom: var(--s5);
+  overflow-wrap: anywhere;
+}
+
+.gate__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.gate__table th,
+.gate__table td {
+  text-align: right;
+  padding: 11px 10px;
+  border-bottom: 1px solid rgba(61, 78, 107, 0.3);
+}
+
+.gate__table thead th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--slub-type);
+  padding-bottom: 8px;
+}
+
+.gate__table tbody th {
+  text-align: left;
+  font-weight: 400;
+  color: rgba(244, 241, 232, 0.86);
+  padding-left: 0;
+}
+
+.gate__table td { color: rgba(244, 241, 232, 0.7); }
+.gate__table td.ok { color: var(--verdigris-lit); }
+.gate__table td.bad { color: var(--madder-lit); font-weight: 500; }
+
+.gate__table tr.is-fail {
+  background: rgba(217, 127, 106, 0.08);
+  box-shadow: inset 2px 0 0 var(--madder-lit);
+}
+
+.gate__new {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 5px;
+  font-size: 9px;
+  color: var(--brass-type);
+  border: 1px solid var(--brass-30);
+  border-radius: var(--r-sm);
+  vertical-align: 1px;
+}
+
+.outcome__closer {
+  margin-top: var(--s5);
+  padding-left: var(--s4);
+  border-left: 2px solid var(--madder-lit);
+  color: var(--raw-cotton);
+  font-size: 16px;
+  line-height: 1.55;
+  max-width: 52ch;
+}
+
+.gate__again { margin-top: var(--s5); }

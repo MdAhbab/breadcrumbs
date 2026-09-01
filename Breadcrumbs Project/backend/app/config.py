@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     token_ttl_minutes: int = 480
     database_url: str = "sqlite:///./breadcrumbs.db"
     ledger_path: str = "./ledger.db"
+    # The report specifies 3072. The seed uses a smaller modulus so a cold start
+    # is not a minute of prime search; the API reports the real bit length, so a
+    # 1024-bit development ceremony says 1024 on screen rather than claiming the
+    # production figure.
+    anchor_modulus_bits: int = 1024
     cors_origins: list[str] = [
         "http://localhost:5173",
         "http://localhost:3000",
@@ -90,20 +95,38 @@ CAPABILITIES: dict[str, set[str]] = {
     "factory": {
         "read_records", "write_records", "read_grants", "write_grants",
         "read_model", "read_ledger",
+        # Seals its own periods; sees whose counter-signature was assigned;
+        # reads the accumulator and verifies against it. It may not run an
+        # epoch — folding the batch is a consortium act.
+        "read_seals", "write_seals", "read_witness", "contribute_seed",
+        "read_anchor", "verify_anchor",
     },
     "buyer": {
         "read_records", "read_grants", "write_requests", "verify_records",
         "read_model", "read_ledger",
+        # The completeness check is the buyer's instrument, and read_seals is
+        # what gates it. Scoping to the periods it holds a grant in is done in
+        # scoping.py, not here: this table says what, that module says whose.
+        "read_seals", "read_witness", "read_anchor", "verify_anchor",
     },
     "auditor": {
         "read_records", "read_grants", "verify_records", "write_attestations",
         "read_model", "read_ledger",
+        "read_seals", "read_witness", "contribute_seed",
+        "read_anchor", "verify_anchor",
     },
     "consortium": {
         "read_records", "read_grants", "read_model", "write_model",
         "read_governance", "write_governance", "read_sla", "read_ledger",
+        "read_seals", "read_witness", "write_seed_rounds", "contribute_seed",
+        "read_anchor", "write_anchor", "verify_anchor",
     },
     "regulator": {
         "read_governance", "read_sla", "read_ledger", "read_model",
+        # The accumulator state, its epochs and its digests are consortium-wide
+        # facts about the ledger, not factory data, so the observer may read
+        # them. It gets no read_seals and no read_witness: both are answers
+        # about a named factory's documents.
+        "read_anchor",
     },
 }

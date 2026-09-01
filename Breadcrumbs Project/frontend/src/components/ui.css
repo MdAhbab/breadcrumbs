@@ -1,0 +1,590 @@
+/* Shared primitives. Every colour resolves to a token. */
+
+/* -- Seal ---------------------------------------------------------------- */
+.seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 7px;
+  border-radius: var(--r-sm);
+  border: 1px solid;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.seal__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.seal--sealed {
+  color: var(--verdigris);
+  border-color: var(--verdigris-30);
+  background: var(--verdigris-wash);
+}
+.seal--pending {
+  color: var(--ochre);
+  border-color: rgba(169, 125, 40, 0.3);
+  background: var(--ochre-wash);
+}
+.seal--broken {
+  color: var(--madder);
+  border-color: var(--madder-30);
+  background: var(--madder-wash);
+}
+.seal--inert {
+  color: var(--thread-type);
+  border-color: var(--thread-35);
+  background: transparent;
+}
+.seal--inert .seal__dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.seal--dark.seal--sealed {
+  color: var(--verdigris-lit);
+  border-color: rgba(95, 174, 153, 0.35);
+  background: rgba(95, 174, 153, 0.1);
+}
+.seal--dark.seal--broken {
+  color: var(--madder-lit);
+  border-color: rgba(217, 127, 106, 0.35);
+  background: rgba(217, 127, 106, 0.1);
+}
+.seal--dark.seal--pending {
+  color: var(--ochre-lit);
+  border-color: rgba(214, 169, 74, 0.35);
+  background: rgba(214, 169, 74, 0.1);
+}
+.seal--dark.seal--inert {
+  color: var(--slub-type);
+  border-color: var(--slub-40);
+}
+
+/* -- Stamp: epistemic status, no fill ------------------------------------ */
+.stamp {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-sm);
+  line-height: 1.4;
+  font-size: 10px;
+}
+
+.stamp--measured {
+  color: var(--verdigris);
+}
+.stamp--simulated {
+  color: var(--indigo-mid);
+}
+.stamp--specified {
+  color: var(--madder);
+}
+.stamp--assumption {
+  color: var(--thread-type);
+}
+
+.stamp--dark.stamp--measured {
+  color: var(--verdigris-lit);
+}
+.stamp--dark.stamp--simulated {
+  color: var(--slub-lit);
+}
+.stamp--dark.stamp--specified {
+  color: var(--madder-lit);
+}
+.stamp--dark.stamp--assumption {
+  color: var(--thread-lit);
+}
+
+/* -- HashChip ------------------------------------------------------------ */
+.hashchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  background: var(--unbleached);
+  border: 1px solid var(--thread-20);
+  border-radius: var(--r-sm);
+  color: var(--ink-60);
+  font-size: 12px;
+  transition: color var(--m-instant), border-color var(--m-instant);
+}
+
+.hashchip:hover {
+  color: var(--ink);
+  border-color: var(--brass-30);
+}
+
+.hashchip__icon {
+  opacity: 0;
+  transition: opacity var(--m-instant);
+}
+.hashchip:hover .hashchip__icon {
+  opacity: 0.55;
+}
+
+.hashchip--dark {
+  background: rgba(61, 78, 107, 0.24);
+  border-color: var(--slub-40);
+  color: rgba(244, 241, 232, 0.62);
+}
+.hashchip--dark:hover {
+  color: var(--raw-cotton);
+  border-color: var(--brass-30);
+}
+
+/* -- Button -------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  transition: background var(--m-instant), border-color var(--m-instant),
+    color var(--m-instant), transform var(--m-instant);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Disabled is a state, not a faded brand. A washed-out accent still reads as
+   "press me" and its label goes unreadable; a neutral one reads as "not yet". */
+.btn:disabled {
+  cursor: not-allowed;
+  background: var(--btn-off-bg);
+  border-color: transparent;
+  color: var(--btn-off-fg);
+}
+
+.btn--sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.btn--md {
+  height: 40px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+.btn--lg {
+  height: 50px;
+  padding: 0 26px;
+  font-size: 15px;
+}
+.btn--full {
+  width: 100%;
+}
+
+.btn--primary {
+  background: var(--brass);
+  color: var(--ink-on-brass);
+  border-color: var(--brass);
+}
+.btn--primary:hover:not(:disabled) {
+  background: var(--brass-bright);
+  border-color: var(--brass-bright);
+}
+
+.btn--secondary {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--thread-35);
+}
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--ink-40);
+  background: rgba(18, 22, 28, 0.03);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--ink-60);
+}
+.btn--ghost:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(18, 22, 28, 0.04);
+}
+
+.btn--danger {
+  background: transparent;
+  color: var(--madder);
+  border-color: var(--madder-30);
+}
+.btn--danger:hover:not(:disabled) {
+  background: var(--madder-wash);
+}
+
+.btn--onDark {
+  /* A hairline at 30% on indigo is not a button; it is a rumour of one. */
+  background: rgba(244, 241, 232, 0.07);
+  color: var(--raw-cotton);
+  border-color: rgba(244, 241, 232, 0.44);
+}
+
+.btn--onDark:disabled {
+  background: rgba(244, 241, 232, 0.05);
+  border-color: transparent;
+  color: rgba(244, 241, 232, 0.34);
+}
+.btn--onDark:hover:not(:disabled) {
+  border-color: var(--raw-cotton);
+  background: rgba(244, 241, 232, 0.06);
+}
+
+/* -- Disclosure ---------------------------------------------------------- */
+.disclosure {
+  border-top: 1px solid var(--thread-20);
+}
+
+.disclosure__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: var(--ink-60);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color var(--m-instant);
+}
+.disclosure__trigger:hover {
+  color: var(--ink);
+}
+
+.disclosure__chev {
+  transition: transform var(--m-fast);
+  flex: 0 0 auto;
+}
+.disclosure__chev.is-open {
+  transform: rotate(180deg);
+}
+
+.disclosure__body {
+  padding-bottom: var(--s5);
+  animation: reveal var(--m-fast);
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.disclosure--dark {
+  border-color: var(--slub-40);
+}
+.disclosure--dark .disclosure__trigger {
+  color: rgba(244, 241, 232, 0.65);
+}
+.disclosure--dark .disclosure__trigger:hover {
+  color: var(--raw-cotton);
+}
+
+/* -- Field --------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-80);
+}
+
+.field__hint {
+  color: var(--ink-quiet);
+}
+
+.input,
+select.input,
+textarea.input {
+  height: 42px;
+  padding: 0 13px;
+  background: var(--calico);
+  border: 1px solid var(--thread-35);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 14px;
+  transition: border-color var(--m-instant), background var(--m-instant);
+  width: 100%;
+}
+
+textarea.input {
+  height: auto;
+  padding: 11px 13px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.input:hover {
+  border-color: var(--ink-12);
+}
+
+.input::placeholder {
+  color: var(--thread-type);
+}
+
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238E8879' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  padding-right: 34px;
+}
+
+/* -- LedgerRow ----------------------------------------------------------- */
+.lrow {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: var(--s4);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--thread-20);
+  align-items: baseline;
+}
+
+.lrow__label {
+  color: var(--ink-quiet);
+}
+
+.lrow__value {
+  font-size: 14px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lrow--dark {
+  border-color: rgba(61, 78, 107, 0.32);
+}
+.lrow--dark .lrow__label {
+  color: var(--slub-type);
+}
+.lrow--dark .lrow__value {
+  color: rgba(244, 241, 232, 0.92);
+}
+
+@media (max-width: 640px) {
+  .lrow {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}
+
+/* -- Empty --------------------------------------------------------------- */
+.empty {
+  border: 1px dashed var(--thread-35);
+  border-radius: var(--r-md);
+  padding: var(--s6);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+}
+.empty p {
+  color: var(--ink-60);
+  max-width: 46ch;
+}
+
+/* -- Frosted ------------------------------------------------------------- */
+.frosted {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--thread-35);
+}
+
+.frosted__content {
+  filter: blur(7px) saturate(0.5);
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+.frosted__veil {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(142, 136, 121, 0.05) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.frosted__note {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px var(--s4);
+  background: var(--calico);
+  border-top: 1px solid var(--thread-35);
+  color: var(--ink-60);
+}
+
+/* -- PageHead ------------------------------------------------------------ */
+.pagehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  margin-bottom: var(--s6);
+}
+
+.pagehead__eyebrow {
+  color: var(--brass-type);
+  margin-bottom: 10px;
+}
+
+.pagehead__lede {
+  color: var(--ink-60);
+  max-width: 58ch;
+  margin-top: var(--s3);
+}
+
+.pagehead__aside {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+}
+
+/* -- Modal: one dialog for the whole application --------------------------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: var(--s5);
+}
+
+.modal__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 20, 37, 0.72);
+  animation: modal-fade var(--m-fast);
+}
+
+@keyframes modal-fade {
+  from { opacity: 0; }
+}
+
+.modal__panel {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: min(640px, 88vh);
+  display: flex;
+  flex-direction: column;
+  background: var(--indigo-vat);
+  border: 1px solid var(--slub-40);
+  border-radius: var(--r-lg);
+  color: var(--raw-cotton);
+  padding: var(--s5);
+  box-shadow: var(--e3);
+  animation: modal-in var(--m-base);
+}
+
+/* Above the grain overlay, which is a ::after on .grain at z-index 1. */
+.modal__panel > * {
+  position: relative;
+  z-index: 2;
+}
+
+.modal__panel--wide { width: min(560px, 100%); }
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+}
+
+.modal__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s4);
+  margin-bottom: var(--s5);
+}
+
+.modal__eyebrow { color: var(--brass-type); margin-bottom: 6px; }
+
+.modal__title {
+  color: var(--raw-cotton);
+  font-size: 23px;
+}
+
+.modal__x {
+  flex: 0 0 auto;
+  background: none;
+  border: 0;
+  color: var(--slub-type);
+  padding: 4px;
+  transition: color var(--m-instant);
+}
+
+.modal__x:hover { color: var(--raw-cotton); }
+
+.modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.modal__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--slub-40);
+}
+
+/* A dialog on a phone is a screen, not a card. Stretch rather than centre: with
+   place-items: center the grid track is sized to its content, so height: 100%
+   resolves against the wrong box and the footer is pushed off screen. */
+@media (max-width: 560px) {
+  .modal { padding: 0; place-items: stretch; }
+  .modal__panel,
+  .modal__panel--wide {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border: 0;
+    border-radius: 0;
+    padding: var(--s6) var(--s5) var(--s5);
+    padding-bottom: max(var(--s5), env(safe-area-inset-bottom));
+  }
+}
+
+/* -- member kinds: the mesh, its legend and the register share one set ----- */
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 99px;
+  flex: 0 0 auto;
+  background: var(--indigo-mid);
+}
+
+.swatch--factory { background: var(--kind-factory); }
+.swatch--buyer { background: var(--kind-buyer); }
+.swatch--auditor { background: var(--kind-auditor); }
+.swatch--regulator { background: var(--kind-regulator); }
+.swatch--consortium { background: var(--kind-consortium); }

@@ -1,0 +1,66 @@
+/* The Lightbox: one column on a wide empty field. */
+
+.lbx {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: clamp(40px, 7vw, 110px);
+  align-items: start;
+  max-width: 1080px;
+}
+
+@media (max-width: 1000px) { .lbx { grid-template-columns: 1fr; gap: var(--s6); } }
+
+.lbx__form { max-width: 520px; }
+.lbx__eyebrow { color: var(--brass-type); margin-bottom: var(--s4); }
+
+.lbx__constraint {
+  color: var(--ink-60);
+  margin: var(--s4) 0 var(--s7);
+  padding-left: var(--s4);
+  border-left: 2px solid var(--brass-30);
+  max-width: 50ch;
+}
+
+.lbx__fields { display: flex; flex-direction: column; gap: var(--s5); }
+.lbx__pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+@media (max-width: 520px) { .lbx__pair { grid-template-columns: 1fr; } }
+
+.lbx__why { color: var(--ink-quiet); margin-top: calc(var(--s4) * -1); }
+
+.lbx__sent {
+  padding: var(--s6);
+  border: 1px solid var(--verdigris-30);
+  border-radius: var(--r-md);
+  background: var(--verdigris-wash);
+}
+.lbx__sent-head { margin: var(--s4) 0 var(--s3); }
+.lbx__sent-body { color: var(--ink-60); max-width: 46ch; margin-bottom: var(--s5); }
+
+/* -- the periphery -------------------------------------------------------- */
+.lbx__side { border-left: 1px solid var(--thread-35); padding-left: var(--s5); }
+@media (max-width: 1000px) {
+  .lbx__side { border-left: 0; padding-left: 0; border-top: 1px solid var(--thread-35); padding-top: var(--s5); }
+}
+
+.lbx__side-head { color: var(--ink-quiet); margin-bottom: var(--s4); }
+.reqlist { list-style: none; margin: 0 0 var(--s5); padding: 0; }
+
+.reqrow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--thread-20);
+  text-decoration: none;
+  color: inherit;
+  transition: padding-left var(--m-fast);
+}
+.reqrow:hover { padding-left: 6px; }
+
+.reqrow__top { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }
+.reqrow__org { font-size: 14px; font-weight: 500; }
+.reqrow__field { color: var(--brass-type); font-size: 12px; }
+.reqrow__meta { color: var(--ink-quiet); }
+.reqrow__reason { color: var(--madder); }
+
+.lbx__side-note { color: var(--ink-quiet); margin-top: var(--s4); }

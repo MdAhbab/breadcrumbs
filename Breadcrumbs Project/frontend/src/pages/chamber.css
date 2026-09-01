@@ -1,0 +1,123 @@
+/* The Chamber: a docket. Parliamentary, notarial — not a SaaS admin panel. */
+
+.ch__head {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: var(--s5); flex-wrap: wrap;
+  padding-bottom: var(--s5); border-bottom: 2px solid var(--ink);
+  margin-bottom: var(--s6);
+}
+.ch__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.ch__lede { color: var(--ink-60); margin-top: var(--s3); }
+
+.ch__tabs { display: flex; gap: var(--s4); }
+.ch__tab {
+  background: none; border: 0; padding: 0 0 6px;
+  color: var(--ink-quiet); font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: color var(--m-instant), border-color var(--m-instant);
+}
+.ch__tab.is-on { color: var(--ink); border-bottom-color: var(--brass); }
+
+/* -- a motion ------------------------------------------------------------- */
+.docket { list-style: none; margin: 0; padding: 0; }
+
+.motion {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: var(--s6);
+  padding: var(--s6) 0;
+  border-bottom: 1px solid var(--thread-35);
+}
+
+@media (max-width: 860px) {
+  .motion { grid-template-columns: 1fr; gap: var(--s4); }
+}
+
+.motion__margin { padding-top: 4px; }
+.motion__case { color: var(--ink); font-size: 11px; }
+.motion__kind { color: var(--brass-type); margin: 8px 0; font-size: 10px; }
+.motion__dates { color: var(--ink-quiet); line-height: 1.6; }
+
+.motion__title { font-size: clamp(21px, 2.4vw, 27px); max-width: 26ch; }
+
+/* Prose, not truncated card text. A motion is meant to be read. */
+.motion__prose {
+  margin-top: var(--s4);
+  color: var(--ink-80);
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 1.68;
+}
+
+/* -- the seal ledger ------------------------------------------------------ */
+.seals { margin-top: var(--s5); }
+.seals__label { color: var(--ink-quiet); margin-bottom: var(--s3); }
+.seals__row { display: flex; gap: var(--s2); }
+
+.impression {
+  width: 38px; height: 38px; border-radius: 99px;
+  display: grid; place-items: center;
+  border: 1px dashed var(--thread-35);
+  color: var(--ink-quiet);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: all var(--m-base);
+}
+
+.impression.is-filled {
+  border: 1px solid var(--verdigris);
+  background: var(--verdigris-wash);
+  color: var(--verdigris);
+  box-shadow: inset 0 0 0 3px var(--calico);
+}
+
+.seals__who { color: var(--ink-quiet); margin-top: var(--s3); }
+
+.motion__actions { display: flex; gap: var(--s2); margin-top: var(--s5); flex-wrap: wrap; }
+
+/* -- carried -------------------------------------------------------------- */
+.motion.is-carried .motion__title { color: var(--verdigris); }
+
+.carried {
+  display: flex; align-items: center; gap: var(--s4);
+  margin-top: var(--s5); padding: var(--s4);
+  border: 1px solid var(--verdigris-30); border-radius: var(--r-md);
+  background: var(--verdigris-wash);
+  flex-wrap: wrap;
+}
+
+/* A rubber stamp lands at an angle, not square. */
+.carried__stamp {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 2px solid var(--verdigris);
+  border-radius: var(--r-sm);
+  color: var(--verdigris);
+  transform: rotate(-3.5deg);
+  animation: stamp 320ms cubic-bezier(0.34, 1.4, 0.64, 1);
+  flex: 0 0 auto;
+}
+
+@keyframes stamp {
+  from { transform: scale(1.5) rotate(-14deg); opacity: 0; }
+  to { transform: scale(1) rotate(-3.5deg); opacity: 1; }
+}
+
+.carried__note { color: var(--ink-60); flex: 1; min-width: 220px; }
+
+/* -- the register --------------------------------------------------------- */
+.register__cap { color: var(--ink-quiet); margin-bottom: var(--s4); }
+
+.regtable { width: 100%; border-collapse: collapse; font-size: 14px; }
+.regtable th, .regtable td {
+  text-align: left; padding: 13px 14px 13px 0;
+  border-bottom: 1px solid var(--thread-20);
+}
+.regtable thead th {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-quiet);
+}
+.regtable tbody th { font-weight: 400; }
+.regtable__role { color: var(--ink-60); text-transform: capitalize; }
+.regtable td.dim { color: var(--ink-quiet); }
+.register__note { color: var(--ink-quiet); margin-top: var(--s5); max-width: 62ch; }

@@ -1,0 +1,108 @@
+.led__head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--s5); flex-wrap: wrap; margin-bottom: var(--s5);
+}
+.led__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.led__lede { color: var(--ink-60); margin-top: var(--s3); max-width: 46ch; }
+
+.led__integrity {
+  display: flex; gap: var(--s3); align-items: flex-start;
+  padding: var(--s4); border: 1px solid var(--verdigris-30);
+  border-radius: var(--r-md); background: var(--verdigris-wash);
+  color: var(--verdigris); max-width: 320px;
+}
+.led__int-head { font-weight: 500; font-size: 14px; }
+.led__int-body { color: var(--ink-60); margin-top: 2px; }
+
+.led__filters { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s5); }
+.chip {
+  padding: 5px 11px; border-radius: 99px;
+  border: 1px solid var(--thread-35); background: transparent;
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-60);
+  transition: all var(--m-instant);
+}
+.chip:hover { border-color: var(--ink-40); }
+.chip.is-on { background: var(--ink); color: var(--raw-cotton); border-color: var(--ink); }
+
+/* -- the woven strip ------------------------------------------------------ */
+.strip-scroll { padding-bottom: var(--s3); }
+
+.chainstrip {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: 3px; min-width: min-content;
+}
+
+.seg {
+  position: relative;
+  width: 46px; height: 84px;
+  border: 1px solid var(--thread-35);
+  border-radius: 2px;
+  background: var(--calico);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 7px 0 5px;
+  transition: transform var(--m-fast), border-color var(--m-fast), background var(--m-fast);
+}
+.seg:hover { transform: translateY(-3px); border-color: var(--ink-40); }
+
+/* Each segment is a little piece of weave. */
+.seg__weft { display: flex; flex-direction: column; gap: 4px; padding: 0 7px; flex: 1; }
+.seg__weft span { display: block; height: 2px; background: var(--thread-35); }
+.seg--docs .seg__weft span { background: var(--brass); opacity: 0.5; }
+.seg--model .seg__weft span { background: var(--indigo-mid); opacity: 0.5; }
+
+.seg__n { font-size: 9px; color: var(--ink-quiet); text-align: center; }
+
+.seg.is-on {
+  border-color: var(--ink); background: var(--unbleached);
+  transform: translateY(-3px);
+}
+.seg.is-on .seg__n { color: var(--ink); }
+
+/* A broken thread, not a red row. */
+.seg.is-broken .seg__weft span:nth-child(3) {
+  background: var(--madder);
+  transform: scaleX(0.45);
+  transform-origin: left;
+}
+.seg.is-broken { border-color: var(--madder-30); }
+
+.led__legend {
+  display: flex; align-items: center; gap: var(--s2);
+  color: var(--ink-quiet); margin: var(--s3) 0 var(--s6); flex-wrap: wrap;
+}
+.key { width: 14px; height: 3px; display: inline-block; margin-left: var(--s4); }
+.key--docs { background: var(--brass); }
+.key--model { background: var(--indigo-mid); }
+.key--broken { background: var(--madder); }
+.led__legend .key:first-child { margin-left: 0; }
+
+/* -- the selected block --------------------------------------------------- */
+.blockcard { border-top: 2px solid var(--ink); padding-top: var(--s5); }
+.blockcard__head {
+  display: flex; align-items: center; gap: var(--s4);
+  margin-bottom: var(--s5); flex-wrap: wrap;
+}
+.blockcard__n { font-family: var(--font-mono); font-size: 20px; letter-spacing: 0; }
+
+.blockcard__grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s7);
+}
+@media (max-width: 960px) { .blockcard__grid { grid-template-columns: 1fr; gap: var(--s5); } }
+
+.blockcard__label { color: var(--ink-quiet); margin-bottom: var(--s3); }
+
+.tx {
+  padding: var(--s4); border: 1px solid var(--thread-20);
+  border-radius: var(--r-md); background: var(--calico);
+  display: flex; flex-direction: column; gap: 5px; align-items: flex-start;
+}
+.tx.is-bad { border-color: var(--madder-30); background: var(--madder-wash); }
+
+.tx__top { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.tx__cc { font-weight: 600; font-size: 12px; }
+.tx__fn { font-size: 13px; color: var(--ink-60); }
+.tx__code { font-size: 9px; margin-left: auto; }
+.tx__code.ok { color: var(--verdigris); }
+.tx__code.bad { color: var(--madder); }
+.tx__sub, .tx__end { color: var(--ink-quiet); }
+.tx__why { color: var(--madder); max-width: 48ch; margin-top: 4px; }

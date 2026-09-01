@@ -1,0 +1,46 @@
+/* Navigation, as a thread being laid. Mounted only while a transition runs. */
+
+.rtwrap {
+  position: relative;
+  min-height: 100%;
+  overflow-x: clip;
+}
+
+.rtstage {
+  min-height: 100%;
+}
+
+/* Only while a transition runs, and opacity only. `will-change: transform` —
+   or any transform at all — makes this element the containing block for every
+   position: fixed descendant, which silently breaks the sidebar: it stops
+   being viewport-height and starts being page-height. */
+.rtstage.is-moving {
+  will-change: opacity;
+}
+
+.rthread {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 70;
+  pointer-events: none;
+  background: rgba(184, 147, 74, 0.15);
+}
+
+.rthread__run {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  will-change: transform, opacity;
+  background: linear-gradient(90deg, var(--brass) 0%, var(--brass-bright) 100%);
+  box-shadow: 0 0 12px rgba(212, 174, 99, 0.55);
+}
+
+/* Going back, the thread draws from the far edge. */
+.rthread--back .rthread__run {
+  transform-origin: right center;
+  background: linear-gradient(270deg, var(--brass) 0%, var(--brass-bright) 100%);
+}

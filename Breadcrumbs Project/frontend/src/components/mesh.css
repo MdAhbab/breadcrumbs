@@ -1,0 +1,170 @@
+/* The network from above, and a member's record as story blocks. */
+
+.mesh {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 268px;
+  gap: var(--s6);
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .mesh { grid-template-columns: 1fr; }
+}
+
+/* -- the graph ------------------------------------------------------------ */
+.mesh__stage {
+  position: relative;
+  background:
+    radial-gradient(60% 50% at 50% 45%, rgba(42, 59, 92, 0.4), transparent 70%),
+    var(--indigo-vat);
+  border-radius: var(--r-md);
+  aspect-ratio: 1 / 0.82;
+  overflow: hidden;
+}
+
+.mesh__svg { width: 100%; height: 100%; display: block; }
+
+.mesh__guide {
+  fill: none;
+  stroke: var(--slub);
+  stroke-width: 0.15;
+  opacity: 0.4;
+  stroke-dasharray: 0.8 1.2;
+}
+.mesh__guide--faint { opacity: 0.2; }
+
+.mesh__edge {
+  stroke: var(--slub);
+  stroke-width: 0.28;
+  opacity: 0.55;
+  transition: stroke var(--m-fast), opacity var(--m-fast), stroke-width var(--m-fast);
+}
+.mesh__edge.is-lit { stroke: var(--brass); opacity: 1; stroke-width: 0.45; }
+
+/* The document channel is a direct link, not a spoke through the centre. */
+.mesh__edge--doc {
+  stroke: var(--brass);
+  stroke-width: 0.3;
+  opacity: 0.45;
+  stroke-dasharray: 1.6 1.2;
+}
+
+.mesh__node { cursor: pointer; outline: none; }
+.mesh__node:focus-visible .mesh__disc { stroke: var(--brass); stroke-width: 0.7; }
+
+.mesh__disc {
+  fill: var(--indigo-mid);
+  stroke: var(--slub);
+  stroke-width: 0.3;
+  transition: fill var(--m-fast), stroke var(--m-fast), r var(--m-fast);
+}
+
+.mesh__node--factory .mesh__disc { fill: var(--kind-factory); }
+.mesh__node--buyer .mesh__disc { fill: var(--kind-buyer); }
+.mesh__node--auditor .mesh__disc { fill: var(--kind-auditor); }
+.mesh__node--regulator .mesh__disc { fill: var(--kind-regulator); }
+.mesh__node--consortium .mesh__disc { fill: var(--brass); stroke: var(--brass-bright); }
+
+.mesh__node.is-lit .mesh__disc { fill: var(--brass); stroke: var(--brass-bright); }
+
+.mesh__initials {
+  text-anchor: middle;
+  font-family: var(--font-mono);
+  font-size: 3.1px;
+  font-weight: 600;
+  fill: var(--raw-cotton);
+  pointer-events: none;
+}
+.mesh__node--consortium .mesh__initials,
+.mesh__node.is-lit .mesh__initials { fill: var(--ink-on-brass); }
+
+.mesh__label {
+  text-anchor: middle;
+  font-family: var(--font-body);
+  font-size: 2.5px;
+  fill: rgba(244, 241, 232, 0.62);
+  pointer-events: none;
+  transition: fill var(--m-fast);
+}
+.mesh__node.is-lit .mesh__label { fill: var(--raw-cotton); }
+
+/* A slow beat on the centre node: the network is running. */
+.mesh__pulse {
+  fill: none;
+  stroke: var(--brass);
+  stroke-width: 0.3;
+  opacity: 0;
+  animation: meshpulse 3.4s ease-out infinite;
+}
+
+@keyframes meshpulse {
+  0% { r: 6; opacity: 0.5; }
+  70%, 100% { r: 13; opacity: 0; }
+}
+
+/* -- the side -------------------------------------------------------------- */
+.mesh__sidehead { color: var(--ink-quiet); margin-bottom: var(--s3); }
+.mesh__note { color: var(--ink-60); margin-bottom: var(--s4); }
+
+.mesh__legend {
+  list-style: none; margin: 0 0 var(--s5); padding: 0;
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4);
+}
+.mesh__legend li {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--ink-quiet); text-transform: capitalize;
+}
+
+.mesh__list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--thread-20); }
+
+.mesh__listbtn {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 0 10px var(--s2);
+  background: none; border: 0;
+  border-bottom: 1px solid var(--thread-20);
+  border-left: 2px solid transparent;
+  text-align: left; font-size: 13px; color: var(--ink-80);
+  transition: all var(--m-instant);
+}
+.mesh__listbtn:hover { padding-left: var(--s3); color: var(--ink); }
+.mesh__listbtn.is-on { border-left-color: var(--brass); color: var(--ink); background: var(--brass-wash); }
+
+/* -- the story blocks: the dialog chrome is Modal's; these are its contents -- */
+.story__ticks { display: flex; gap: 4px; margin-bottom: var(--s5); }
+.story__tick {
+  flex: 1; height: 2.5px; border: 0; padding: 0;
+  background: var(--slub-40); border-radius: 99px;
+  transition: background var(--m-fast);
+}
+.story__tick.is-done { background: var(--brass); }
+
+.modal__body { animation: blockin var(--m-fast); }
+
+@keyframes blockin { from { opacity: 0; transform: translateX(10px); } }
+
+.story__label { color: var(--slub-type); margin-bottom: var(--s3); }
+.story__lede { color: rgba(244, 241, 232, 0.82); line-height: 1.6; }
+
+.story__rows { margin-top: var(--s4); border-top: 1px solid var(--slub-40); }
+.story__row {
+  display: grid; grid-template-columns: 118px 1fr; gap: var(--s3);
+  padding: 9px 0; border-bottom: 1px solid rgba(61, 78, 107, 0.3);
+  align-items: baseline;
+}
+.story__k { color: var(--slub-type); font-size: 9px; }
+.story__v { font-size: 13px; color: rgba(244, 241, 232, 0.86); overflow-wrap: anywhere; }
+.story__v .mono { font-size: 11px; }
+.story__count { color: var(--slub-type); font-size: 11px; }
+
+/* -- the node itself needs a target and a focus ring ---------------------- */
+.mesh__hit { fill: transparent; }
+
+.mesh__node:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+@media (max-width: 560px) {
+  .story__row { grid-template-columns: 1fr; gap: 2px; }
+}

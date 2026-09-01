@@ -1,0 +1,185 @@
+.login {
+  min-height: 100%;
+  background:
+    radial-gradient(90% 60% at 78% 8%, rgba(42, 59, 92, 0.55), transparent 60%),
+    var(--indigo-deep);
+  color: var(--raw-cotton);
+  display: flex;
+  align-items: center;
+  padding: var(--s7) var(--pad);
+  position: relative;
+}
+
+.login__inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 780px;
+  margin-inline: auto;
+}
+
+.login__head {
+  margin-bottom: var(--s7);
+}
+
+.login__wordmark {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--raw-cotton);
+  text-decoration: none;
+}
+
+.login__sub {
+  color: var(--slub-type);
+  margin-top: 6px;
+}
+
+.login__title {
+  color: var(--raw-cotton);
+  margin-bottom: var(--s4);
+}
+
+.login__lede {
+  color: rgba(244, 241, 232, 0.62);
+  max-width: 52ch;
+  margin-bottom: var(--s6);
+}
+
+.roles {
+  list-style: none;
+  margin: 0 0 var(--s6);
+  padding: 0;
+  border-top: 1px solid var(--slub-40);
+}
+
+.role {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: var(--s4);
+  align-items: center;
+  width: 100%;
+  padding: var(--s4) var(--s3);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--slub-40);
+  border-left: 2px solid transparent;
+  text-align: left;
+  color: inherit;
+  transition: background var(--m-fast), border-color var(--m-fast),
+    padding-left var(--m-fast);
+  animation: role-in var(--m-slow) both;
+}
+
+@keyframes role-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+.role:hover {
+  background: rgba(244, 241, 232, 0.035);
+  padding-left: var(--s5);
+}
+
+.role.is-picked {
+  background: var(--brass-wash);
+  border-left-color: var(--brass);
+  padding-left: var(--s5);
+}
+
+/* The number doubles as the selection mark: a ring that fills when chosen, so
+   the picked row says so at a glance and not only by a tinted background. */
+.role__n {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--slub-40);
+  border-radius: 99px;
+  color: var(--slub-type);
+  font-size: 10px;
+  transition: border-color var(--m-fast), background var(--m-fast),
+    color var(--m-fast);
+}
+
+.role:hover .role__n { border-color: var(--slub-type); }
+
+.role.is-picked .role__n {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: var(--ink-on-brass);
+}
+
+.role__body { display: block; min-width: 0; }
+
+.role__label {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--raw-cotton);
+}
+
+.role__org {
+  display: block;
+  font-size: 13px;
+  color: rgba(244, 241, 232, 0.5);
+  margin-top: 1px;
+}
+
+.role__summary {
+  display: block;
+  font-size: 13px;
+  color: rgba(244, 241, 232, 0.62);
+  margin-top: 5px;
+}
+
+/* Present at rest, brighter on attention. Revealing it only on hover put the
+   one piece of orienting information out of reach of every touch device. */
+.role__instrument {
+  color: var(--slub-type);
+  font-size: 10px;
+  opacity: 0.65;
+  transition: opacity var(--m-fast), color var(--m-fast);
+  white-space: nowrap;
+}
+
+.role:hover .role__instrument,
+.role.is-picked .role__instrument {
+  opacity: 1;
+}
+
+.role.is-picked .role__instrument { color: var(--brass-type); }
+
+.login__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  flex-wrap: wrap;
+}
+
+.login__nolink {
+  color: rgba(244, 241, 232, 0.5);
+  font-size: 14px;
+  text-decoration: none;
+  border-bottom: 1px solid var(--slub-40);
+  padding-bottom: 2px;
+  transition: color var(--m-instant), border-color var(--m-instant);
+}
+
+.login__nolink:hover {
+  color: var(--raw-cotton);
+  border-color: var(--brass);
+}
+
+.login__foot {
+  color: var(--slub-type);
+  margin-top: var(--s7);
+}
+
+@media (max-width: 640px) {
+  .role {
+    grid-template-columns: 30px 1fr;
+  }
+  .role__instrument { display: none; }
+}

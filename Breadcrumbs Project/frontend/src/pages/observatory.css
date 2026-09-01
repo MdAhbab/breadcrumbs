@@ -1,0 +1,92 @@
+/* The Observatory: everything behind glass, and the glass explained. */
+
+.obs__condition {
+  display: flex; gap: var(--s4); align-items: flex-start;
+  padding: var(--s4) var(--s5);
+  background: var(--indigo-vat); color: var(--raw-cotton);
+  border-radius: var(--r-md);
+  margin-bottom: var(--s6);
+}
+.obs__condition > * { position: relative; z-index: 2; }
+.obs__condition svg { color: var(--brass-type); flex: 0 0 auto; margin-top: 2px; }
+.obs__condition-head { font-weight: 500; }
+.obs__condition-body { color: rgba(244, 241, 232, 0.66); margin-top: 3px; max-width: 70ch; }
+
+.obs__head { margin-bottom: var(--s6); }
+.obs__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+
+.obs__section { margin-bottom: clamp(40px, 6vw, 72px); }
+.obs__label {
+  color: var(--ink-quiet);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--thread-35);
+  margin-bottom: var(--s5);
+}
+.obs__label--closed { color: var(--madder); border-bottom-color: var(--madder-30); }
+
+.obs__explain { color: var(--ink-60); max-width: 68ch; margin-bottom: var(--s5); }
+
+/* -- figures -------------------------------------------------------------- */
+/* Rules are drawn by the cells, not by a tinted panel showing through the
+   gaps: with six figures in a five-across row, the leftover track used to
+   paint as a large empty grey box that read as a broken cell. */
+.figures {
+  display: grid;
+  /* Six figures, so three across and two deep: a block, not a row with a
+     remainder hanging off it. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+}
+
+@media (max-width: 900px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .figures { grid-template-columns: 1fr; } }
+
+.figure {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: var(--s5);
+  background: var(--raw-cotton);
+  box-shadow: 0 0 0 1px var(--thread-20);
+}
+.figure__n {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.figure__l { color: var(--ink-quiet); }
+
+/* -- events --------------------------------------------------------------- */
+.events { list-style: none; margin: 0; padding: 0; }
+.event {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr) auto;
+  gap: var(--s4); align-items: center;
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--thread-20);
+}
+@media (max-width: 760px) {
+  .event { grid-template-columns: 1fr; gap: 6px; }
+}
+.event__case { color: var(--ink-quiet); font-size: 11px; }
+.event__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.event__title { font-size: 15px; }
+.event__meta { color: var(--ink-quiet); text-transform: capitalize; }
+
+/* -- what is closed ------------------------------------------------------- */
+.obs__closed { display: flex; flex-direction: column; gap: var(--s5); }
+
+.ghost { padding: var(--s5); background: var(--calico); }
+.ghost__head { color: var(--ink-quiet); margin-bottom: var(--s4); }
+.ghosttable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ghosttable td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--thread-20);
+  white-space: nowrap;
+}
+
+.obs__request {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: var(--s5); flex-wrap: wrap;
+  margin-top: var(--s5); padding: var(--s5);
+  border: 1px dashed var(--thread-35); border-radius: var(--r-md);
+}
+.obs__request p { color: var(--ink-60); max-width: 60ch; }

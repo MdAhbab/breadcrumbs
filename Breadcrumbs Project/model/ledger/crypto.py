@@ -22,11 +22,8 @@ import secrets
 from typing import Any
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-    Ed25519PrivateKey,
-    Ed25519PublicKey,
-)
+
+from .suites import load_public_der, public_der, suite, suite_for_key
 
 # Domain-separation tags. Never reuse one for a different structure.
 TAG_LEAF = b"breadcrumbs:leaf:v1"
@@ -37,6 +34,8 @@ TAG_MODEL = b"breadcrumbs:model:v1"
 TAG_BENCH = b"breadcrumbs:benchmark:v1"
 TAG_BANK = b"breadcrumbs:memorybank:v1"
 TAG_PROPOSAL = b"breadcrumbs:proposal:v1"
+TAG_PUBLIC_LEAF = b"breadcrumbs:publicleaf:v1"
+TAG_SEAL = b"breadcrumbs:seal:v1"
 
 
 def canonical(obj: Any) -> bytes:
@@ -98,33 +97,40 @@ def new_salt() -> str:
 # --------------------------------------------------------------------------
 # Signing
 # --------------------------------------------------------------------------
-def generate_signing_key() -> Ed25519PrivateKey:
-    """Ed25519: small keys, small signatures, no parameter choices to get wrong."""
-    return Ed25519PrivateKey.generate()
+# The algorithm is a property of the key, not an argument. See `suites.py`:
+# choosing the algorithm from a caller-supplied string is how downgrade attacks
+# get in, and there is no reason to accept the risk when the key already knows.
+def generate_signing_key(suite_id: str | None = None) -> Any:
+    """A private key in the consortium's suite, RSA-3072 unless told otherwise."""
+    return suite(suite_id).generate()
 
 
-def sign(key: Ed25519PrivateKey, payload: Any) -> str:
+def sign(key: Any, payload: Any) -> str:
     """Sign the canonical encoding of a payload. Returns hex."""
-    return key.sign(canonical(payload)).hex()
+    return suite_for_key(key).sign(key, canonical(payload)).hex()
 
 
-def verify(public_key: Ed25519PublicKey, payload: Any, signature: str) -> bool:
-    """Check a signature against the canonical encoding of a payload."""
+def verify(public_key: Any, payload: Any, signature: str) -> bool:
+    """
+    Check a signature against the canonical encoding of a payload.
+
+    A key of one suite presented with a signature of another fails here rather
+    than raising, which is what callers expect: every caller in this codebase
+    treats a False as "rejected" and would otherwise have to catch a TypeError
+    to avoid turning a forged signature into a crashed peer.
+    """
     try:
-        public_key.verify(bytes.fromhex(signature), canonical(payload))
+        suite_for_key(public_key).verify(public_key, canonical(payload), bytes.fromhex(signature))
         return True
-    except (InvalidSignature, ValueError):
+    except (InvalidSignature, ValueError, TypeError):
         return False
 
 
-def public_bytes(public_key: Ed25519PublicKey) -> str:
-    """Raw public key as hex, for storing in the world state."""
-    return public_key.public_bytes(
-        encoding=serialization.Encoding.Raw,
-        format=serialization.PublicFormat.Raw,
-    ).hex()
+def public_bytes(public_key: Any) -> str:
+    """Public key as DER SubjectPublicKeyInfo, hex encoded, for the world state."""
+    return public_der(public_key)
 
 
-def load_public(raw_hex: str) -> Ed25519PublicKey:
+def load_public(raw_hex: str) -> Any:
     """Inverse of public_bytes."""
-    return Ed25519PublicKey.from_public_bytes(bytes.fromhex(raw_hex))
+    return load_public_der(raw_hex)

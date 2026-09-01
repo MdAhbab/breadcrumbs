@@ -108,6 +108,8 @@ class EndorsementValidator:
 
     def __init__(self, msp: MSP):
         self.msp = msp
+        self.signatures_verified = 0
+        self.signatures_skipped = 0
 
     def valid_orgs(
         self, payload: dict[str, Any], endorsements: list[Endorsement]
@@ -138,10 +140,52 @@ class EndorsementValidator:
     def check(
         self, payload: dict[str, Any], endorsements: list[Endorsement], policy: Policy
     ) -> tuple[bool, str]:
-        """Returns (ok, reason)."""
-        orgs, notes = self.valid_orgs(payload, endorsements)
-        if not policy.satisfied_by(orgs):
-            got = ", ".join(sorted(orgs)) or "none"
+        """
+        Returns (ok, reason), verifying no more signatures than the policy needs.
+
+        Fabric verifies every endorsement attached to a transaction regardless of
+        how many the policy requires. On a three-of-five policy with five
+        endorsements that is two RSA verifications per transaction that change
+        nothing, on every peer, forever.
+
+        Stopping early is sound, and it is worth being precise about why. The
+        policy is evaluated over organisations whose signatures HAVE been checked,
+        so an accepted transaction is accepted on verified evidence only. A
+        transaction that fails still pays for every signature, because refusing
+        requires establishing that no sufficient subset verifies. So the saving
+        lands entirely on the honest path, which is the path that carries the
+        volume.
+
+        Endorsements are also deduplicated by organisation before verification.
+        A policy counts distinct organisations, so a second signature from one
+        already counted cannot change the outcome and there is no reason to check
+        it — which is the same reasoning that stops five employees of one factory
+        satisfying a three-of-five policy.
+        """
+        good: set[str] = set()
+        notes: list[str] = []
+        remaining = list(endorsements)
+
+        for e in remaining:
+            if e.msp_id in good:
+                self.signatures_skipped += 1
+                continue
+            if policy.satisfied_by(good):
+                self.signatures_skipped += 1
+                continue
+
+            public_key, reason = self.msp.public_key_for(e.msp_id, e.certificate_pem)
+            if public_key is None:
+                notes.append(f"{e.identity_id}: {reason}")
+                continue
+            self.signatures_verified += 1
+            if not verify(public_key, payload, e.signature):
+                notes.append(f"{e.identity_id}: signature does not verify")
+                continue
+            good.add(e.msp_id)
+
+        if not policy.satisfied_by(good):
+            got = ", ".join(sorted(good)) or "none"
             detail = f" ({'; '.join(notes)})" if notes else ""
             return False, f"policy {policy.describe()} not satisfied by [{got}]{detail}"
         return True, ""

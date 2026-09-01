@@ -67,15 +67,35 @@ def test_a_proof_for_one_row_reveals_nothing_about_another():
     """
     The disclosure carries one value, one salt and sibling *hashes*. Every other
     row's value is absent, and the hashes are not invertible.
+
+    The check is structural rather than a substring search over the serialised
+    proof. An earlier version of this test looked for each other row's decimal
+    value anywhere in the stringified disclosure, which fails roughly two percent
+    of runs for a reason that has nothing to do with leakage: a five-digit decimal
+    is a valid hex string, so it turns up inside a sibling hash by chance. A test
+    that fails at random teaches people to re-run it, which is how a real failure
+    gets ignored.
     """
     data = rows(64)
     tree = MerkleTree(data)
     d = tree.prove(3, "rc-001", "net_pay_bdt")
-    disclosed = d.to_dict()
-    other_values = {r["net_pay_bdt"] for i, r in enumerate(data) if i != 3}
-    blob = str(disclosed)
-    assert not any(str(v) in blob for v in other_values)
-    assert not any(s in blob for s in tree.salts[:3] + tree.salts[4:])
+
+    assert d.value == data[3]
+    assert d.salt == tree.salts[3]
+
+    # Everything else in the proof is a sibling hash and nothing but a sibling hash.
+    siblings = {step.sibling for step in d.path}
+    assert all(len(h) == 64 and set(h) <= set("0123456789abcdef") for h in siblings)
+
+    other_salts = set(tree.salts[:3] + tree.salts[4:])
+    assert not (siblings & other_salts)
+
+    # No sibling is the bare leaf hash of another row computed without its salt,
+    # which is the shape a leakage bug would actually take.
+    from model.ledger.crypto import leaf_hash
+
+    unsalted = {leaf_hash(r, "") for i, r in enumerate(data) if i != 3}
+    assert not (siblings & unsalted)
 
 
 def test_salting_defeats_guessing_a_low_entropy_row():

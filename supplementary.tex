@@ -1,0 +1,411 @@
+% =============================================================================
+%  Breadcrumbs — Supplementary Material
+%  Team CookieMonsters, United International University.
+%
+%  HOW TO COMPILE
+%    Upload alongside main.tex, ref.bib and results.tex. Set the compiler to
+%    pdfLaTeX. This file is standalone; it does not \input main.tex.
+%
+%    If the competition accepts only a single PDF, delete the \documentclass
+%    ... \begin{document} block and the \end{document} at the foot, and place
+%    \appendix\input{supplementary} just before \bibliographystyle in main.tex.
+% =============================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{hyperref}
+
+\definecolor{tcblue}{HTML}{2563EB}
+\definecolor{tcorange}{HTML}{E8710A}
+\definecolor{tcgreen}{HTML}{059669}
+\definecolor{tcgrey}{HTML}{6B7280}
+\definecolor{tctext}{HTML}{111827}
+
+\hypersetup{colorlinks=true,linkcolor=tcblue,citecolor=tcblue,urlcolor=tcblue,
+            breaklinks=true}
+\titleformat{\section}{\normalfont\Large\bfseries\sffamily\color{tctext}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\sffamily\color{tctext}}{\thesubsection}{0.6em}{}
+\captionsetup{font=small,labelfont={bf,sf}}
+\setlength{\parskip}{0.35em}
+\renewcommand{\arraystretch}{1.18}
+\pagestyle{fancy}\fancyhf{}
+\lhead{\small\sffamily Breadcrumbs — Supplementary}
+\rhead{\small\sffamily Team CookieMonsters}
+\cfoot{\small S\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\raggedbottom
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\IfFileExists{results.tex}{\input{results}}{%
+  \providecommand{\num}[1]{\textbf{??}}%
+  \providecommand{\numunit}[2]{\textbf{??}}%
+  \providecommand{\rows}[1]{\multicolumn{1}{l}{\textbf{?? not measured}}\\}}
+
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thetable}{S\arabic{table}}
+
+\begin{document}
+
+\begin{center}
+{\sffamily\bfseries\LARGE Breadcrumbs: Supplementary Material\par}
+\vspace{0.3cm}
+{\sffamily\large\color{tcgrey} reproduction, parameters, the full attack
+catalogue, and the corpus specification\par}
+\end{center}
+
+\vspace{0.6cm}
+
+This document holds the material a reader would need in order to disbelieve the
+main report properly: how to run everything, what every parameter was set to and
+why, the complete list of attacks with the test that performs each one, and the
+specification of the data. Nothing here is required to follow the argument in the
+main report. Everything here is required to check it.
+
+\tableofcontents
+\newpage
+
+% =============================================================================
+\section{Reproducing every number}
+
+All measurements in the main report come from benchmarks that write JSON, which a
+generator turns into \LaTeX{} macros. No figure is typed by hand, and a figure
+that has not been measured renders as a bold \textbf{??} on the page. The
+measurements quoted were taken on \num{LedgerMachine}.
+
+\begin{verbatim}
+cd "Breadcrumbs Project"
+make setup            # virtual environment and dependencies
+
+make test             # 206 tests
+make lint             # ruff, clean
+make demo             # the end-to-end cycle
+make verify           # chain integrity from scratch
+
+# the mechanisms, individually
+.venv/bin/python -m pytest -k "accumulator or seal or witness or digest" -v
+
+# the attacks: this should read as a list of refusals, plus three admissions
+.venv/bin/python -m pytest -k "attack" -v
+
+# the measurements
+.venv/bin/python -m model.bench.bench_accumulator --bits 3072
+.venv/bin/python -m model.bench.bench_identity
+.venv/bin/python -m model.bench.bench_ledger --documents 200
+.venv/bin/python -m model.bench.to_latex     # writes results.tex
+
+# the original learning simulation, unchanged since the first submission
+cd model/experiments
+python3 fcl_sim.py            # Table 4 and Figure 3
+python3 sweep_difficulty.py   # the difficulty sweep
+python3 probe_sufficiency.py  # the test in Section 7.3 that we failed
+\end{verbatim}
+
+Two notes on honesty of reproduction. The learning experiments in
+\texttt{model/experiments/} are frozen and lint-exempt precisely so that the
+numbers they back cannot drift without somebody noticing. And the test suite
+draws RSA keys from a pre-generated development pool in
+\texttt{model/ledger/devkeys.pem} --- those private keys are public, every
+signature check in the suite is nonetheless a real RSA-PSS verification against a
+real certificate chain, and what is pre-computed is only the search for large
+primes.
+
+% =============================================================================
+\section{Cryptographic parameters, and why each was chosen}
+
+\begin{table}[htbp]
+\centering
+\caption{Every parameter that could have been chosen differently.}
+\label{tab:params}
+\small
+\begin{tabularx}{\textwidth}{@{}l l Y@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Why} \\
+\midrule
+Signature suite & RSA-3072 with PSS & PSS has a security proof; PKCS\#1 v1.5 survives on compatibility we do not need. 3072 buys margin to 2035 \citep{nist2024ir8547} \\
+Accumulator group & $(\mathbb{Z}/N\mathbb{Z})^{*}/\{\pm1\}$ & Quotienting by the sign removes the one easily found element of small order \\
+Modulus size & \numunit{AccumulatorModulusBits}{bits} & Matches the signature suite so one assumption covers both \\
+Element primes & 256 bits & Large enough that guessing an element is infeasible; small enough that an epoch exponent stays tractable \\
+Primality test & Fixed-base Miller--Rabin plus strong Lucas & Deterministic, so endorsers cannot disagree; Baillie--PSW because fixed-base Miller--Rabin alone can be defeated by a crafted composite \\
+Fiat--Shamir challenge & 128-bit prime & Forging a proof means finding a collision on it \\
+Merkle leaf salt & 128 bits & Wage rows have low entropy; without a salt a neighbouring row can be brute-forced from a proof \\
+Odd Merkle nodes & Promoted, never duplicated & Duplicating is CVE-2012-2459: two different row lists produce one root \\
+Witness quorum & 1, sampled & Always for payroll and safety; sampled elsewhere, so cost stays bounded and a factory cannot predict which records are checked \\
+Gate tolerance $\tau$ & 300 bp & Consortium-agreed; note the per-round bound in Section~6 of the main report \\
+Gate gain $\gamma$ & 200 bp & A candidate must actually improve, not merely not regress \\
+Gate endorsements $k$ & 3 of 5 & No pair of organisations can promote a model \\
+Gate agreement $\delta$ & 100 bp & Larger disagreement means the evaluation itself is unreliable \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{The modulus ceremony}
+
+The accumulator modulus is generated by a \textbf{trusted dealer} from combined
+member entropy. Each member contributes secret bytes and publishes only their
+hash; the transcript --- dealer, contributors, contribution hashes, parameter hash
+and a note stating the limitation in plain words --- is stored on the ledger in
+full rather than by digest, because a member joining in year three needs to read
+who was in the room, and a hash of a document nobody kept is a gesture.
+
+This is not multiparty generation. A dishonest dealer retains a trapdoor. Two
+alternatives exist and both cost something we were not willing to pay yet.
+Distributed generation in the style of Boneh--Franklin removes the dealer but is a
+research protocol. A class group of imaginary quadratic order has no trapdoor at
+all, but is roughly an order of magnitude slower and stops being RSA, which
+removes the unification that motivates the whole design. The mitigation we chose
+instead is structural and is tested: the accumulator is never the sole authority,
+so a trapdoor holder can fail a verification but cannot produce the ledger record
+and the anchored index that verification also requires.
+
+% =============================================================================
+\section{The full attack catalogue}
+
+Each row names the test that performs the attack. All are in
+\texttt{model/tests/}.
+
+\begin{longtable}{@{}p{4.6cm} p{1.6cm} p{8.4cm}@{}}
+\caption{Every attack in the suite, and the test that runs it.}
+\label{tab:fullattacks}\\
+\toprule
+\textbf{Attack} & \textbf{Result} & \textbf{Test} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Attack} & \textbf{Result} & \textbf{Test} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{3}{@{}l}{\textit{Identity and endorsement}}\\
+Rogue CA claiming a real MSP & Blocked & \texttt{test\_rogue\_ca\_claiming\_a\_real\_msp\_id\_is\_rejected} \\
+Endorsement key not bound to a certificate & Blocked & \texttt{test\_an\_endorsement\_key\_must\_be\_bound\_to\_a\_certificate} \\
+Revoked certificate & Blocked & \texttt{test\_revoked\_certificate\_is\_rejected} \\
+Revoked certificate served from cache & Blocked & \texttt{test\_a\_revoked\_certificate\_stops\_working\_immediately\_even\_when\_cached} \\
+Expired certificate & Blocked & \texttt{test\_an\_expired\_certificate\_is\_refused\_even\_when\_cached} \\
+Five signatures from one organisation & Blocked & \texttt{test\_policy\_counts\_organisations\_not\_signatures} \\
+Signature from a different suite & Blocked & \texttt{test\_a\_signature\_from\_a\_weaker\_suite\_does\_not\_pass\_as\_an\_rsa\_endorsement} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Ledger integrity}}\\
+Tamper with a committed transaction & Blocked & \texttt{test\_tampering\_with\_a\_committed\_transaction\_breaks\_the\_chain} \\
+Alter a write set in flight & Blocked & \texttt{test\_altering\_a\_write\_set\_in\_flight\_invalidates\_the\_transaction} \\
+Move an endorsement to another transaction & Blocked & \texttt{test\_an\_endorsement\_cannot\_be\_moved\_to\_another\_transaction} \\
+Replay a transaction & Blocked & \texttt{test\_replaying\_a\_committed\_transaction\_does\_not\_apply\_it\_twice} \\
+Mix channels in one block & Blocked & \texttt{test\_a\_block\_never\_mixes\_channels} \\
+Non-deterministic chaincode & Blocked & \texttt{test\_nondeterministic\_chaincode\_is\_caught\_at\_endorsement} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Seals and completeness}}\\
+Seal omitting your own records & Blocked & \texttt{test\_a\_factory\_cannot\_seal\_a\_period\_while\_omitting\_a\_record} \\
+Disclose a subset of a sealed period & Blocked & \texttt{test\_a\_factory\_cannot\_disclose\_a\_subset\_of\_a\_sealed\_period} \\
+Pad a disclosure to fix the count & Blocked & \texttt{test\_padding\_a\_disclosure\_with\_an\_unrelated\_record\_does\_not\_help} \\
+Add to a sealed period & Blocked & \texttt{test\_a\_record\_cannot\_be\_added\_to\_a\_sealed\_period} \\
+Amend without a reason & Blocked & \texttt{test\_an\_amendment\_must\_state\_a\_reason} \\
+Commit while a seal is in flight & Blocked & \texttt{test\_a\_record\_committed\_during\_sealing\_invalidates\_the\_seal} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Witnesses}}\\
+Choose your own witness & Blocked & \texttt{test\_the\_owner\_cannot\_substitute\_a\_friendlier\_witness} \\
+Sign as a peer with your own key & Blocked & \texttt{test\_a\_self\_generated\_key\_labelled\_as\_a\_peer\_is\_refused} \\
+Reuse an attestation elsewhere & Blocked & \texttt{test\_an\_attestation\_cannot\_be\_lifted\_onto\_another\_document} \\
+Reveal a share that was not committed & Blocked & \texttt{test\_a\_share\_that\_does\_not\_match\_its\_commitment\_is\_refused} \\
+Reveal before everyone commits & Blocked & \texttt{test\_nobody\_can\_reveal\_before\_everybody\_has\_committed} \\
+File a finding against a rival & Blocked & \texttt{test\_only\_an\_auditor\_may\_record\_a\_falsification\_finding} \\
+Accuse over a valid disclosure & Blocked & \texttt{test\_an\_accusation\_about\_a\_disclosure\_that\_actually\_verifies\_is\_refused} \\
+\textbf{Collude with your assigned witness} & \textbf{Succeeds} & \texttt{test\_an\_assigned\_witness\_that\_colludes\_is\_not\_stopped\_only\_recorded} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Accumulator}}\\
+Composite passed off as a prime & Blocked & \texttt{test\_carmichael\_numbers\_are\_not\_mistaken\_for\_primes} \\
+Witness transferred to another record & Blocked & \texttt{test\_a\_witness\_does\_not\_transfer\_to\_another\_record} \\
+Invented witness & Blocked & \texttt{test\_an\_invented\_witness\_is\_rejected} \\
+Non-member smuggled into an aggregate & Blocked & \texttt{test\_a\_non\_member\_cannot\_be\_smuggled\_into\_an\_aggregate} \\
+Forged batching proof & Blocked & \texttt{test\_a\_forged\_batching\_proof\_is\_rejected} \\
+Stale witness replayed & Blocked & \texttt{test\_a\_witness\_from\_an\_earlier\_epoch\_is\_refused\ldots} \\
+Accumulate an uncommitted record & Blocked & \texttt{test\_a\_record\_the\_ledger\_never\_saw\_cannot\_be\_accumulated} \\
+Accumulate under another prime & Blocked & \texttt{test\_a\_record\_cannot\_be\_accumulated\_under\_someone\_elses\_prime} \\
+Choose your own accumulator value & Blocked & \texttt{test\_an\_accumulator\_value\_that\_does\_not\_follow\_is\_rejected} \\
+Replay an epoch proof & Blocked & \texttt{test\_an\_epoch\_proof\_cannot\_be\_replayed\_over\_a\_different\_set\_of\_records} \\
+\textbf{Forge a witness with the trapdoor} & \textbf{Succeeds} & \texttt{test\_the\_trapdoor\_holder\_can\_forge\_a\_witness\ldots} \\
+\ldots{}and then fails end to end & Blocked & \texttt{test\_the\_trapdoor\_holder\_cannot\_rewrite\_history} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Time and equivocation}}\\
+Overstate elapsed work & Blocked & \texttt{test\_claiming\_more\_elapsed\_time\_than\_was\_spent\_is\_rejected} \\
+Beacon below the agreed difficulty & Blocked & \texttt{test\_a\_beacon\_claiming\_less\_work\_than\_agreed\_is\_refused} \\
+Serve two members different histories & Blocked & \texttt{test\_two\_members\_served\_different\_histories\_are\_detected\ldots} \\
+Manufacture agreement with forged digests & Blocked & \texttt{test\_a\_digest\_attributed\_to\_an\_organisation\_that\_did\_not\_sign\_it\_is\_refused} \\
+Replay a digest under another epoch & Blocked & \texttt{test\_a\_gossiped\_digest\_cannot\_be\_replayed\_under\_a\_different\_epoch} \\
+Suppress a digest to hide a fork & Bounded & \texttt{test\_dropping\_a\_members\_digest\_cannot\_hide\_a\_fork\_from\_the\_others} \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{The learning plane}}\\
+Forge every organisation's evaluation & Blocked & \texttt{test\_one\_actor\_cannot\_forge\_every\_organisations\_evaluation} \\
+Certificate from the wrong organisation & Blocked & \texttt{test\_a\_real\_certificate\_from\_the\_wrong\_organisation\_is\_rejected} \\
+Promote with a minority of endorsers & Blocked & \texttt{test\_a\_minority\_of\_colluding\_endorsers\_cannot\_promote\_a\_model} \\
+Swap a benchmark after commitment & Blocked & \texttt{test\_swapping\_a\_benchmark\_between\_commitment\_and\_reveal\_is\_caught} \\
+\textbf{Poison just inside the tolerance} & \textbf{Succeeds} & \texttt{test\_a\_poisoning\_update\_tuned\_to\_sit\_just\_under\_the\_tolerance\_is\_promoted} \\
+\end{longtable}
+
+% =============================================================================
+\section{Full measurement series}
+
+\begin{table}[htbp]
+\centering
+\caption{Verification cost against the number of records covered. The
+\emph{unproved} column is the naive relation check and is the comparison the
+accumulator loses on raw time; the \emph{proved} column carries the batching
+proof and is essentially flat. Columns: records, proved (ms), unproved (ms),
+Merkle proofs (ms), aggregate proof bytes, Merkle proof bytes, accumulator
+verifier state, root-list verifier state.}
+\label{tab:verificationseries}
+\scriptsize
+\begin{tabular}{@{}r r r r r r r r@{}}
+\toprule
+$n$ & Proved & Unproved & Merkle & Agg.\ bytes & Merkle bytes & Acc.\ state & Roots state \\
+\midrule
+\rows{AccumulatorVerification}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Delay function: evaluation against verification. The ratio is what makes
+the construction usable --- a verifier checks in milliseconds what a prover spent
+real sequential time producing. Columns: iterations, evaluate (ms), verify (ms),
+ratio.}
+\label{tab:vdfseries}
+\small
+\begin{tabular}{@{}r r r r@{}}
+\toprule
+Iterations & Evaluate (ms) & Verify (ms) & Ratio \\
+\midrule
+\rows{AccumulatorVdf}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Where the proof of exponentiation starts paying. For a single record it
+costs more than checking directly; the crossover is a measured quantity, not a
+claim. Columns: records, with proof (ms), direct (ms).}
+\label{tab:poeseries}
+\small
+\begin{tabular}{@{}r r r@{}}
+\toprule
+$n$ & With proof (ms) & Direct (ms) \\
+\midrule
+\rows{AccumulatorPoeCrossover}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{The two signature suites side by side. Columns: suite, key generation
+(ms), sign (ms), verify (ms), signature bytes, certificate bytes, public key
+bytes, disallowed after.}
+\label{tab:suiteseries}
+\scriptsize
+\begin{tabular}{@{}l r r r r r r l@{}}
+\toprule
+Suite & Keygen & Sign & Verify & Sig.\ B & Cert B & Key B & Disallowed \\
+\midrule
+\rows{IdentitySuites}
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =============================================================================
+\section{The second-generation corpus}
+
+The corpus behind the learning results is invented, and its weakness is stated in
+the main report: a model trained only on summaries of it does nearly as well as
+the full method, so the benchmark cannot separate ``the mechanism works'' from
+``this data is easy to summarise''. A second corpus is specified to address that,
+and to address something the first corpus cannot do at all.
+
+\textbf{Row-level records.} Five document types with raw rows rather than
+pre-extracted features, so a detector has to learn from the records instead of
+from sixteen hand-designed statistics. This is what makes the summary-sufficiency
+criticism answerable either way.
+
+\textbf{A labelled adversary trace.} This is the part without which the ledger
+cannot be scored at all, only asserted. Alongside the documents, a timeline of
+attempted attacks with ground truth: retroactive edits, records withheld at
+disclosure, back-dated seals, forked histories served to different members,
+witness collusion, duplicate submissions to two buyer channels, and factories that
+hide a real change inside a high volume of trivial amendments. Every attack has a
+difficulty parameter and a configuration in which the attacker is \emph{careful}
+--- edits that preserve totals, withholding that preserves counts, amendments that
+look routine. An adversary that always leaves obvious traces flatters the system
+being tested, and a reviewer will assume that is what happened unless the
+generator shows otherwise.
+
+\textbf{Structure.} Six invented sites differing in size, wage level,
+record-keeping discipline and seasonality; a non-IID partition across them
+(Dirichlet, $\alpha = 0.6$); three waves of new anomaly types across 2025--2027
+with drift inside each wave; and a deliberate recurrence of wave-one anomalies
+late in wave three, so forgetting becomes measurable in production terms rather
+than only against a held-out benchmark.
+
+\textbf{Acceptance tests the generator must pass}, including one that matters more
+than it looks: a trivial baseline must score well short of perfect on the
+realistic mix. A synthetic corpus that a logistic regression solves makes every
+result computed on it meaningless, and it is the first thing a reviewer will try.
+
+The full specification is in \texttt{docs/synthetic\_corpus\_prompt.md} in the
+repository.
+
+% =============================================================================
+\section{Security audit findings}
+
+The system was audited before this report was revised. Five serious findings, all
+fixed, each with a regression test that fails against the previous code.
+
+\begin{table}[htbp]
+\centering
+\caption{Audit findings. The two critical ones each made the project's headline
+guarantee false while the demonstration appeared to work perfectly.}
+\label{tab:audit}
+\small
+\begin{tabularx}{\textwidth}{@{}l l Y@{}}
+\toprule
+\textbf{\#} & \textbf{Severity} & \textbf{Finding} \\
+\midrule
+F-1 & Critical & Endorsement signatures verified against a key the endorsement itself supplied, so any party could satisfy any policy alone \\
+F-2 & Critical & The same flaw in the Continuity Gate: one actor could forge every organisation's evaluation and promote a model that had collapsed from 91.6\% to 52.9\% on an earlier task \\
+F-3 & High & No transaction replay protection; a blind write could be applied twice \\
+F-4 & High & Blocks could mix channels, breaking the confidentiality boundary the whole Plane A argument rests on \\
+F-5 & High & The API served every factory record to any signed-in caller, including the regulator, whose screen exists to show no factory data \\
+F-6 & Medium & The certificate expiry check compared against the issuance epoch and was unreachable \\
+F-7 & Medium & One hardcoded timestamp for every write, making grant expiry meaningless \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Two gaps the audit recorded as open have since been closed: range queries now
+carry a digest of the keys the scan returned, so a phantom read cannot corrupt a
+period seal, and epoch digests give the external cross-check a single-store
+deployment previously lacked. Blocks are still not signed by the ordering service
+and clients still do not sign their own proposals.
+
+The lesson the audit drew is the one worth repeating: both critical findings were
+in signature verification, both looked correct on a casual read, and neither would
+have been caught by any test that only exercises the happy path. Every guarantee
+in this system now has a test that names an attacker and tries the attack.
+
+\small
+\bibliographystyle{plainnat}
+\bibliography{ref}
+
+\end{document}

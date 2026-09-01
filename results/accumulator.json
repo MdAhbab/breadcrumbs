@@ -1,0 +1,435 @@
+{
+  "caveats": [
+    "One machine, one process, CPython's built-in big integers. A production deployment would use a GMP-backed modular exponentiation and should expect roughly an order of magnitude better on every RSA row.",
+    "Accumulator verification is not faster than Merkle verification per record and this benchmark shows that. The saving is in verifier state and proof bandwidth, and in answering absence and completeness, which Merkle proofs cannot answer at any price.",
+    "The modulus here is locally generated with known factors so the benchmark is reproducible. Timings are unaffected; the security argument is not the same one a deployment would make."
+  ],
+  "description": "RSA accumulator costs and savings, 3072-bit modulus",
+  "machine": {
+    "commit": "2ca1c0a",
+    "platform": "macOS-26.6.1-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.11.15"
+  },
+  "measured_at": "2026-09-01T20:30:24Z",
+  "name": "accumulator",
+  "series": {
+    "poeCrossover": [
+      {
+        "direct_ms": 7.5307,
+        "n": 1,
+        "with_proof_ms": 8.9553
+      },
+      {
+        "direct_ms": 14.7729,
+        "n": 2,
+        "with_proof_ms": 8.6327
+      },
+      {
+        "direct_ms": 36.8576,
+        "n": 5,
+        "with_proof_ms": 8.5311
+      },
+      {
+        "direct_ms": 73.2151,
+        "n": 10,
+        "with_proof_ms": 8.762
+      },
+      {
+        "direct_ms": 182.2105,
+        "n": 25,
+        "with_proof_ms": 8.6294
+      },
+      {
+        "direct_ms": 366.613,
+        "n": 50,
+        "with_proof_ms": 9.5173
+      },
+      {
+        "direct_ms": 729.4364,
+        "n": 100,
+        "with_proof_ms": 9.0792
+      }
+    ],
+    "vdf": [
+      {
+        "eval_ms": 50.757,
+        "iterations": 1000,
+        "ratio": 5.6,
+        "verify_ms": 9.083
+      },
+      {
+        "eval_ms": 537.31,
+        "iterations": 10000,
+        "ratio": 59.0,
+        "verify_ms": 9.1058
+      },
+      {
+        "eval_ms": 2697.242,
+        "iterations": 50000,
+        "ratio": 294.3,
+        "verify_ms": 9.1663
+      },
+      {
+        "eval_ms": 10949.824,
+        "iterations": 200000,
+        "ratio": 1131.6,
+        "verify_ms": 9.676
+      }
+    ],
+    "verification": [
+      {
+        "aggregate_ms": 9.0926,
+        "aggregate_proof_bytes": 1984,
+        "aggregate_unproved_ms": 375.1007,
+        "merkle_ms": 0.4135,
+        "merkle_proof_bytes": 17600,
+        "n": 50,
+        "verifier_state_bytes_accumulator": 384,
+        "verifier_state_bytes_roots": 1600
+      },
+      {
+        "aggregate_ms": 10.2359,
+        "aggregate_proof_bytes": 3584,
+        "aggregate_unproved_ms": 763.3617,
+        "merkle_ms": 0.93,
+        "merkle_proof_bytes": 35200,
+        "n": 100,
+        "verifier_state_bytes_accumulator": 384,
+        "verifier_state_bytes_roots": 3200
+      },
+      {
+        "aggregate_ms": 9.3604,
+        "aggregate_proof_bytes": 8384,
+        "aggregate_unproved_ms": 1786.0503,
+        "merkle_ms": 2.2863,
+        "merkle_proof_bytes": 88000,
+        "n": 250,
+        "verifier_state_bytes_accumulator": 384,
+        "verifier_state_bytes_roots": 8000
+      },
+      {
+        "aggregate_ms": 8.995,
+        "aggregate_proof_bytes": 16384,
+        "aggregate_unproved_ms": 3644.9988,
+        "merkle_ms": 4.8735,
+        "merkle_proof_bytes": 192000,
+        "n": 500,
+        "verifier_state_bytes_accumulator": 384,
+        "verifier_state_bytes_roots": 16000
+      }
+    ],
+    "witnessIssuance": [
+      {
+        "n": 20,
+        "naive_ms": 2738.127,
+        "rootfactor_ms": 646.969,
+        "speedup": 4.23
+      },
+      {
+        "n": 40,
+        "naive_ms": 11341.319,
+        "rootfactor_ms": 1603.877,
+        "speedup": 7.07
+      },
+      {
+        "n": 80,
+        "naive_ms": 45933.723,
+        "rootfactor_ms": 3762.755,
+        "speedup": 12.21
+      }
+    ]
+  },
+  "timings": [
+    {
+      "label": "hash to prime: search",
+      "mean_ms": 3.907313,
+      "median_ms": 3.55248,
+      "min_ms": 1.742625,
+      "note": "the writer pays this once per record",
+      "repeats": 10,
+      "stdev_ms": 2.160968
+    },
+    {
+      "label": "hash to prime: verify with nonce",
+      "mean_ms": 1.614555,
+      "median_ms": 1.610396,
+      "min_ms": 1.588042,
+      "note": "every verifier afterwards pays only this",
+      "repeats": 50,
+      "stdev_ms": 0.018118
+    },
+    {
+      "label": "accumulator: add one record",
+      "mean_ms": 10.358367,
+      "median_ms": 10.311917,
+      "min_ms": 10.2705,
+      "note": "",
+      "repeats": 10,
+      "stdev_ms": 0.10554
+    },
+    {
+      "label": "issue 20 witnesses, one at a time",
+      "mean_ms": 2738.127,
+      "median_ms": 2738.127,
+      "min_ms": 2738.127,
+      "note": "quadratic; the obvious implementation",
+      "repeats": 1,
+      "stdev_ms": 0.0
+    },
+    {
+      "label": "issue 20 witnesses, RootFactor",
+      "mean_ms": 646.9695,
+      "median_ms": 646.9695,
+      "min_ms": 646.9695,
+      "note": "n log n",
+      "repeats": 1,
+      "stdev_ms": 0.0
+    },
+    {
+      "label": "issue 40 witnesses, one at a time",
+      "mean_ms": 11341.318833,
+      "median_ms": 11341.318833,
+      "min_ms": 11341.318833,
+      "note": "quadratic; the obvious implementation",
+      "repeats": 1,
+      "stdev_ms": 0.0
+    },
+    {
+      "label": "issue 40 witnesses, RootFactor",
+      "mean_ms": 1603.877417,
+      "median_ms": 1603.877417,
+      "min_ms": 1603.877417,
+      "note": "n log n",
+      "repeats": 1,
+      "stdev_ms": 0.0
+    },
+    {
+      "label": "issue 80 witnesses, one at a time",
+      "mean_ms": 45933.72325,
+      "median_ms": 45933.72325,
+      "min_ms": 45933.72325,
+      "note": "quadratic; the obvious implementation",
+      "repeats": 1,
+      "stdev_ms": 0.0
+    },
+    {
+      "label": "issue 80 witnesses, RootFactor",
+      "mean_ms": 3762.755,
+      "median_ms": 3762.755,
+      "min_ms": 3762.755,
+      "note": "n log n",
+      "repeats": 1,
+      "stdev_ms": 0.0
+    },
+    {
+      "label": "verify 50 records: aggregate witness with batching proof",
+      "mean_ms": 9.081375,
+      "median_ms": 9.092583,
+      "min_ms": 9.018625,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.057964
+    },
+    {
+      "label": "verify 50 records: aggregate witness, no batching proof",
+      "mean_ms": 376.126819,
+      "median_ms": 375.10075,
+      "min_ms": 362.601458,
+      "note": "the naive relation check, for comparison",
+      "repeats": 3,
+      "stdev_ms": 14.066491
+    },
+    {
+      "label": "verify 50 records: 50 block-inclusion proofs",
+      "mean_ms": 0.436486,
+      "median_ms": 0.4135,
+      "min_ms": 0.411292,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.04174
+    },
+    {
+      "label": "verify 100 records: aggregate witness with batching proof",
+      "mean_ms": 10.213736,
+      "median_ms": 10.235917,
+      "min_ms": 10.14225,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.063377
+    },
+    {
+      "label": "verify 100 records: aggregate witness, no batching proof",
+      "mean_ms": 766.419667,
+      "median_ms": 763.36175,
+      "min_ms": 747.388667,
+      "note": "the naive relation check, for comparison",
+      "repeats": 3,
+      "stdev_ms": 20.72981
+    },
+    {
+      "label": "verify 100 records: 100 block-inclusion proofs",
+      "mean_ms": 0.927694,
+      "median_ms": 0.929958,
+      "min_ms": 0.918542,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.008257
+    },
+    {
+      "label": "verify 250 records: aggregate witness with batching proof",
+      "mean_ms": 9.384583,
+      "median_ms": 9.360375,
+      "min_ms": 9.346666,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.054237
+    },
+    {
+      "label": "verify 250 records: aggregate witness, no batching proof",
+      "mean_ms": 1785.536931,
+      "median_ms": 1786.05025,
+      "min_ms": 1780.813667,
+      "note": "the naive relation check, for comparison",
+      "repeats": 3,
+      "stdev_ms": 4.488672
+    },
+    {
+      "label": "verify 250 records: 250 block-inclusion proofs",
+      "mean_ms": 2.286972,
+      "median_ms": 2.28625,
+      "min_ms": 2.27825,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.009104
+    },
+    {
+      "label": "verify 500 records: aggregate witness with batching proof",
+      "mean_ms": 9.01775,
+      "median_ms": 8.994958,
+      "min_ms": 8.977709,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.055095
+    },
+    {
+      "label": "verify 500 records: aggregate witness, no batching proof",
+      "mean_ms": 3644.790389,
+      "median_ms": 3644.998834,
+      "min_ms": 3642.981125,
+      "note": "the naive relation check, for comparison",
+      "repeats": 3,
+      "stdev_ms": 1.714571
+    },
+    {
+      "label": "verify 500 records: 500 block-inclusion proofs",
+      "mean_ms": 4.88007,
+      "median_ms": 4.8735,
+      "min_ms": 4.862917,
+      "note": "",
+      "repeats": 3,
+      "stdev_ms": 0.021215
+    },
+    {
+      "label": "verify one membership witness",
+      "mean_ms": 9.701671,
+      "median_ms": 9.705958,
+      "min_ms": 9.644041,
+      "note": "",
+      "repeats": 10,
+      "stdev_ms": 0.043597
+    },
+    {
+      "label": "verify an epoch of 500 records by proof of exponentiation",
+      "mean_ms": 9.02593,
+      "median_ms": 9.04725,
+      "min_ms": 8.956625,
+      "note": "two exponentiations by a 128-bit prime, whatever the epoch size",
+      "repeats": 3,
+      "stdev_ms": 0.061483
+    },
+    {
+      "label": "verify the same epoch by recomputing it",
+      "mean_ms": 3650.913903,
+      "median_ms": 3646.451875,
+      "min_ms": 3633.948917,
+      "note": "what a verifier without the proof has to do",
+      "repeats": 3,
+      "stdev_ms": 19.58108
+    }
+  ],
+  "values": {
+    "accumulatorStateBytes": {
+      "note": "one group element: the entire verifier state, whatever the ledger size",
+      "value": 384
+    },
+    "aggregateBatchingSpeedup": {
+      "note": "",
+      "value": 405.2
+    },
+    "aggregateProvedMs": {
+      "note": "one aggregate witness with its batching proof",
+      "value": 8.995
+    },
+    "aggregateRecords": {
+      "note": "",
+      "value": 500
+    },
+    "aggregateUnprovedMs": {
+      "note": "the same witness checked by the naive relation",
+      "value": 3644.9988
+    },
+    "batchAddMsPerRecord": {
+      "note": "",
+      "value": 17.454
+    },
+    "batchAddRecords": {
+      "note": "",
+      "value": 500
+    },
+    "epochExponentBits": {
+      "note": "the exponent a verifier avoids forming, for 500 records",
+      "value": 127789
+    },
+    "epochProofMs": {
+      "note": "verify an epoch through its proof of exponentiation",
+      "value": 9.047
+    },
+    "epochProofSpeedup": {
+      "note": "",
+      "value": 403.05
+    },
+    "epochRecomputeMs": {
+      "note": "verify the same epoch by recomputing it",
+      "value": 3646.452
+    },
+    "epochRecords": {
+      "note": "",
+      "value": 500
+    },
+    "hashToPrimeSpeedup": {
+      "note": "search cost divided by verification cost",
+      "value": 2.2
+    },
+    "merkleProofsMs": {
+      "note": "the comparison the accumulator loses on raw time",
+      "value": 4.8735
+    },
+    "modulusBits": {
+      "note": "",
+      "value": 3072
+    },
+    "modulusGenerationSeconds": {
+      "note": "one-off, at consortium formation",
+      "value": 2.096
+    },
+    "singleWitnessMs": {
+      "note": "",
+      "value": 9.706
+    },
+    "verifierStateRootsBytes": {
+      "note": "what a verifier would hold without the accumulator",
+      "value": 16000
+    }
+  }
+}

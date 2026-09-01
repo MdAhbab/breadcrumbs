@@ -1,0 +1,144 @@
+/* The Bench: a specimen rail, a working surface, and a signing block. */
+
+.bench__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--thread-35);
+  margin-bottom: var(--s6);
+}
+.bench__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+
+.bench__tally { display: flex; gap: var(--s6); }
+.tally { display: flex; flex-direction: column; gap: 3px; }
+.tally__n {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.tally--ok .tally__n { color: var(--verdigris); }
+.tally--bad .tally__n { color: var(--madder); }
+.tally--wait .tally__n { color: var(--ochre); }
+.tally__l { color: var(--ink-quiet); font-size: 10px; }
+
+/* -- the specimen rail ---------------------------------------------------- */
+.rail-strip { margin-bottom: var(--s6); }
+
+.rail-strip__head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4);
+}
+.rail-strip__head .stamp-type { color: var(--ink-quiet); }
+.rail-strip__actions { display: flex; gap: var(--s2); }
+
+.specimens {
+  list-style: none; margin: 0; padding: var(--s4) 0;
+  display: flex; gap: var(--s2);
+  border-top: 1px solid var(--thread-35);
+  border-bottom: 1px solid var(--thread-35);
+}
+
+.spec {
+  flex: 0 0 178px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: var(--s3);
+  padding: var(--s4);
+  border: 1px solid var(--thread-35);
+  border-radius: var(--r-md);
+  background: var(--calico);
+  /* Work moves left to right along the rail. */
+  transition: transform var(--m-base), border-color var(--m-base), background var(--m-base);
+}
+
+.spec__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.spec__factory { font-size: 13px; font-weight: 500; }
+.spec__type { color: var(--ink-quiet); }
+.spec__id { color: var(--ink-quiet); font-size: 10px; }
+.spec__state { font-size: 9px; color: var(--ink-quiet); }
+
+.spec.is-checking {
+  border-color: var(--ochre); background: var(--ochre-wash);
+  transform: translateY(-4px);
+}
+.spec.is-checking .spec__state { color: var(--ochre); }
+
+.spec.is-passed { border-color: var(--verdigris-30); background: var(--verdigris-wash); }
+.spec.is-passed .spec__state { color: var(--verdigris); }
+
+.spec.is-failed { border-color: var(--madder-30); background: var(--madder-wash); }
+.spec.is-failed .spec__state { color: var(--madder); }
+
+/* -- the working surface -------------------------------------------------- */
+.bench__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--s6);
+  align-items: start;
+}
+@media (max-width: 1100px) { .bench__body { grid-template-columns: 1fr; } }
+
+.benchtable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.benchtable th, .benchtable td {
+  text-align: left; padding: 11px 12px 11px 0;
+  border-bottom: 1px solid var(--thread-20);
+}
+.benchtable thead th {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-quiet);
+}
+.benchtable thead th:first-child { text-align: left; }
+.benchtable tbody th { font-weight: 400; }
+.benchtable td.dim { color: var(--ink-quiet); }
+.benchtable tr.is-fail { background: var(--madder-wash); }
+
+/* -- the signing block: heavier material than the page -------------------- */
+.signing {
+  padding: var(--s5);
+  background: var(--indigo-vat);
+  border-radius: var(--r-md);
+  color: var(--raw-cotton);
+  display: flex; flex-direction: column; gap: var(--s4);
+  position: sticky; top: var(--s5);
+}
+@media (max-width: 1100px) { .signing { position: static; } }
+
+.signing__head { color: var(--brass-type); position: relative; z-index: 2; }
+.signing > * { position: relative; z-index: 2; }
+
+.signing .field__label { color: rgba(244, 241, 232, 0.8); }
+.signing .field__hint { color: var(--slub-type); }
+.signing .input {
+  /* background-COLOR, not the shorthand. The shorthand resets background-repeat
+     and background-position, which turned the select's chevron into a tiled
+     zigzag running the width of the field. */
+  background-color: rgba(12, 20, 37, 0.55);
+  border-color: var(--slub-40);
+  color: var(--raw-cotton);
+}
+.signing .input::placeholder { color: var(--slub-type); }
+.signing select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238095B5' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.signing__why { color: var(--slub-type); }
+
+/* The seal press: it comes down once, and settles. */
+.wax { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--s3); }
+
+.wax__seal {
+  width: 62px; height: 62px; border-radius: 99px;
+  display: grid; place-items: center;
+  background: var(--madder); color: var(--raw-cotton);
+  box-shadow: 0 6px 18px rgba(154, 67, 50, 0.4);
+  animation: press 320ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes press {
+  from { transform: scale(1.4) rotate(-8deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+.wax__head { color: var(--raw-cotton); }
+.wax__body { color: rgba(244, 241, 232, 0.6); max-width: 34ch; margin-bottom: var(--s3); }

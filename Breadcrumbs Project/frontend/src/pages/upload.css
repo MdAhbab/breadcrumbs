@@ -1,0 +1,82 @@
+.up__head { margin-bottom: var(--s6); }
+.up__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.up__lede { color: var(--ink-60); margin-top: var(--s3); max-width: 54ch; }
+
+.up__body {
+  display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s7); align-items: start;
+}
+@media (max-width: 1000px) { .up__body { grid-template-columns: 1fr; gap: var(--s6); } }
+
+.up__form { display: flex; flex-direction: column; gap: var(--s5); max-width: 520px; }
+.up__pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+@media (max-width: 520px) { .up__pair { grid-template-columns: 1fr; } }
+
+.drop {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: var(--s7) var(--s5);
+  border: 1px dashed var(--thread-35); border-radius: var(--r-md);
+  background: var(--calico); color: var(--ink-quiet);
+  transition: border-color var(--m-fast), background var(--m-fast), color var(--m-fast);
+}
+.drop:hover:not(:disabled) { border-color: var(--brass); color: var(--ink-60); }
+.drop.has-file {
+  border-style: solid; border-color: var(--verdigris-30);
+  background: var(--verdigris-wash); color: var(--verdigris);
+}
+.drop__name { font-size: 14px; color: var(--ink); }
+.drop.has-file .drop__name { color: var(--verdigris); }
+.drop__meta { color: var(--ink-quiet); }
+
+/* -- the weaving sequence ------------------------------------------------- */
+.weavesteps { list-style: none; margin: 0; padding: 0; }
+.weavesteps li {
+  display: grid; grid-template-columns: 16px 1fr; gap: var(--s4);
+  padding: 11px 0; color: var(--ink-quiet);
+  transition: color var(--m-fast);
+}
+.weavesteps__mark {
+  width: 9px; height: 9px; border-radius: 99px; margin-top: 6px;
+  border: 1px solid var(--thread-35);
+  transition: all var(--m-fast);
+}
+.weavesteps li.is-done { color: var(--ink-60); }
+.weavesteps li.is-done .weavesteps__mark { background: var(--verdigris); border-color: var(--verdigris); }
+.weavesteps li.is-active { color: var(--ink); }
+.weavesteps li.is-active .weavesteps__mark {
+  background: var(--brass); border-color: var(--brass);
+  box-shadow: 0 0 0 3px var(--brass-wash);
+}
+.weavesteps__body { display: flex; flex-direction: column; gap: 3px; }
+.weavesteps__label { font-size: 14px; }
+.weavesteps__note { color: var(--ink-quiet); max-width: 48ch; }
+
+/* -- what leaves ---------------------------------------------------------- */
+.leaves {
+  border: 1px solid var(--thread-35); border-radius: var(--r-md);
+  overflow: hidden;
+}
+.leaves__head {
+  padding: var(--s4) var(--s4) var(--s3);
+  color: var(--ink-quiet); border-bottom: 1px solid var(--thread-20);
+}
+.leaves__col { padding: var(--s4); }
+.leaves__col--stay { border-bottom: 1px solid var(--thread-20); }
+.leaves__col--go { background: var(--brass-wash); }
+.leaves__title { font-size: 14px; font-weight: 600; margin-bottom: var(--s3); }
+.leaves__col--go .leaves__title { color: var(--brass-type); }
+.leaves ul { margin: 0; padding-left: 18px; }
+.leaves li { font-size: 13px; color: var(--ink-60); padding: 3px 0; }
+.leaves__note { color: var(--ink-quiet); margin-top: var(--s3); }
+
+/* -- sealed --------------------------------------------------------------- */
+.up--done { max-width: 560px; }
+.up__donehead { margin: var(--s4) 0 var(--s3); }
+.up__donebody { color: var(--ink-60); margin-bottom: var(--s6); }
+.up__receipt { border-top: 1px solid var(--thread-20); margin-bottom: var(--s6); }
+.up__rrow {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s4);
+  padding: 12px 0; border-bottom: 1px solid var(--thread-20);
+}
+.up__rrow .stamp-type { color: var(--ink-quiet); }
+.up__doneactions { display: flex; gap: var(--s3); flex-wrap: wrap; }

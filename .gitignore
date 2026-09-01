@@ -35,5 +35,27 @@ dist/
 *.sqlite3
 ledger_data/
 
-# generated corpus (reproducible with model.datagen)
+# Generated and downloaded data. None of it belongs in the repository: the
+# synthetic corpus is reproducible from a seed, and the real datasets in
+# docs/future_works.md are large and redistributable only from their source.
 Breadcrumbs Project/model/datagen/corpus/
+Breadcrumbs Project/data/
+corpus/
+datasets/
+downloads/
+*.parquet
+*.jsonl
+*.jsonl.gz
+*.npy
+*.npz
+
+# Trained weights. The Continuity Gate records a model's hash on the ledger, so a
+# checkpoint is identifiable from the chain without being stored beside it.
+*.pt
+*.pth
+*.onnx
+*.safetensors
+checkpoints/
+
+# design prompt: local working file, not part of the repo
+Breadcrumbs Project/frontend/claude_design_prompt.md

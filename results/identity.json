@@ -1,0 +1,153 @@
+{
+  "caveats": [
+    "Key generation for RSA is drawn from a pre-generated development pool in the test suite but NOT here: this benchmark generates real keys, which is why its keygen row is the honest number and the test suite's speed is not.",
+    "One machine, CPython, OpenSSL-backed primitives. Ratios between the two suites will hold on other hardware; absolute figures will not.",
+    "RSA-3072 is disallowed after 2035 under NIST IR 8547. The cost measured here buys margin, not permanence, which is what the suite registry in `model/ledger/suites.py` exists to handle."
+  ],
+  "description": "RSA-3072 identity and endorsement costs against the Ed25519 baseline",
+  "machine": {
+    "commit": "2ca1c0a",
+    "platform": "macOS-26.6.1-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.11.15"
+  },
+  "measured_at": "2026-09-01T19:36:02Z",
+  "name": "identity",
+  "series": {
+    "suites": [
+      {
+        "certificate_bytes": 558,
+        "disallowed_after": "2035-12-31",
+        "keygen_ms": 0.0826,
+        "public_key_bytes": 44,
+        "sign_ms": 0.0831,
+        "signature_bytes": 64,
+        "suite": "ed25519-sha256-v1",
+        "verify_ms": 0.1872
+      },
+      {
+        "certificate_bytes": 1529,
+        "disallowed_after": "2035-12-31",
+        "keygen_ms": 111.093,
+        "public_key_bytes": 422,
+        "sign_ms": 2.0779,
+        "signature_bytes": 384,
+        "suite": "rsa3072-pss-sha256-v1",
+        "verify_ms": 0.0476
+      }
+    ]
+  },
+  "timings": [
+    {
+      "label": "ed25519-sha256-v1: generate a key",
+      "mean_ms": 0.082879,
+      "median_ms": 0.082584,
+      "min_ms": 0.082042,
+      "note": "paid once per identity, at issuance; no pool",
+      "repeats": 50,
+      "stdev_ms": 0.001384
+    },
+    {
+      "label": "ed25519-sha256-v1: sign a transaction",
+      "mean_ms": 0.083493,
+      "median_ms": 0.083125,
+      "min_ms": 0.082417,
+      "note": "",
+      "repeats": 200,
+      "stdev_ms": 0.001349
+    },
+    {
+      "label": "ed25519-sha256-v1: verify a signature",
+      "mean_ms": 0.188085,
+      "median_ms": 0.18725,
+      "min_ms": 0.18625,
+      "note": "",
+      "repeats": 200,
+      "stdev_ms": 0.002264
+    },
+    {
+      "label": "rsa3072-pss-sha256-v1: generate a key",
+      "mean_ms": 166.342442,
+      "median_ms": 111.093042,
+      "min_ms": 65.528458,
+      "note": "paid once per identity, at issuance; no pool",
+      "repeats": 5,
+      "stdev_ms": 110.463844
+    },
+    {
+      "label": "rsa3072-pss-sha256-v1: sign a transaction",
+      "mean_ms": 2.077858,
+      "median_ms": 2.077854,
+      "min_ms": 2.062042,
+      "note": "",
+      "repeats": 20,
+      "stdev_ms": 0.009778
+    },
+    {
+      "label": "rsa3072-pss-sha256-v1: verify a signature",
+      "mean_ms": 0.049205,
+      "median_ms": 0.047625,
+      "min_ms": 0.047208,
+      "note": "",
+      "repeats": 50,
+      "stdev_ms": 0.009168
+    },
+    {
+      "label": "resolve a certificate: cold, per call",
+      "mean_ms": 0.153829,
+      "median_ms": 0.14023,
+      "min_ms": 0.138084,
+      "note": "parse the PEM, walk the chain, verify the CA signature",
+      "repeats": 20,
+      "stdev_ms": 0.054679
+    },
+    {
+      "label": "resolve a certificate: cached",
+      "mean_ms": 0.007624,
+      "median_ms": 0.007583,
+      "min_ms": 0.007375,
+      "note": "revocation and validity still re-checked; only the parse is reused",
+      "repeats": 200,
+      "stdev_ms": 0.000231
+    },
+    {
+      "label": "verify one endorsement end to end",
+      "mean_ms": 0.061309,
+      "median_ms": 0.05923,
+      "min_ms": 0.058542,
+      "note": "",
+      "repeats": 50,
+      "stdev_ms": 0.008803
+    }
+  ],
+  "values": {
+    "certificateCacheSpeedup": {
+      "note": "the single change that pays for RSA identities",
+      "value": 18.5
+    },
+    "endorsementsAttached": {
+      "note": "",
+      "value": 5
+    },
+    "rsaSignSlowdown": {
+      "note": "how much slower RSA-3072 signing is than Ed25519",
+      "value": 25.0
+    },
+    "rsaSignatureGrowth": {
+      "note": "signature size multiple; lands on every transaction",
+      "value": 6.0
+    },
+    "rsaVerifySpeedup": {
+      "note": "RSA-3072 verification against Ed25519; above 1.0 means RSA is faster",
+      "value": 3.9
+    },
+    "signaturesAvoidedPerTransaction": {
+      "note": "RSA verifications removed per transaction, on every peer, forever",
+      "value": 2
+    },
+    "signaturesVerifiedUnderPolicy": {
+      "note": "a 3-of-5 policy with 5 endorsements attached",
+      "value": 3
+    }
+  }
+}

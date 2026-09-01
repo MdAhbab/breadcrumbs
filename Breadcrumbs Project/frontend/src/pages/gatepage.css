@@ -1,0 +1,270 @@
+/* The Continuity Gate decision — the dark ground, because this is the ledger. */
+
+.gatepage {
+  margin: calc(var(--s7) * -1) calc(var(--s6) * -1) calc(var(--s8) * -1);
+  padding: var(--s7) var(--s6) var(--s8);
+  background:
+    radial-gradient(80% 50% at 80% 0%, rgba(42, 59, 92, 0.5), transparent 60%),
+    var(--indigo-deep);
+  color: var(--raw-cotton);
+  min-height: 100vh;
+}
+
+@media (max-width: 1023px) {
+  .gatepage {
+    margin: calc((var(--s7) + 22px) * -1) calc(var(--s5) * -1) calc(var(--s7) * -1);
+    padding: calc(var(--s7) + 22px) var(--s5) var(--s7);
+  }
+}
+
+.gatepage__inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1080px;
+}
+
+.gatepage__eyebrow { color: var(--brass-type); margin-bottom: var(--s5); }
+
+/* -- the verdict ---------------------------------------------------------- */
+.gv {
+  padding-left: var(--s5);
+  border-left: 2px solid;
+  margin-bottom: clamp(48px, 7vw, 88px);
+  animation: gv-in var(--m-slow) both;
+}
+
+@keyframes gv-in { from { opacity: 0; transform: translateY(12px); } }
+
+.gv--reject { border-color: var(--madder-lit); }
+.gv--promote { border-color: var(--verdigris-lit); }
+
+.gv__head {
+  font-size: clamp(26px, 4vw, 44px);
+  margin: var(--s4) 0 var(--s4);
+  color: var(--raw-cotton);
+  max-width: 20ch;
+}
+
+.gv__body {
+  color: rgba(244, 241, 232, 0.72);
+  max-width: 62ch;
+}
+
+.gv__body .mono { color: var(--brass-type); font-size: 0.9em; }
+
+/* -- sections ------------------------------------------------------------- */
+.gpsec { margin-bottom: clamp(48px, 6vw, 76px); }
+
+.gpsec__title {
+  font-size: 19px;
+  color: var(--raw-cotton);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--slub-40);
+  margin-bottom: var(--s5);
+}
+
+.gpsec__lede {
+  color: rgba(244, 241, 232, 0.6);
+  max-width: 68ch;
+  margin-bottom: var(--s5);
+}
+
+.gpsec__note {
+  color: var(--slub-type);
+  max-width: 72ch;
+  margin-top: var(--s4);
+}
+.gpsec__note em { color: var(--brass-type); font-style: normal; }
+
+/* -- the per-task table --------------------------------------------------- */
+/* overflow lives on .scroll-x--dark; see base.css */
+
+.gptable {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.gptable th,
+.gptable td {
+  padding: 14px 12px;
+  text-align: right;
+  border-bottom: 1px solid rgba(61, 78, 107, 0.32);
+  white-space: nowrap;
+}
+
+.gptable thead th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--slub-type);
+  padding-bottom: 9px;
+}
+
+/* The first column's header sits over left-aligned row names, so it is left
+   too; every other column is numeric and stays right. */
+.gptable thead th:first-child {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.gptable tbody th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--raw-cotton);
+  padding-left: 12px;
+  white-space: normal;
+  min-width: 220px;
+}
+
+.gptable td { color: rgba(244, 241, 232, 0.78); }
+.gptable td.dim { color: var(--slub-type); }
+.gptable td.ok { color: var(--verdigris-lit); }
+.gptable td.bad { color: var(--madder-lit); font-weight: 600; }
+
+/* The one failing row among passing ones has to be unmissable. */
+.gptable tr.is-fail {
+  background: rgba(217, 127, 106, 0.09);
+}
+.gptable tr.is-fail th { box-shadow: inset 2px 0 0 var(--madder-lit); }
+
+.gptable__new {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 1px 6px;
+  font-size: 9px;
+  color: var(--brass-type);
+  border: 1px solid var(--brass-30);
+  border-radius: var(--r-sm);
+}
+
+.gpverdict {
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid;
+  font-size: 10px;
+}
+.gpverdict.ok {
+  color: var(--verdigris-lit);
+  border-color: rgba(95, 174, 153, 0.35);
+  background: rgba(95, 174, 153, 0.1);
+}
+.gpverdict.bad {
+  color: var(--madder-lit);
+  border-color: rgba(217, 127, 106, 0.4);
+  background: rgba(217, 127, 106, 0.12);
+}
+
+/* -- the rule strip ------------------------------------------------------- */
+/* Four rules across, or two by two — never three with a hole where the fourth
+   should be. The rules are drawn by the cells so a short row ends cleanly. */
+.rules {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+@media (max-width: 1180px) {
+  .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Two 175px columns turn "Minimum gain on the new task" into four lines. */
+@media (max-width: 560px) {
+  .rules { grid-template-columns: 1fr; }
+}
+
+.rule {
+  display: flex;
+  gap: var(--s4);
+  align-items: flex-start;
+  padding: var(--s5);
+  background: var(--indigo-vat);
+  box-shadow: 0 0 0 1px var(--slub-40);
+}
+
+.rule__sym {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--brass-type);
+}
+
+.rule__label { color: var(--slub-type); }
+.rule__value { color: var(--raw-cotton); font-size: 15px; margin-top: 5px; }
+
+/* -- endorsers ------------------------------------------------------------ */
+.endorsers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--s3);
+}
+
+.endorser {
+  padding: var(--s4);
+  border: 1px solid var(--slub-40);
+  border-radius: var(--r-md);
+  background: rgba(42, 59, 92, 0.28);
+}
+
+.endorser__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+}
+
+.endorser__org { font-size: 14px; color: var(--raw-cotton); }
+
+.endorser__agree { font-size: 9px; }
+.endorser__agree.ok { color: var(--verdigris-lit); }
+.endorser__agree.bad { color: var(--madder-lit); }
+
+.endorser__msp { color: var(--slub-type); font-size: 10px; margin-top: 3px; }
+
+.endorser__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+
+.endorser__bp { color: var(--brass-type); font-size: 17px; }
+
+.median {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px dashed var(--brass-30);
+  border-radius: var(--r-md);
+}
+.median .stamp-type { color: var(--slub-type); }
+.median__v { color: var(--brass-type); font-size: 18px; }
+
+/* -- ledger record -------------------------------------------------------- */
+.gprecord { border-top: 1px solid var(--slub-40); }
+
+.recompute {
+  display: flex;
+  gap: var(--s4);
+  align-items: center;
+  margin-top: var(--s5);
+  padding: var(--s5);
+  border: 1px solid var(--slub-40);
+  border-radius: var(--r-md);
+  background: rgba(42, 59, 92, 0.28);
+  color: var(--brass-type);
+  flex-wrap: wrap;
+}
+
+.recompute > div { flex: 1; min-width: 240px; }
+.recompute__head { color: var(--raw-cotton); font-weight: 500; }
+.recompute__body { color: rgba(244, 241, 232, 0.6); margin-top: 4px; max-width: 60ch; }

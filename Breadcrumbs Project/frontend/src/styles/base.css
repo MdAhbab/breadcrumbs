@@ -1,0 +1,290 @@
+/*
+ * Base layer: reset, type scale, grain, and the primitives that appear on
+ * nearly every screen.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--raw-cotton);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.6;
+  font-feature-settings: 'ss01', 'cv05';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--brass-30);
+  color: var(--ink);
+}
+
+/* -- type ---------------------------------------------------------------- */
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+
+h1 {
+  font-size: clamp(30px, 4.4vw, 46px);
+}
+h2 {
+  font-size: clamp(23px, 3vw, 30px);
+  line-height: 1.16;
+}
+h3 {
+  font-size: 20px;
+  line-height: 1.28;
+}
+h4 {
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+/* The display face is never used below 20px — it loses its contrast. */
+.hero-type {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-size: clamp(38px, 7.2vw, 78px);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.lead {
+  font-size: clamp(16px, 1.5vw, 18px);
+  line-height: 1.62;
+}
+
+.small {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Eyebrows, seals, table headers — the stamp voice. */
+.stamp-type {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Numbers that stack must line up. */
+table,
+.tabular,
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- grain ---------------------------------------------------------------
+ * A barely-there fibre noise over dark grounds. Removes the flat plastic look
+ * of a pure hex fill without ever being visible as texture.
+ */
+.grain {
+  position: relative;
+  isolation: isolate;
+}
+
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E");
+}
+
+/* Warp texture: 1px verticals at 4px intervals. Suggests cloth; never draws it. */
+.warp::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(61, 78, 107, 0.055) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+/* -- focus is moved, never removed --------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* -- layout helpers ------------------------------------------------------ */
+.shell {
+  width: 100%;
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding-inline: var(--pad);
+}
+
+.stack > * + * {
+  margin-top: var(--gap, var(--s4));
+}
+
+.hairline {
+  border: 0;
+  border-top: 1px solid var(--thread-35);
+  margin: 0;
+}
+
+.hairline-dark {
+  border: 0;
+  border-top: 1px solid var(--slub-40);
+  margin: 0;
+}
+
+/* -- scrollbars ---------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--thread-35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--thread-35);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* -- reduced motion: every effect renders its final state ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -- the accent, as type, resolves against its ground --------------------- */
+/* Bright brass is right on indigo and 2.5:1 on raw cotton. Rather than pick a
+   colour at each of forty call sites, `--brass-type` is redeclared by the
+   ground: the light field deepens it to bronze, and the dark islands standing
+   inside that field take the bright value back. */
+.shellmain,
+.verify,
+.beat-block--cotton,
+.beat-block:not(.beat-block--dark):not(.beat-block--vat):not(.beat-block--close) {
+  --brass-type: var(--brass-ink);
+}
+
+.gatepage,
+.signing,
+.obs__condition,
+.mesh__stage {
+  --brass-type: var(--brass);
+}
+
+/* The inert button follows the same rule. A light grey slab with dark type is
+   correct on cotton and unreadable on indigo. */
+.nav,
+.topbar,
+.login,
+.gatepage,
+.signing,
+.modal__panel,
+.beat-block--dark,
+.beat-block--vat,
+.beat-block--close,
+.weave-track {
+  --btn-off-bg: rgba(244, 241, 232, 0.09);
+  --btn-off-fg: rgba(244, 241, 232, 0.58);
+}
+
+/* -- horizontal scrollers announce themselves ----------------------------- */
+/* macOS hides its overlay scrollbar at rest, so a card clipped by the right
+   edge reads as a rendering fault rather than as "there is more". These
+   shadows are attached to the scroll position — `local` for the cover, `scroll`
+   for the shadow — so each edge shows one only while content lies beyond it,
+   and neither shows when the strip fits. */
+.scroll-x {
+  overflow-x: auto;
+  background:
+    linear-gradient(90deg, var(--raw-cotton) 42%, rgba(244, 241, 232, 0)) left / 42px 100% no-repeat local,
+    linear-gradient(270deg, var(--raw-cotton) 42%, rgba(244, 241, 232, 0)) right / 42px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(18, 22, 28, 0.14), rgba(18, 22, 28, 0)) left / 15px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(18, 22, 28, 0.14), rgba(18, 22, 28, 0)) right / 15px 100% no-repeat scroll;
+}
+
+/* The same, over indigo. */
+.scroll-x--dark {
+  overflow-x: auto;
+  background:
+    linear-gradient(90deg, var(--indigo-vat) 42%, rgba(22, 35, 61, 0)) left / 42px 100% no-repeat local,
+    linear-gradient(270deg, var(--indigo-vat) 42%, rgba(22, 35, 61, 0)) right / 42px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(4, 8, 16, 0.5), rgba(4, 8, 16, 0)) left / 16px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(4, 8, 16, 0.5), rgba(4, 8, 16, 0)) right / 16px 100% no-repeat scroll;
+}

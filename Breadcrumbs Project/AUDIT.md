@@ -373,3 +373,87 @@ only exercises the happy path.
 The tests that caught them are the ones that name an attacker and try the attack.
 That is the pattern worth keeping as the frontend gets built: for every guarantee
 the interface asserts, write the test that tries to break it.
+
+---
+
+## 7. Addendum — what changed after this audit
+
+The audit above is left as it was written. This section records what the ledger
+work that followed it did to the open items in §3, so nobody has to diff two
+documents to find out.
+
+### Closed
+
+**§3.3 phantom reads in range queries** — closed, and it stopped being latent the
+moment period seals arrived. `seal_period` makes a decision from a range scan, so
+a record committed concurrently would have produced a permanently wrong seal
+chosen by whoever controlled the ordering. `Context.range` now records a digest of
+the keys the scan returned, transactions carry a `range_set`, and validation
+replays the scan and invalidates on a mismatch. Regression test:
+`test_a_record_committed_during_sealing_invalidates_the_seal`.
+
+**§3.5 single-node ledger, no external anchor** — closed as far as it can be
+without a real deployment. Members sign a short digest of every epoch they observe
+and exchange them, so a consistently rewritten history contradicts digests already
+held and signed by other organisations. Two members holding different digests for
+one epoch is conclusive evidence of equivocation and names the epoch. It does not
+say which history is genuine; that needs a third member and counting. Tests in
+`model/tests/test_digest.py`.
+
+**§3.7 the memory bank's noise is not differential privacy** — unchanged as a
+limitation, but it is now stated in the report's limitations list rather than only
+in a docstring.
+
+### Still open
+
+**§3.2 blocks are not signed by the orderer** and **§3.4 the submitter does not
+sign the transaction.** Both remain. Both are ordinary work and both are in the
+report's limitations.
+
+**§3.6 no secure aggregation** — unchanged and disclosed.
+
+**§3.10 Fabric assets never executed** — unchanged. Still the first thing to do on
+a machine with Docker.
+
+**§3.1 Flower declared but never imported** — unchanged. Either write the
+`Strategy` wrapper or amend the report; do not leave it.
+
+### New findings from the ledger work
+
+**A-1 · bucket keys could collide across factories · High · fixed.** The first
+version of the period seal keyed a bucket on `(site, record_type, period)` with no
+owner. Two factories operating at the same site would name the same bucket, and
+whichever sealed second would collide with or overwrite a statement it did not
+own. The key now carries the owner. Found by a test asserting the wrong error
+message, which is a reminder that a test failing for an unexpected reason is worth
+reading rather than adjusting.
+
+**A-2 · a collusion test passed for the wrong reason · Medium · fixed.** The test
+asserting that a minority of endorsers cannot promote a model was signing over the
+wrong candidate hash, so the submissions failed signature verification and the
+contract rejected them for that rather than for the endorsement count. It passed,
+and it proved nothing about the policy. It now asserts that both signatures were
+*accepted* before asserting the refusal.
+
+**A-3 · a flaky Merkle privacy test · Low · fixed.**
+`test_a_proof_for_one_row_reveals_nothing_about_another` searched for each other
+row's decimal value as a substring of the serialised disclosure. A five-digit
+decimal is a valid hex string, so it appears inside a sibling hash by chance in
+roughly two percent of runs. The check is now structural. A test that fails at
+random teaches people to re-run it, which is how a real failure gets ignored.
+
+**A-4 · the certificate cache initially cached the wrong half · fixed before
+merge.** The first version cached the parsed certificate but re-ran full
+validation on every hit, including the CA signature check, and measured a 1.2x
+improvement. Splitting the static half (who issued this) from the time-varying
+half (revocation and validity, never cached) took it to 18.5x. The security
+property is preserved deliberately and explicitly: a revoked certificate stops
+working on the next call, and there is a test that revokes one and checks.
+
+### What the suite looks like now
+
+206 tests, up from 91. Twenty-six of them attack the system. **Three of those
+attacks succeed and are recorded as successes**: a model poisoned just inside the
+Continuity Gate's tolerance, a colluding assigned witness, and a trapdoor holder
+forging a membership witness against the accumulator alone. The full catalogue,
+with the test name for each, is in the report's supplementary material.

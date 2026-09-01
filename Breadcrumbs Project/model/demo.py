@@ -3,16 +3,23 @@ The full Breadcrumbs cycle, end to end, on a real ledger.
 
 Run:  python -m model.demo
 
-Seven acts, about ninety seconds. The one that matters is Act 7, where a
-candidate model that has quietly forgotten an earlier task is refused by the
-contract — and no participant, including whoever ran the training, can overrule
-that.
+Twelve acts, two or three minutes. Two of them are the ones to watch.
+
+Act 6 is where a factory hands over four of its five payroll registers and the
+ledger catches it — not because any document is forged, but because the period
+was sealed and the arithmetic no longer adds up. Every notarisation product on
+the market reports that disclosure as clean.
+
+Act 11 is where a candidate model that has quietly forgotten an earlier task is
+refused by the contract, and no participant, including whoever ran the training,
+can overrule it.
 
 Everything here executes. The blocks are real blocks, the signatures are real
-Ed25519 signatures over canonical encodings, the Merkle proof is recomputed by
-the verifier from the disclosure alone, and the gate decision is taken by
-chaincode from independently signed evaluations. The data is invented, and the
-script says so on screen rather than in a footnote.
+RSA-3072 PSS signatures over canonical encodings, the Merkle proof is recomputed
+by the verifier from the disclosure alone, the accumulator arithmetic is real
+modular exponentiation, and the gate decision is taken by chaincode from
+independently signed evaluations. The data is invented, and the script says so on
+screen rather than in a footnote.
 """
 
 from __future__ import annotations
@@ -21,9 +28,13 @@ import sys
 import time
 from copy import deepcopy
 
+from .accumulator import Accumulator, run_ceremony, verify_non_membership
 from .ai import FederatedTrainer
+from .anchoring import anchor_epoch, install_group, verify_record
+from .chaincode.anchor import record_element
+from .chaincode.witness import attestation_payload, share_commitment
 from .consortium import DOCUMENT_CHANNEL, GATE_ORGS, MODEL_CHANNEL, build
-from .ledger.crypto import TAG_BENCH, hash_object
+from .ledger.crypto import TAG_BENCH, hash_object, sign
 from .merkle import MerkleTree, verify_disclosure
 
 W = 78
@@ -129,7 +140,175 @@ def main() -> None:
     pause()
 
     # ---------------------------------------------------------------- Act 4
-    act(4, "Seal the benchmarks before anyone trains")
+    act(4, "The consortium adopts the witness rule")
+    print(f"    {DIM}A ledger makes a record unchangeable. It says nothing about whether")
+    print("    the record was true when written. A second organisation now has to")
+    print(f"    counter-sign — and it is assigned, not chosen.{OFF}\n")
+
+    seed_members = ["ApexTextileMSP", "BVCertificationMSP"]
+    shares = {"ApexTextileMSP": "a1" * 16, "BVCertificationMSP": "b2" * 16}
+    who = {"ApexTextileMSP": "fatema.begum", "BVCertificationMSP": "meera.nair"}
+    doc_endorsers = consortium.endorsers(["ApexTextileMSP", "BVCertificationMSP"])
+
+    def doc(fn, args, submitter, ts="2026-08-21T09:00:00Z"):
+        return net.invoke(DOCUMENT_CHANNEL, "doccustody", fn, args,
+                          consortium.who(submitter), doc_endorsers, ts)
+
+    doc("open_seed_round",
+        {"round_id": "seed-q3", "members": seed_members, "sample_percent": 20,
+         "quorum": 1, "timestamp": "2026-08-21T09:00:00Z"},
+        "rafiqul.islam")
+    line("Seed round opened by", "BGMEAConsortiumMSP")
+    for msp in seed_members:
+        doc("commit_seed_share",
+            {"round_id": "seed-q3", "commitment": share_commitment(shares[msp]),
+             "timestamp": "2026-08-21T09:00:00Z"}, who[msp])
+    line("Shares committed", "hashes only — nobody has revealed anything yet")
+    for msp in seed_members:
+        _, _, reveal = doc("reveal_seed_share",
+                           {"round_id": "seed-q3", "share": shares[msp],
+                            "timestamp": "2026-08-21T09:05:00Z"}, who[msp])
+    line("Seed", reveal["seed"][:32] + "…", GREEN)
+    line("Why commit-reveal", "whoever revealed last could otherwise grind the draw", DIM)
+    pause()
+
+    # ---------------------------------------------------------------- Act 5
+    act(5, "A record now needs a counter-signature it cannot choose")
+    rows2 = [{"worker_ref": f"W-{i:05d}", "net_pay_bdt": 15000 + (i * 11) % 2500}
+             for i in range(1204)]
+    tree2 = MerkleTree(rows2)
+    args2 = {
+        "record_id": "rc-002", "merkle_root": tree2.root,
+        "record_type": "payroll_register", "period": "2026-07",
+        "site": "Gazipur", "row_count": len(rows2), "schema_version": "v2.1.0",
+        "timestamp": "2026-08-21T10:00:00Z",
+    }
+    requirement = net.query(DOCUMENT_CHANNEL, "doccustody", "witness_requirement",
+                            {"record_id": "rc-002", "record_type": "payroll_register"},
+                            consortium.who("fatema.begum"))
+    line("Assigned witness", ", ".join(requirement["witnesses"]), AMBER)
+    line("Chosen by", "a hash of the shared seed and the record id — not by the factory")
+
+    try:
+        doc("commit_record", args2, "fatema.begum", "2026-08-21T10:00:00Z")
+        line("Unwitnessed commit", "ACCEPTED — this is a bug", RED)
+    except Exception as exc:
+        line("Unwitnessed commit", f"REFUSED — {str(exc)[:46]}", GREEN)
+
+    witness_record = {
+        "record_id": "rc-002", "merkle_root": tree2.root,
+        "bucket": "ApexTextileMSP|Gazipur|payroll_register|2026-07",
+        "owner_msp": "ApexTextileMSP",
+    }
+    args2["attestations"] = [
+        {
+            "witness_msp": m, "check_code": "source_system_readback",
+            "attested_at": "2026-08-21T10:00:00Z",
+            "certificate_pem": consortium.org_identity(m).certificate_pem(),
+            "signature": sign(consortium.org_identity(m).private_key,
+                              attestation_payload(witness_record, "source_system_readback",
+                                                  "2026-08-21T10:00:00Z")),
+        }
+        for m in requirement["witnesses"]
+    ]
+    _, result2, resp2 = doc("commit_record", args2, "fatema.begum", "2026-08-21T10:00:00Z")
+    line("With the assigned counter-signature", result2.code, GREEN)
+    line("The witness claimed", "source_system_readback — a specific, attributable claim")
+    line("If rc-002 is later found false", "the witness is slashed too", DIM)
+    pause()
+
+    # ---------------------------------------------------------------- Act 6
+    act(6, "Seal the period. Then try to hand over only part of it.")
+    print(f"    {DIM}This is the one to watch. Every document below is genuine and")
+    print(f"    every Merkle proof verifies. The fraud is entirely in the selection.{OFF}\n")
+
+    _, _, sealed = doc("seal_period",
+                       {"site": "Gazipur", "record_type": "payroll_register",
+                        "period": "2026-07", "record_ids": ["rc-001", "rc-002"],
+                        "timestamp": "2026-08-31T18:00:00Z"},
+                       "fatema.begum", "2026-08-31T18:00:00Z")
+    line("Period sealed", "Gazipur · payroll_register · 2026-07", GREEN)
+    line("Records in the period", str(sealed["record_count"]))
+    line("Committed root over their ids", sealed["records_root"][:32] + "…")
+
+    honest = net.query(DOCUMENT_CHANNEL, "doccustody", "check_completeness",
+                       {"owner_msp": "ApexTextileMSP", "site": "Gazipur",
+                        "record_type": "payroll_register", "period": "2026-07",
+                        "disclosed_record_ids": ["rc-001", "rc-002"]},
+                       consortium.who("james.holloway"))
+    line("Buyer shown both registers", "COMPLETE" if honest["complete"] else "INCOMPLETE",
+         GREEN if honest["complete"] else RED)
+
+    withheld = net.query(DOCUMENT_CHANNEL, "doccustody", "check_completeness",
+                         {"owner_msp": "ApexTextileMSP", "site": "Gazipur",
+                          "record_type": "payroll_register", "period": "2026-07",
+                          "disclosed_record_ids": ["rc-001"]},
+                         consortium.who("james.holloway"))
+    print()
+    line("Buyer shown only rc-001", "rc-001 itself verifies perfectly", DIM)
+    line("Sealed count", str(withheld["sealed_count"]))
+    line("Disclosed count", str(withheld["disclosed_count"]))
+    line("Sealed root", withheld["sealed_root"][:24] + "…")
+    line("Root over what was shown", withheld["computed_root"][:24] + "…")
+    line("Complete", "NO — " + withheld["reason"][:52], RED)
+    print(f"    {DIM}No document was forged. Nothing was edited. Every other system")
+    print(f"    in the comparison table reports this disclosure as clean.{OFF}")
+    pause()
+
+    # ---------------------------------------------------------------- Act 7
+    act(7, "The whole ledger, in one number")
+    group, transcript, _ = run_ceremony(
+        "BGMEAConsortiumMSP",
+        {"ApexTextileMSP": b"apex-entropy", "BVCertificationMSP": b"bv-entropy"},
+        bits=2048,
+    )
+    install_group(consortium, DOCUMENT_CHANNEL, group, transcript, "2026-09-01T08:00:00Z")
+    line("Modulus", f"{group.modulus.bit_length()} bits, from a recorded ceremony")
+    line("Ceremony note", "trusted dealer — the transcript says so on-chain", AMBER)
+
+    anchored = anchor_epoch(
+        consortium, DOCUMENT_CHANNEL,
+        [("record", "rc-001"), ("record", "rc-002"),
+         ("seal", "ApexTextileMSP|Gazipur|payroll_register|2026-07")],
+        "2026-09-01T08:05:00Z",
+    )
+    state = net.query(DOCUMENT_CHANNEL, "anchor", "get_state", {},
+                      consortium.who("james.holloway"))
+    line("Epoch", str(anchored["epoch"]), GREEN)
+    line("Elements folded in", f"{anchored['accumulated']} — in ONE ledger write")
+    line("Verifier state", f"{(group.modulus.bit_length() + 7) // 8} bytes, whatever the ledger size")
+
+    acc = Accumulator(group=group)
+    for entry in sorted((v for _, v in net.state.range(DOCUMENT_CHANNEL, "anchored:")),
+                        key=lambda e: (e["epoch"], e["prime_hex"])):
+        prime = int(entry["prime_hex"], 16)
+        acc.primes.append(prime)
+        acc.nonces[prime] = 0
+    acc.value = int(state["value_hex"], 16)
+    acc.epoch = int(state["epoch"])
+
+    stored = net.query(DOCUMENT_CHANNEL, "doccustody", "get_record", {"record_id": "rc-001"},
+                       consortium.who("james.holloway"))
+    witness = acc.membership_witness(record_element(stored))
+    ok, why = verify_record(consortium, DOCUMENT_CHANNEL, "rc-001", witness,
+                            consortium.who("james.holloway"))
+    line("rc-001 verifies", "YES — ledger, witness and anchored index all agree" if ok else why,
+         GREEN if ok else RED)
+
+    ghost = {"type": "record", "record_id": "ISO45001-CERT-88213", "merkle_root": "0" * 64,
+             "bucket": "ApexTextileMSP|Gazipur|compliance_certificate|2026-07",
+             "owner_msp": "ApexTextileMSP"}
+    absence = acc.non_membership_witness(ghost)
+    absent_ok, _ = verify_non_membership(group, acc.value, absence, ghost, acc.epoch)
+    print()
+    line("A buyer is shown a certificate", "ISO45001-CERT-88213")
+    line("Proof of ABSENCE", "verified — it was never committed" if absent_ok else "failed",
+         GREEN if absent_ok else RED)
+    line("A Merkle tree", "cannot answer this question at any price", DIM)
+    pause()
+
+    # ---------------------------------------------------------------- Act 8
+    act(8, "Seal the benchmarks before anyone trains")
     admin = consortium.who("rafiqul.islam")
     gate_endorsers = consortium.endorsers(GATE_ORGS[:3])
 
@@ -153,8 +332,8 @@ def main() -> None:
         line(stage.task_id, f"sealed · {bench_hash[:24]}…", GREEN)
     pause()
 
-    # ---------------------------------------------------------------- Act 5
-    act(5, "Six factories train, no data moves")
+    # ---------------------------------------------------------------- Act 9
+    act(9, "Six factories train, no data moves")
     print(f"  {DIM}Each factory trains locally, clips and noises its update, and the")
     print("  aggregator combines them with a trimmed mean weighted by on-chain")
     print(f"  reputation. Raw records never leave a building.{OFF}\n")
@@ -181,8 +360,8 @@ def main() -> None:
     bad_accuracies = candidate_b.evaluate_all()
     pause()
 
-    # ---------------------------------------------------------------- Act 6
-    act(6, "Candidate A goes to the gate")
+    # ---------------------------------------------------------------- Act 10
+    act(10, "Candidate A goes to the gate")
     print(f"  {DIM}Stage 3 has arrived. Candidate A learned it with rehearsal drawn from")
     print(f"  the shared memory bank. It is judged against m-v7, the model in force.{OFF}\n")
     previous = in_force
@@ -216,8 +395,8 @@ def main() -> None:
     _print_decision(decision)
     pause()
 
-    # ---------------------------------------------------------------- Act 7
-    act(7, "Candidate B has forgotten. Watch the contract refuse it.")
+    # ---------------------------------------------------------------- Act 11
+    act(11, "Candidate B has forgotten. Watch the contract refuse it.")
     print(f"  {DIM}This model was trained the ordinary way, without rehearsal. It is the")
     print("  best model yet at the newest problem. It has also lost most of what it")
     print("  knew about wages — and a committee scoring this round's data would not")
@@ -268,7 +447,7 @@ def main() -> None:
     line("Who could override this", "nobody — it is a contract, not a setting", GREEN)
 
     # ---------------------------------------------------------------- close
-    act(8, "The ledger")
+    act(12, "The ledger")
     for name, channel in net.channels.items():
         ok, why = channel.verify_chain()
         line(name, f"{channel.height} blocks · integrity {'OK' if ok else 'FAILED: ' + why}",

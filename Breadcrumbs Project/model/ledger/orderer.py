@@ -83,7 +83,7 @@ class OrderingService:
 
     def _elect(self) -> None:
         """Promote the first live node. Real Raft votes; the outcome is the same."""
-        for node_id, node in self.nodes.items():
+        for node in self.nodes.values():
             node.is_leader = False
         for node_id, node in self.nodes.items():
             if node.alive:

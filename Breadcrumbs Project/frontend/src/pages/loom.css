@@ -1,0 +1,225 @@
+/* The Loom Floor: a bolt of cloth unrolling downward, and a shift log beside it. */
+
+.lf__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--thread-35);
+  margin-bottom: var(--s6);
+}
+
+.lf__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.lf__lede { color: var(--ink-60); margin-top: var(--s3); }
+
+.lf__counts { display: flex; gap: var(--s6); }
+
+.count { display: flex; flex-direction: column; gap: 2px; }
+.count__n {
+  font-family: var(--font-display);
+  font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-size: 34px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.count--warn .count__n { color: var(--ochre); }
+.count--calm .count__n { color: var(--ink-quiet); }
+.count__l { color: var(--ink-quiet); max-width: 15ch; }
+
+.lf__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--s7);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .lf__body { grid-template-columns: 1fr; gap: var(--s6); }
+}
+
+/* -- on the loom ---------------------------------------------------------- */
+.onloom {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s5);
+  border: 1px dashed var(--brass-30);
+  border-radius: var(--r-md);
+  background: var(--brass-wash);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--m-fast), background var(--m-fast);
+}
+
+.onloom:hover { border-color: var(--brass); background: rgba(184, 147, 74, 0.16); }
+
+.onloom__edge {
+  flex: 0 0 auto;
+  width: 3px;
+  align-self: stretch;
+  background: repeating-linear-gradient(
+    180deg, var(--brass) 0 5px, transparent 5px 11px
+  );
+}
+
+.onloom__body { flex: 1; min-width: 0; }
+.onloom__state { color: var(--brass-type); margin-bottom: 6px; }
+.onloom__note { color: var(--ink-60); margin-top: 6px; max-width: 52ch; }
+
+.onloom__go {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 99px;
+  background: var(--brass);
+  color: var(--ink-on-brass);
+  display: grid;
+  place-items: center;
+}
+
+.strip__label {
+  color: var(--ink-quiet);
+  margin: var(--s6) 0 var(--s3);
+}
+
+/* -- a bolt --------------------------------------------------------------- */
+.bolt {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  gap: var(--s4);
+  padding: var(--s5) var(--s5) var(--s5) 0;
+  border-bottom: 1px solid var(--thread-20);
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--m-fast), padding-left var(--m-fast);
+  align-items: start;
+}
+
+.bolt:hover { background: rgba(184, 147, 74, 0.06); padding-left: var(--s3); }
+
+/* The torn selvedge edge of a bolt of cloth. */
+.bolt__selvedge {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 5px;
+}
+.bolt__selvedge span {
+  display: block;
+  height: 2px;
+  background: var(--brass);
+  opacity: 0.55;
+}
+.bolt__selvedge span:nth-child(3n) { width: 14px; }
+.bolt__selvedge span:nth-child(3n + 1) { width: 9px; }
+.bolt__selvedge span:nth-child(3n + 2) { width: 11px; }
+
+.bolt.is-superseded .bolt__selvedge span { background: var(--thread-grey); opacity: 0.4; }
+
+.bolt__main { min-width: 0; }
+
+.bolt__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.bolt__title { font-size: 19px; }
+.bolt.is-superseded .bolt__title { color: var(--ink-quiet); }
+
+.bolt__meta { color: var(--ink-quiet); margin-top: 4px; }
+
+.bolt__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  margin-top: var(--s3);
+  flex-wrap: wrap;
+}
+
+.bolt__threads { color: var(--ink-80); font-size: 12px; }
+.bolt__block { color: var(--ink-quiet); font-size: 11px; }
+
+.bolt__note {
+  color: var(--ink-quiet);
+  margin-top: var(--s3);
+  padding-left: var(--s3);
+  border-left: 1px solid var(--thread-35);
+  max-width: 60ch;
+}
+
+.bolt__date { color: var(--ink-quiet); font-size: 11px; white-space: nowrap; padding-top: 6px; }
+
+@media (max-width: 640px) {
+  .bolt { grid-template-columns: 10px minmax(0, 1fr); }
+  .bolt__date { display: none; }
+}
+
+/* -- the shift log: ruled lines, no card chrome --------------------------- */
+.shiftlog {
+  position: sticky;
+  top: var(--s5);
+  border-left: 1px solid var(--thread-35);
+  padding-left: var(--s5);
+}
+
+@media (max-width: 1100px) {
+  .shiftlog { position: static; border-left: 0; padding-left: 0; border-top: 1px solid var(--thread-35); padding-top: var(--s5); }
+}
+
+.shiftlog__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--s4);
+}
+.shiftlog__head .stamp-type { color: var(--ink-quiet); }
+
+.shiftlog__all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--brass-type);
+  text-decoration: none;
+  font-family: var(--font-mono);
+}
+
+.shiftlog__list { list-style: none; margin: 0; padding: 0; }
+
+.logline {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  padding: 10px 0 10px var(--s3);
+  border-bottom: 1px solid var(--thread-20);
+  border-left: 2px solid transparent;
+}
+
+.logline--seal { border-left-color: var(--verdigris); }
+.logline--grant { border-left-color: var(--brass); }
+.logline--revoke { border-left-color: var(--madder); }
+.logline--verify { border-left-color: var(--indigo-mid); }
+.logline--request { border-left-color: var(--ochre); }
+
+.logline__at { color: var(--ink-quiet); font-size: 10px; }
+.logline__text { font-size: 13px; color: var(--ink-80); line-height: 1.45; }
+
+.shiftlog__requests { margin-top: var(--s6); }
+.shiftlog__requests .stamp-type { color: var(--ink-quiet); margin-bottom: var(--s3); }
+.shiftlog__none { color: var(--ink-quiet); }
+
+.req {
+  padding: var(--s4);
+  border: 1px solid var(--ochre-wash);
+  border-left: 2px solid var(--ochre);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--ochre-wash);
+}
+
+.req__who { font-size: 14px; font-weight: 500; }
+.req__what { color: var(--ink-60); margin-top: 2px; }
+.req__actions { display: flex; gap: var(--s2); margin-top: var(--s3); flex-wrap: wrap; }

@@ -1,0 +1,140 @@
+% =============================================================================
+%  results.tex — GENERATED. Do not edit.
+%
+%  Regenerate with:  python -m model.bench.to_latex   (from "Breadcrumbs Project")
+%
+%  Every macro below was produced by a benchmark in model/bench/. The paper refers
+%  to them through \num{Name}, which prints the measurement if it exists and a
+%  bold ?? if it does not — so an unmeasured number is visible on the page rather
+%  than quietly absent.
+% =============================================================================
+
+\providecommand{\num}[1]{%
+  \ifcsname res#1\endcsname\csname res#1\endcsname\else\textbf{??}\fi}
+\providecommand{\numunit}[2]{%
+  \ifcsname res#1\endcsname\csname res#1\endcsname\,#2\else\textbf{??}\fi}
+\providecommand{\rows}[1]{%
+  \ifcsname rows#1\endcsname\csname rows#1\endcsname\else
+  \multicolumn{1}{l}{\textbf{?? not measured}}\\\fi}
+
+
+% ---- accumulator.json: RSA accumulator costs and savings, 3072-bit modulus
+\expandafter\def\csname resAccumulatorAccumulatorStateBytes\endcsname{384}
+\expandafter\def\csname resAccumulatorAggregateBatchingSpeedup\endcsname{405}
+\expandafter\def\csname resAccumulatorAggregateProvedMs\endcsname{8.99}
+\expandafter\def\csname resAccumulatorAggregateRecords\endcsname{500}
+\expandafter\def\csname resAccumulatorAggregateUnprovedMs\endcsname{3\,645}
+\expandafter\def\csname resAccumulatorBatchAddMsPerRecord\endcsname{17.5}
+\expandafter\def\csname resAccumulatorBatchAddRecords\endcsname{500}
+\expandafter\def\csname resAccumulatorEpochExponentBits\endcsname{127\,789}
+\expandafter\def\csname resAccumulatorEpochProofMs\endcsname{9.05}
+\expandafter\def\csname resAccumulatorEpochProofSpeedup\endcsname{403}
+\expandafter\def\csname resAccumulatorEpochRecomputeMs\endcsname{3\,646}
+\expandafter\def\csname resAccumulatorEpochRecords\endcsname{500}
+\expandafter\def\csname resAccumulatorHashToPrimeSpeedup\endcsname{2.20}
+\expandafter\def\csname resAccumulatorMerkleProofsMs\endcsname{4.87}
+\expandafter\def\csname resAccumulatorModulusBits\endcsname{3\,072}
+\expandafter\def\csname resAccumulatorModulusGenerationSeconds\endcsname{2.10}
+\expandafter\def\csname resAccumulatorSingleWitnessMs\endcsname{9.71}
+\expandafter\def\csname resAccumulatorVerifierStateRootsBytes\endcsname{16\,000}
+\expandafter\def\csname resAccumulatorHashToPrimeSearchMs\endcsname{3.55}
+\expandafter\def\csname resAccumulatorHashToPrimeVerifyWithNonceMs\endcsname{1.61}
+\expandafter\def\csname resAccumulatorAccumulatorAddOneRecordMs\endcsname{10.3}
+\expandafter\def\csname resAccumulatorIssueTwoZeroWitnessesOneAtATimeMs\endcsname{2\,738}
+\expandafter\def\csname resAccumulatorIssueTwoZeroWitnessesRootFactorMs\endcsname{647}
+\expandafter\def\csname resAccumulatorIssueFourZeroWitnessesOneAtATimeMs\endcsname{11\,341}
+\expandafter\def\csname resAccumulatorIssueFourZeroWitnessesRootFactorMs\endcsname{1\,604}
+\expandafter\def\csname resAccumulatorIssueEightZeroWitnessesOneAtATimeMs\endcsname{45\,934}
+\expandafter\def\csname resAccumulatorIssueEightZeroWitnessesRootFactorMs\endcsname{3\,763}
+\expandafter\def\csname resAccumulatorVerifyFiveZeroRecordsAggregateWitnessWithBatchingProofMs\endcsname{9.09}
+\expandafter\def\csname resAccumulatorVerifyFiveZeroRecordsAggregateWitnessNoBatchingProofMs\endcsname{375}
+\expandafter\def\csname resAccumulatorVerifyFiveZeroRecordsFiveZeroBlockInclusionProofsMs\endcsname{0.413}
+\expandafter\def\csname resAccumulatorVerifyOneZeroZeroRecordsAggregateWitnessWithBatchingProofMs\endcsname{10.2}
+\expandafter\def\csname resAccumulatorVerifyOneZeroZeroRecordsAggregateWitnessNoBatchingProofMs\endcsname{763}
+\expandafter\def\csname resAccumulatorVerifyOneZeroZeroRecordsOneZeroZeroBlockInclusionProofsMs\endcsname{0.930}
+\expandafter\def\csname resAccumulatorVerifyTwoFiveZeroRecordsAggregateWitnessWithBatchingProofMs\endcsname{9.36}
+\expandafter\def\csname resAccumulatorVerifyTwoFiveZeroRecordsAggregateWitnessNoBatchingProofMs\endcsname{1\,786}
+\expandafter\def\csname resAccumulatorVerifyTwoFiveZeroRecordsTwoFiveZeroBlockInclusionProofsMs\endcsname{2.29}
+\expandafter\def\csname resAccumulatorVerifyFiveZeroZeroRecordsAggregateWitnessWithBatchingProofMs\endcsname{8.99}
+\expandafter\def\csname resAccumulatorVerifyFiveZeroZeroRecordsAggregateWitnessNoBatchingProofMs\endcsname{3\,645}
+\expandafter\def\csname resAccumulatorVerifyFiveZeroZeroRecordsFiveZeroZeroBlockInclusionProofsMs\endcsname{4.87}
+\expandafter\def\csname resAccumulatorVerifyOneMembershipWitnessMs\endcsname{9.71}
+\expandafter\def\csname resAccumulatorVerifyAnEpochOfFiveZeroZeroRecordsByProofOfExponentiationMs\endcsname{9.05}
+\expandafter\def\csname resAccumulatorVerifyTheSameEpochByRecomputingItMs\endcsname{3\,646}
+% columns: direct_ms, n, with_proof_ms
+\expandafter\def\csname rowsAccumulatorPoeCrossover\endcsname{%
+7.53 & 1 & 8.96 \\
+14.8 & 2 & 8.63 \\
+36.9 & 5 & 8.53 \\
+73.2 & 10 & 8.76 \\
+182 & 25 & 8.63 \\
+367 & 50 & 9.52 \\
+729 & 100 & 9.08 \\}
+% columns: eval_ms, iterations, ratio, verify_ms
+\expandafter\def\csname rowsAccumulatorVdf\endcsname{%
+50.8 & 1\,000 & 5.60 & 9.08 \\
+537 & 10\,000 & 59.0 & 9.11 \\
+2\,697 & 50\,000 & 294 & 9.17 \\
+10\,950 & 200\,000 & 1\,132 & 9.68 \\}
+% columns: aggregate_ms, aggregate_proof_bytes, aggregate_unproved_ms, merkle_ms, merkle_proof_bytes, n, verifier_state_bytes_accumulator, verifier_state_bytes_roots
+\expandafter\def\csname rowsAccumulatorVerification\endcsname{%
+9.09 & 1\,984 & 375 & 0.413 & 17\,600 & 50 & 384 & 1\,600 \\
+10.2 & 3\,584 & 763 & 0.930 & 35\,200 & 100 & 384 & 3\,200 \\
+9.36 & 8\,384 & 1\,786 & 2.29 & 88\,000 & 250 & 384 & 8\,000 \\
+8.99 & 16\,384 & 3\,645 & 4.87 & 192\,000 & 500 & 384 & 16\,000 \\}
+% columns: n, naive_ms, rootfactor_ms, speedup
+\expandafter\def\csname rowsAccumulatorWitnessIssuance\endcsname{%
+20 & 2\,738 & 647 & 4.23 \\
+40 & 11\,341 & 1\,604 & 7.07 \\
+80 & 45\,934 & 3\,763 & 12.2 \\}
+\expandafter\def\csname resAccumulatorMachine\endcsname{macOS-26.6.1-arm64-arm-64bit}
+
+% ---- identity.json: RSA-3072 identity and endorsement costs against the Ed25519 baseline
+\expandafter\def\csname resIdentityCertificateCacheSpeedup\endcsname{18.5}
+\expandafter\def\csname resIdentityEndorsementsAttached\endcsname{5}
+\expandafter\def\csname resIdentityRsaSignSlowdown\endcsname{25.0}
+\expandafter\def\csname resIdentityRsaSignatureGrowth\endcsname{6.00}
+\expandafter\def\csname resIdentityRsaVerifySpeedup\endcsname{3.90}
+\expandafter\def\csname resIdentitySignaturesAvoidedPerTransaction\endcsname{2}
+\expandafter\def\csname resIdentitySignaturesVerifiedUnderPolicy\endcsname{3}
+\expandafter\def\csname resIdentityEdTwoFiveFiveOneNineShaTwoFiveSixVOneGenerateAKeyMs\endcsname{0.083}
+\expandafter\def\csname resIdentityEdTwoFiveFiveOneNineShaTwoFiveSixVOneSignATransactionMs\endcsname{0.083}
+\expandafter\def\csname resIdentityEdTwoFiveFiveOneNineShaTwoFiveSixVOneVerifyASignatureMs\endcsname{0.187}
+\expandafter\def\csname resIdentityRsaThreeZeroSevenTwoPssShaTwoFiveSixVOneGenerateAKeyMs\endcsname{111}
+\expandafter\def\csname resIdentityRsaThreeZeroSevenTwoPssShaTwoFiveSixVOneSignATransactionMs\endcsname{2.08}
+\expandafter\def\csname resIdentityRsaThreeZeroSevenTwoPssShaTwoFiveSixVOneVerifyASignatureMs\endcsname{0.048}
+\expandafter\def\csname resIdentityResolveACertificateColdPerCallMs\endcsname{0.140}
+\expandafter\def\csname resIdentityResolveACertificateCachedMs\endcsname{0.008}
+\expandafter\def\csname resIdentityVerifyOneEndorsementEndToEndMs\endcsname{0.059}
+% columns: certificate_bytes, disallowed_after, keygen_ms, public_key_bytes, sign_ms, signature_bytes, suite, verify_ms
+\expandafter\def\csname rowsIdentitySuites\endcsname{%
+558 & 2035-12-31 & 0.083 & 44 & 0.083 & 64 & ed25519-sha256-v1 & 0.187 \\
+1\,529 & 2035-12-31 & 111 & 422 & 2.08 & 384 & rsa3072-pss-sha256-v1 & 0.048 \\}
+\expandafter\def\csname resIdentityMachine\endcsname{macOS-26.6.1-arm64-arm-64bit}
+
+% ---- ledger.json: Ledger write costs and epoch batching over 150 documents
+\expandafter\def\csname resLedgerAssumedDocumentsPerFactoryMonth\endcsname{400}
+\expandafter\def\csname resLedgerBlocksWritten\endcsname{152}
+\expandafter\def\csname resLedgerCertificateCacheHits\endcsname{402}
+\expandafter\def\csname resLedgerCertificateCacheMisses\endcsname{2}
+\expandafter\def\csname resLedgerCertificateHitRate\endcsname{99.5}
+\expandafter\def\csname resLedgerChainBytes\endcsname{1\,016\,492}
+\expandafter\def\csname resLedgerChainBytesPerDocument\endcsname{6\,777}
+\expandafter\def\csname resLedgerChainBytesPerFactoryYearKb\endcsname{31\,765}
+\expandafter\def\csname resLedgerCommitMsPerDocument\endcsname{5.34}
+\expandafter\def\csname resLedgerCommitTransactions\endcsname{152}
+\expandafter\def\csname resLedgerDocuments\endcsname{150}
+\expandafter\def\csname resLedgerDocumentsPerSecond\endcsname{187}
+\expandafter\def\csname resLedgerEndorsementBytes\endcsname{2\,472}
+\expandafter\def\csname resLedgerEpochBytes\endcsname{80\,579}
+\expandafter\def\csname resLedgerEpochBytesPerDocument\endcsname{537}
+\expandafter\def\csname resLedgerEpochMsPerDocument\endcsname{13.0}
+\expandafter\def\csname resLedgerEpochSeconds\endcsname{1.95}
+\expandafter\def\csname resLedgerEpochTransactions\endcsname{1}
+\expandafter\def\csname resLedgerEpochWritesPerFactoryYear\endcsname{12}
+\expandafter\def\csname resLedgerStorageReductionFactor\endcsname{12.6}
+\expandafter\def\csname resLedgerTransactionBytes\endcsname{6\,367}
+\expandafter\def\csname resLedgerWriteReduction\endcsname{150}
+\expandafter\def\csname resLedgerValidateATransactionSEndorsementsMs\endcsname{0.135}
+\expandafter\def\csname resLedgerMachine\endcsname{macOS-26.6.1-arm64-arm-64bit}
+

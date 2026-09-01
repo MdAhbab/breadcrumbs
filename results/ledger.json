@@ -1,0 +1,119 @@
+{
+  "caveats": [
+    "A single process against one SQLite file, with no network between peers. Real Fabric adds gRPC round trips and consensus latency that this cannot measure, so treat these as a floor on cost rather than a prediction.",
+    "The batching saving is in ledger WRITES and STORAGE, not in cryptographic work: every document is still hashed, still Merkle-committed and still individually provable. What collapses is how often the chain has to be written to and how much it grows.",
+    "Batching costs the writer MORE compute per document, not less \u2014 the epoch row above is slower than the commit row, because hashing each record to a prime and exponentiating the accumulator is real work. That trade is the point rather than a defect: the writer pays once so that every verifier afterwards checks any number of records in constant time. A report quoting the storage saving without this sentence would be quoting half the result.",
+    "A 2048-bit accumulator modulus is used so this benchmark finishes quickly. Accumulator timings scale with the modulus; ledger write counts do not."
+  ],
+  "description": "Ledger write costs and epoch batching over 150 documents",
+  "machine": {
+    "commit": "2ca1c0a",
+    "platform": "macOS-26.6.1-arm64-arm-64bit",
+    "processor": "arm",
+    "python": "3.11.15"
+  },
+  "measured_at": "2026-09-01T19:47:30Z",
+  "name": "ledger",
+  "series": {},
+  "timings": [
+    {
+      "label": "validate a transaction's endorsements",
+      "mean_ms": 0.136185,
+      "median_ms": 0.135437,
+      "min_ms": 0.134875,
+      "note": "with the certificate cache warm, as it always is after the first block",
+      "repeats": 50,
+      "stdev_ms": 0.002583
+    }
+  ],
+  "values": {
+    "assumedDocumentsPerFactoryMonth": {
+      "note": "an assumption, not a measurement",
+      "value": 400
+    },
+    "blocksWritten": {
+      "note": "",
+      "value": 152
+    },
+    "certificateCacheHits": {
+      "note": "",
+      "value": 402
+    },
+    "certificateCacheMisses": {
+      "note": "",
+      "value": 2
+    },
+    "certificateHitRate": {
+      "note": "percent; a consortium sees the same handful of certificates forever",
+      "value": 99.5
+    },
+    "chainBytes": {
+      "note": "",
+      "value": 1016492
+    },
+    "chainBytesPerDocument": {
+      "note": "",
+      "value": 6777
+    },
+    "chainBytesPerFactoryYearKb": {
+      "note": "storage growth per factory per year, at the measured per-document cost",
+      "value": 31765
+    },
+    "commitMsPerDocument": {
+      "note": "",
+      "value": 5.34
+    },
+    "commitTransactions": {
+      "note": "one per document, before batching",
+      "value": 152
+    },
+    "documents": {
+      "note": "",
+      "value": 150
+    },
+    "documentsPerSecond": {
+      "note": "",
+      "value": 187.3
+    },
+    "endorsementBytes": {
+      "note": "the certificate dominates, not the signature",
+      "value": 2472
+    },
+    "epochBytes": {
+      "note": "",
+      "value": 80579
+    },
+    "epochBytesPerDocument": {
+      "note": "",
+      "value": 537
+    },
+    "epochMsPerDocument": {
+      "note": "",
+      "value": 12.975
+    },
+    "epochSeconds": {
+      "note": "",
+      "value": 1.946
+    },
+    "epochTransactions": {
+      "note": "whatever the number of documents",
+      "value": 1
+    },
+    "epochWritesPerFactoryYear": {
+      "note": "one epoch a month, against 4,800 individual writes",
+      "value": 12
+    },
+    "storageReductionFactor": {
+      "note": "chain bytes per document, unbatched against batched",
+      "value": 12.6
+    },
+    "transactionBytes": {
+      "note": "one commitment, with two RSA-3072 endorsements and their certificates",
+      "value": 6367
+    },
+    "writeReduction": {
+      "note": "ledger writes replaced by one; a factory committing 400 documents a month writes to the chain once instead of 400 times",
+      "value": 150
+    }
+  }
+}

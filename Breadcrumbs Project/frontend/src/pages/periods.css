@@ -1,0 +1,23 @@
+.periods__section {
+  margin-bottom: clamp(48px, 7vw, 88px);
+}
+
+.periods__h2 {
+  font-size: 21px;
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--thread-20);
+}
+
+.periods__lede {
+  color: var(--ink-60);
+  max-width: 62ch;
+  margin: calc(var(--s5) * -1) 0 var(--s5);
+}
+
+.periods__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--s5);
+  align-items: start;
+}

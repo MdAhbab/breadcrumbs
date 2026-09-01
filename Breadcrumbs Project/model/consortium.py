@@ -20,16 +20,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .chaincode import doccustody, fedmodel, reputation
+from .chaincode import anchor, doccustody, fedmodel, reputation
 from .ledger import (
     AND,
     MSP,
+    OR,
     CertificateAuthority,
     Identity,
     Network,
     NOutOf,
     OrderingService,
     WorldState,
+    devkeys,
 )
 
 DOCUMENT_CHANNEL = "documents-apex-primark"
@@ -88,6 +90,14 @@ class Consortium:
 
 def build(db_path: str = ":memory:", timestamp: str = "2026-03-01T00:00:00Z") -> Consortium:
     """Stand up the whole consortium: CAs, identities, channels, chaincode."""
+    # Rewind the development key pool so each consortium draws keys 0..n and the
+    # suite stays fast. Keys are distinct WITHIN a consortium, which is the
+    # property that matters; two separately built consortia are independent
+    # simulated worlds and their reuse of the same pool is harmless. Anything
+    # built after this call — a rogue CA in an attack test, say — draws fresh
+    # keys from further down the pool and never collides with a real member.
+    devkeys.reset()
+
     msp = MSP()
     authorities: dict[str, CertificateAuthority] = {}
     for msp_id, name, kind, country in ORGS:
@@ -106,8 +116,13 @@ def build(db_path: str = ":memory:", timestamp: str = "2026-03-01T00:00:00Z") ->
     )
     network = Network(msp, orderer, WorldState(db_path))
 
+    # BGMEA is on the document channel as the custodian of the shared accumulator
+    # parameters, not as a reader of records: the capability table in
+    # `backend/app/config.py` gives the consortium no read_records capability.
     network.create_channel(
-        DOCUMENT_CHANNEL, ["ApexTextileMSP", "PrimarkSourcingMSP", "BVCertificationMSP"], timestamp
+        DOCUMENT_CHANNEL,
+        ["ApexTextileMSP", "PrimarkSourcingMSP", "BVCertificationMSP", "BGMEAConsortiumMSP"],
+        timestamp,
     )
     network.create_channel(MODEL_CHANNEL, [o[0] for o in ORGS], timestamp)
 
@@ -120,17 +135,32 @@ def build(db_path: str = ":memory:", timestamp: str = "2026-03-01T00:00:00Z") ->
         ["ApexTextileMSP", "BVCertificationMSP"],
     )
 
+    # anchor: the factory and the auditor both endorse every accumulator advance.
+    # An epoch that only the factory attested to would let a factory choose which
+    # of its own records became provable, which is most of the guarantee gone.
+    network.install(
+        "anchor",
+        anchor,
+        AND("ApexTextileMSP", "BVCertificationMSP"),
+        ["ApexTextileMSP", "BVCertificationMSP"],
+    )
+
     # fedmodel: three of the five model-channel organisations. This is the policy
     # that makes "no single participant can promote a model" true.
     network.install("fedmodel", fedmodel, NOutOf(3, GATE_ORGS), GATE_ORGS)
 
-    # reputation: the consortium writes, but a factory must co-sign, so BGMEA
-    # cannot quietly downgrade a member on its own.
+    # reputation: the consortium writes, but never alone — BGMEA must be joined by
+    # either the factory or the auditor. The original policy named the factory
+    # specifically, which had an awkward consequence once falsification findings
+    # arrived: slashing a member would have required that member to endorse its own
+    # penalty. Widening the second signature to "factory OR auditor" keeps the
+    # property that mattered (BGMEA cannot downgrade anyone unilaterally) while
+    # letting an auditor co-sign a finding the accused would obviously refuse.
     network.install(
         "reputation",
         reputation,
-        AND("BGMEAConsortiumMSP", "ApexTextileMSP"),
-        ["BGMEAConsortiumMSP", "ApexTextileMSP"],
+        AND("BGMEAConsortiumMSP", OR("ApexTextileMSP", "BVCertificationMSP")),
+        ["BGMEAConsortiumMSP", "ApexTextileMSP", "BVCertificationMSP"],
     )
 
     return Consortium(network=network, msp=msp, authorities=authorities, identities=identities)

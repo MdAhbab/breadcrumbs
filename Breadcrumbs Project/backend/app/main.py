@@ -27,7 +27,16 @@ if str(_ROOT) not in sys.path:  # allows running without an editable install
 from .config import settings  # noqa: E402
 from .db import SessionLocal, init_db  # noqa: E402
 from .ledger_service import LedgerError  # noqa: E402
-from .routers import auth, governance, ledger, models, records  # noqa: E402
+from .routers import (  # noqa: E402
+    anchor,
+    auth,
+    governance,
+    ledger,
+    models,
+    records,
+    seals,
+    witness,
+)
 
 
 @asynccontextmanager
@@ -83,7 +92,16 @@ async def ledger_error_handler(request: Request, exc: LedgerError) -> JSONRespon
     )
 
 
-for router in (auth.router, records.router, models.router, governance.router, ledger.router):
+for router in (
+    auth.router,
+    records.router,
+    seals.router,
+    witness.router,
+    anchor.router,
+    models.router,
+    governance.router,
+    ledger.router,
+):
     app.include_router(router, prefix="/api")
 
 

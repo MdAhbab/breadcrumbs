@@ -1,0 +1,54 @@
+.reg__head { margin-bottom: var(--s6); max-width: 62ch; }
+.reg__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.reg__lede { color: var(--ink-60); margin-top: var(--s3); }
+
+.lineage { list-style: none; margin: 0; padding: 0; }
+
+.ver {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr);
+  gap: var(--s4);
+}
+
+/* The spine: versions descend from one another. */
+.ver__spine { position: relative; }
+.ver__spine::before {
+  content: ''; position: absolute; left: 10px; top: 0; bottom: 0;
+  width: 1px; background: var(--thread-35);
+}
+.ver:first-child .ver__spine::before { top: 20px; }
+.ver:last-child .ver__spine::before { bottom: auto; height: 20px; }
+
+.ver__node {
+  position: absolute; left: 4px; top: 16px;
+  width: 13px; height: 13px; border-radius: 99px;
+  background: var(--raw-cotton);
+  border: 2px solid var(--thread-grey);
+}
+.ver.is-in_force .ver__node { border-color: var(--verdigris); background: var(--verdigris); }
+.ver.is-rejected .ver__node { border-color: var(--madder); }
+.ver.is-promoted .ver__node { border-color: var(--verdigris); }
+
+.ver__body { padding: var(--s5) 0; border-bottom: 1px solid var(--thread-20); }
+
+.ver__top { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.ver__id { font-size: 15px; font-weight: 600; }
+.ver.is-rejected .ver__id { color: var(--ink-quiet); }
+.ver__date { color: var(--ink-quiet); margin-left: auto; }
+
+.ver__reason { margin-top: var(--s3); color: var(--ink-80); max-width: 62ch; }
+
+.ver__acc { display: flex; gap: var(--s5); margin-top: var(--s4); flex-wrap: wrap; }
+.acc { display: flex; flex-direction: column; gap: 3px; min-width: 108px; }
+.acc__t { color: var(--ink-quiet); font-size: 9px; }
+.acc__v { font-size: 14px; }
+.acc__bar { display: block; height: 2px; background: var(--thread-20); }
+.acc__bar span { display: block; height: 100%; background: var(--brass); }
+.ver.is-rejected .acc__bar span { background: var(--madder); }
+
+.ver__foot {
+  display: flex; align-items: center; gap: var(--s4);
+  margin-top: var(--s4); flex-wrap: wrap;
+}
+.ver__meta { color: var(--ink-quiet); }
+.ver__link { font-size: 13px; color: var(--brass-type); text-decoration: none; margin-left: auto; }
+.ver__link:hover { text-decoration: underline; }

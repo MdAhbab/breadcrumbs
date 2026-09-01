@@ -56,6 +56,30 @@ class WriteKey:
 
 
 @dataclass
+class RangeRead:
+    """
+    A prefix scan, and a digest of the keys it returned.
+
+    Versions alone cannot protect a range query. A transaction that scans
+    `record:` and decides something from the result records the version of every
+    key it *found* — and is blind to a key inserted concurrently, which was not
+    there to be found. That is a phantom read, and it is exactly the flaw that
+    would let a factory seal a reporting period while a record it would rather
+    not disclose is being committed alongside it.
+
+    Recording a digest of the key set closes it: at validation the scan is
+    replayed, and a different set of keys invalidates the transaction. Fabric
+    solves the same problem by recording range bounds in the read set.
+    """
+
+    prefix: str
+    digest: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {"prefix": self.prefix, "digest": self.digest}
+
+
+@dataclass
 class Endorsement:
     """
     One organisation's signature over a proposal's outcome.
@@ -93,6 +117,7 @@ class Transaction:
     timestamp: str
     read_set: list[ReadKey] = field(default_factory=list)
     write_set: list[WriteKey] = field(default_factory=list)
+    range_set: list[RangeRead] = field(default_factory=list)
     endorsements: list[Endorsement] = field(default_factory=list)
     response: Any = None
     nonce: str = ""
@@ -115,6 +140,7 @@ class Transaction:
             "nonce": self.nonce,
             "read_set": [r.to_dict() for r in self.read_set],
             "write_set": [w.to_dict() for w in self.write_set],
+            "range_set": [r.to_dict() for r in self.range_set],
             "response": self.response,
         }
 

@@ -1,0 +1,80 @@
+.rec__back {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--ink-quiet); text-decoration: none; font-size: 13px;
+  margin-bottom: var(--s5); transition: color var(--m-instant);
+}
+.rec__back:hover { color: var(--ink); }
+
+.rec__head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--s5); flex-wrap: wrap; margin-bottom: var(--s5);
+}
+.rec__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.rec__lede { color: var(--ink-60); margin-top: var(--s3); }
+
+.rec__figures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px; background: var(--thread-20);
+  border-block: 1px solid var(--thread-20);
+  margin-bottom: var(--s6);
+}
+.rfig { padding: var(--s4) var(--s4) var(--s4) 0; background: var(--raw-cotton); }
+.rfig__n {
+  display: block;
+  font-family: var(--font-display); font-variation-settings: 'SOFT' 0, 'WONK' 1;
+  font-size: 22px; font-variant-numeric: tabular-nums;
+}
+.rfig__l { color: var(--ink-quiet); }
+
+.rec__body {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--s7); align-items: start;
+}
+@media (max-width: 1000px) { .rec__body { grid-template-columns: 1fr; gap: var(--s6); } }
+
+.rec__h2 {
+  font-size: 17px; padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--thread-35); margin-bottom: var(--s5);
+}
+
+/* -- timeline ------------------------------------------------------------- */
+.tl { list-style: none; margin: 0 0 var(--s5); padding: 0; }
+.tl__item {
+  display: grid; grid-template-columns: 16px 1fr; gap: var(--s4);
+  padding-bottom: var(--s5); position: relative;
+}
+.tl__item:not(:last-child)::before {
+  content: ''; position: absolute; left: 7px; top: 16px; bottom: 0;
+  width: 1px; background: var(--thread-35);
+}
+.tl__dot {
+  width: 9px; height: 9px; border-radius: 99px; margin-top: 6px;
+  background: var(--brass); box-shadow: 0 0 0 3px var(--raw-cotton);
+}
+.tl__dot.is-ok { background: var(--verdigris); }
+.tl__dot.is-bad { background: var(--madder); }
+.tl__what { font-size: 15px; }
+.tl__when { color: var(--ink-quiet); margin: 3px 0 7px; }
+.tl__link { font-size: 13px; color: var(--brass-type); }
+
+/* -- grants --------------------------------------------------------------- */
+.grants { list-style: none; margin: 0; padding: 0; }
+.grant {
+  padding: var(--s4) 0; border-bottom: 1px solid var(--thread-20);
+}
+.grant__top { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }
+.grant__org { font-size: 14px; font-weight: 500; }
+.grant__field { color: var(--brass-type); font-size: 12px; margin-top: 4px; }
+.grant__meta { color: var(--ink-quiet); margin-top: 2px; }
+.grant__revoke { margin-top: var(--s3); }
+.grant.is-revoked .grant__org, .grant.is-expired .grant__org { color: var(--ink-quiet); }
+
+.rec__note, .rec__none { color: var(--ink-quiet); margin-top: var(--s4); }
+
+/* The counter-signature and accumulator sections arrive after the history, so
+   they need their own air rather than reading as a continuation of it. */
+.rec__h2--spaced {
+  margin-top: var(--s7);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--thread-20);
+}

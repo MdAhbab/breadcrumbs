@@ -335,7 +335,7 @@ class FederatedTrainer:
         """
         measured = self.evaluate_all()
         submissions = []
-        for i, msp_id in enumerate(endorser_msps):
+        for msp_id in endorser_msps:
             offset = 0 if jitter_bp == 0 else int(self.rng.integers(-jitter_bp, jitter_bp + 1))
             accuracies = {
                 task: {

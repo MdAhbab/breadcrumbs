@@ -3,9 +3,21 @@
 The working system behind the report in the repository root. The report describes it;
 this directory runs it.
 
-The report's §12 opens by conceding that the Continuity Gate — its main contribution — is
-"specified but not built". **That is what this directory exists to fix.** The ledger is the
-product here; the machine learning is a tool the ledger governs, not the other way round.
+The ledger is the product here; the machine learning is a tool the ledger governs, not the
+other way round.
+
+**What this system does that the alternatives do not.** Every notarisation service proves a
+document is genuine. None proves that the set you were shown is the whole set — and the
+fraud that actually happens is not a forged register but a second one and a decision about
+which to disclose. A *period seal* fixes the membership of a reporting period on-chain, so a
+factory handing over four of its five payroll registers is caught by arithmetic while all
+four of them verify perfectly. Around that sit three mechanisms sharing one RSA group:
+constant-size verifier state, proofs that a record was *never* committed, constant-time
+verification of an entire epoch, and a delay function that stops history being manufactured
+faster than it can be lived. Each record is also counter-signed by an organisation that is
+assigned rather than chosen, and that loses reputation if the record is later found false.
+
+Run `make demo` and watch Act 6.
 
 ```
 Breadcrumbs Project/
@@ -13,6 +25,8 @@ Breadcrumbs Project/
 │   ├── ledger/       Permissioned chain: MSP identity, ordering, endorsement, blocks, world state.
 │   ├── chaincode/    Deterministic contracts: doccustody, fedmodel (Continuity Gate), reputation.
 │   ├── merkle/       Merkle tree, proofs, single-line selective disclosure.
+│   ├── accumulator/  RSA group, hash-to-prime, membership and absence proofs, VDF.
+│   ├── bench/        Every measured number in the report. Writes ../results/*.json.
 │   ├── ai/           Federated continual learning (PyTorch + Flower).
 │   ├── datagen/      ~50,000 invented labelled documents with planted anomalies.
 │   ├── fabric/       Real Hyperledger Fabric chaincode + docker-compose. See the note below.
@@ -28,12 +42,21 @@ Breadcrumbs Project/
 
 ```bash
 make setup    # venv + all dependencies + frontend node modules
-make demo     # the eight-act end-to-end cycle
-make test     # 91 tests
+make demo     # the twelve-act end-to-end cycle
+make test     # 206 tests
+make attacks  # only the tests that attack the system
+make bench    # measure everything, regenerate the report's numbers
 ```
 
 `SETUP.md` covers a fresh machine. `AUDIT.md` is the security review: five
 serious findings, all fixed, plus what is still open and why.
+
+**Three attacks in the test suite succeed**, deliberately and on the record: a model
+poisoned just inside the Continuity Gate's tolerance is promoted, a colluding assigned
+witness is not stopped, and whoever holds the factorisation of the accumulator modulus can
+forge a membership witness against the accumulator alone (though not against the ledger and
+the anchored index, which is why the accumulator is an accelerator rather than an
+authority). `make attacks` runs them all.
 
 ## Two ledgers, on purpose
 

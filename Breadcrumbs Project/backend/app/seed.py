@@ -18,6 +18,7 @@ from model.consortium import DOCUMENT_CHANNEL
 from model.merkle import MerkleTree
 
 from . import ledger_service as ledger
+from .config import settings
 from .db import (
     Attestation,
     BuyerRequest,
@@ -217,5 +218,203 @@ def seed(session: Session) -> dict[str, str]:
             )
         )
 
+    _seed_period_seal(session)
+    _seed_witness_round()
+    anchor_note = _seed_accumulator()
+
     session.commit()
-    return {"status": "seeded", "records": str(len(RECORDS))}
+    return {
+        "status": "seeded",
+        "records": str(len(RECORDS) + len(SEALED_BUCKET_RECORDS)),
+        "anchor": anchor_note,
+    }
+
+
+# --------------------------------------------------------------------------
+# the four mechanisms, so their screens have something true to show
+# --------------------------------------------------------------------------
+# Five registers in one period, of which the buyer is granted four. That gap is
+# the completeness demonstration: the seal says five, the disclosure carries
+# four, and the arithmetic — not anybody's word — is what catches it.
+SEALED_BUCKET_RECORDS = [
+    ("rc-071", 1204, "2026-06-30T09:00:00Z"),
+    ("rc-072", 1198, "2026-06-30T09:05:00Z"),
+    ("rc-073", 1211, "2026-06-30T09:10:00Z"),
+    ("rc-074", 1190, "2026-06-30T09:15:00Z"),
+    ("rc-075", 1207, "2026-06-30T09:20:00Z"),
+]
+SEALED_SITE = "Narayanganj"
+SEALED_TYPE = "payroll_register"
+SEALED_PERIOD = "2026-05"
+SEALED_BUCKET = f"ApexTextileMSP|{SEALED_SITE}|{SEALED_TYPE}|{SEALED_PERIOD}"
+
+
+def _seed_period_seal(session: Session) -> None:
+    """Commit five registers, seal the period over exactly them, disclose four."""
+    for record_id, n_rows, committed in SEALED_BUCKET_RECORDS:
+        rows = _payroll_rows(n_rows)
+        tree = MerkleTree(rows)
+        ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "commit_record",
+            {
+                "record_id": record_id, "merkle_root": tree.root,
+                "record_type": SEALED_TYPE, "period": SEALED_PERIOD, "site": SEALED_SITE,
+                "row_count": n_rows, "schema_version": "v2.1.0", "timestamp": committed,
+            },
+            role="factory", timestamp=committed,
+        )
+        session.merge(
+            StoredDocument(
+                record_id=record_id, owner_msp="ApexTextileMSP", record_type=SEALED_TYPE,
+                period=SEALED_PERIOD, site=SEALED_SITE, schema_version="v2.1.0",
+                merkle_root=tree.root, rows=rows, salts=tree.salts, committed_at=committed,
+            )
+        )
+
+    # Seal over what the ledger actually holds, not over the literal above: the
+    # contract refuses any mismatch, and deriving the list from state means this
+    # cannot drift if the fixtures change.
+    on_ledger = sorted(
+        r["record_id"]
+        for r in ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_records", {}, "factory")
+        if r["bucket"] == SEALED_BUCKET
+    )
+    ledger.invoke(
+        DOCUMENT_CHANNEL, "doccustody", "seal_period",
+        {
+            "site": SEALED_SITE, "record_type": SEALED_TYPE, "period": SEALED_PERIOD,
+            "record_ids": on_ledger, "timestamp": "2026-07-01T10:00:00Z",
+        },
+        role="factory", timestamp="2026-07-01T10:00:00Z",
+    )
+
+    # Four of the five. The fifth is withheld, which is the whole point.
+    for i, record_id in enumerate(on_ledger[:4], start=10):
+        ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "grant_access",
+            {
+                "grant_id": f"g-{i:03d}", "record_id": record_id,
+                "requester_msp": "PrimarkSourcingMSP", "purpose_code": "ETH-WAGE-VERIFY",
+                "field_name": "net_pay_bdt", "expires_at": "2026-12-31T00:00:00Z",
+                "timestamp": "2026-07-02T09:00:00Z",
+            },
+            role="factory", timestamp="2026-07-02T09:00:00Z",
+        )
+
+    # A genuinely late record, brought in through the three-step route: reopen the
+    # period with a reason, commit, re-seal. The history panel therefore shows a
+    # real amendment rather than a re-declaration of a record the bucket already
+    # held — which is what this seed used to do, because an earlier version of the
+    # contract had no route for a late record at all. It has one now.
+    reason = "night-shift register arrived after the Narayanganj line reconciliation"
+    ledger.invoke(
+        DOCUMENT_CHANNEL, "doccustody", "reopen_seal",
+        {
+            "site": SEALED_SITE, "record_type": SEALED_TYPE, "period": SEALED_PERIOD,
+            "reason": reason, "timestamp": "2026-07-03T09:00:00Z",
+        },
+        role="factory", timestamp="2026-07-03T09:00:00Z",
+    )
+
+    late_rows = _payroll_rows(612)
+    late_tree = MerkleTree(late_rows)
+    ledger.invoke(
+        DOCUMENT_CHANNEL, "doccustody", "commit_record",
+        {
+            "record_id": "rc-nar-late", "merkle_root": late_tree.root,
+            "record_type": SEALED_TYPE, "period": SEALED_PERIOD, "site": SEALED_SITE,
+            "row_count": 612, "schema_version": "v2.1.0",
+            "timestamp": "2026-07-03T10:00:00Z",
+        },
+        role="factory", timestamp="2026-07-03T10:00:00Z",
+    )
+    session.merge(
+        StoredDocument(
+            record_id="rc-nar-late", owner_msp="ApexTextileMSP", record_type=SEALED_TYPE,
+            period=SEALED_PERIOD, site=SEALED_SITE, schema_version="v2.1.0",
+            merkle_root=late_tree.root, rows=late_rows, salts=late_tree.salts,
+            committed_at="2026-07-03T10:00:00Z",
+        )
+    )
+
+    ledger.invoke(
+        DOCUMENT_CHANNEL, "doccustody", "amend_seal",
+        {
+            "site": SEALED_SITE, "record_type": SEALED_TYPE, "period": SEALED_PERIOD,
+            "added_record_ids": ["rc-nar-late"],
+            "reason": reason,
+            "timestamp": "2026-07-03T11:00:00Z",
+        },
+        role="factory", timestamp="2026-07-03T11:00:00Z",
+    )
+
+    session.flush()
+
+
+def _seed_witness_round() -> None:
+    """Run a commit-reveal round so the witness rule is actually in force."""
+    from model.chaincode.witness import share_commitment
+
+    members = ["ApexTextileMSP", "BVCertificationMSP", "BGMEAConsortiumMSP"]
+    role_of = {
+        "ApexTextileMSP": "factory",
+        "BVCertificationMSP": "auditor",
+        "BGMEAConsortiumMSP": "consortium",
+    }
+    shares = {m: f"{i + 17:064x}" for i, m in enumerate(members)}
+
+    ledger.invoke(
+        DOCUMENT_CHANNEL, "doccustody", "open_seed_round",
+        {
+            "round_id": "sr-001", "members": members, "sample_percent": 40,
+            "timestamp": "2026-07-05T09:00:00Z",
+        },
+        role="consortium", timestamp="2026-07-05T09:00:00Z",
+    )
+    for msp in members:
+        ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "commit_seed_share",
+            {
+                "round_id": "sr-001", "commitment": share_commitment(shares[msp]),
+                "timestamp": "2026-07-05T09:10:00Z",
+            },
+            role=role_of[msp], timestamp="2026-07-05T09:10:00Z",
+        )
+    for msp in members:
+        ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "reveal_seed_share",
+            {
+                "round_id": "sr-001", "share": shares[msp],
+                "timestamp": "2026-07-05T09:20:00Z",
+            },
+            role=role_of[msp], timestamp="2026-07-05T09:20:00Z",
+        )
+
+
+def _seed_accumulator() -> str:
+    """
+    Install accumulator parameters, fold one epoch, and attach a delay proof.
+
+    The dev seed uses a small modulus so a cold start is not a minute of prime
+    search. That is a development convenience and the API reports the real bit
+    length, so the screen says 1024 when it is 1024 rather than the 3072 the
+    report specifies.
+    """
+    from model.accumulator import run_ceremony
+    from model.anchoring import anchor_epoch, install_group
+
+    group, transcript, _ = run_ceremony(
+        "BGMEAConsortiumMSP",
+        {"ApexTextileMSP": b"seed-apex-entropy" * 2, "BVCertificationMSP": b"seed-bv-entropy!" * 2},
+        bits=settings.anchor_modulus_bits,
+    )
+    c = ledger.consortium()
+    install_group(c, DOCUMENT_CHANNEL, group, transcript, "2026-07-06T09:00:00Z")
+
+    records = [
+        r["record_id"]
+        for r in ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_records", {}, "factory")
+    ]
+    items = [("record", r) for r in sorted(records)] + [("seal", SEALED_BUCKET)]
+    anchor_epoch(c, DOCUMENT_CHANNEL, items, "2026-07-06T09:30:00Z")
+    return f"epoch 1 over {len(items)} elements, {settings.anchor_modulus_bits}-bit modulus"

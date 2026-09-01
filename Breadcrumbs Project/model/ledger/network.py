@@ -34,8 +34,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from .block import Block, Endorsement, ReadKey, Transaction, WriteKey, genesis_block
-from .crypto import TAG_BLOCK, canonical, hash_object, new_salt, sign
+from .block import Block, Endorsement, RangeRead, ReadKey, Transaction, WriteKey, genesis_block
+from .crypto import TAG_BLOCK, TAG_NODE, canonical, h, hash_object, new_salt, sign
 from .endorsement import EndorsementValidator, Policy
 from .identity import MSP, Identity
 from .orderer import OrderingService
@@ -64,6 +64,7 @@ class Context:
         self.msp = msp
         self.reads: dict[str, int] = {}
         self.writes: dict[str, Any] = {}
+        self.ranges: dict[str, str] = {}
 
     @property
     def caller_msp(self) -> str:
@@ -88,14 +89,27 @@ class Context:
         self.writes[key] = None
 
     def range(self, prefix: str) -> list[tuple[str, Any]]:
+        """
+        Scan a prefix, recording both the versions found and the shape of the scan.
+
+        The second half is what stops a phantom read. See `RangeRead` in
+        `block.py` for why recording versions alone is not enough, and
+        `test_ledger.py` for the concurrent insert that proves it.
+        """
         out = list(self._state.range(self._channel, prefix))
         for key, _ in out:
             self.reads.setdefault(key, self._state.version(self._channel, key))
+        self.ranges[prefix] = range_digest(k for k, _ in out)
         return out
 
     def require(self, condition: bool, message: str) -> None:
         if not condition:
             raise ChaincodeError(message)
+
+
+def range_digest(keys) -> str:
+    """A digest of a key set, order-independent, computed the same way everywhere."""
+    return h(TAG_NODE, canonical(sorted(keys)))
 
 
 Chaincode = Callable[[Context, str, dict[str, Any]], Any]
@@ -261,9 +275,11 @@ class Network:
             results.append((e, ctx, response))
 
         first_ctx, first_response = results[0][1], results[0][2]
-        baseline = canonical({"w": first_ctx.writes, "r": first_ctx.reads, "resp": first_response})
+        baseline = canonical(
+            {"w": first_ctx.writes, "r": first_ctx.reads, "q": first_ctx.ranges, "resp": first_response}
+        )
         for ident, ctx, response in results[1:]:
-            if canonical({"w": ctx.writes, "r": ctx.reads, "resp": response}) != baseline:
+            if canonical({"w": ctx.writes, "r": ctx.reads, "q": ctx.ranges, "resp": response}) != baseline:
                 raise ChaincodeError(
                     f"endorsement mismatch: {ident.id} simulated a different result. "
                     "The chaincode is not deterministic."
@@ -279,6 +295,7 @@ class Network:
             nonce=new_salt(),
             read_set=[ReadKey(k, v) for k, v in sorted(first_ctx.reads.items())],
             write_set=[WriteKey(k, v) for k, v in sorted(first_ctx.writes.items())],
+            range_set=[RangeRead(p, d) for p, d in sorted(first_ctx.ranges.items())],
             response=first_response,
         )
         payload = tx.payload()
@@ -355,6 +372,20 @@ class Network:
                     False,
                     "MVCC_READ_CONFLICT",
                     f"keys changed since simulation: {', '.join(stale)}",
+                )
+                continue
+
+            phantom = [
+                rr.prefix
+                for rr in tx.range_set
+                if range_digest(k for k, _ in self.state.range(tx.channel, rr.prefix)) != rr.digest
+            ]
+            if phantom:
+                channel.validation[tx.tx_id] = ValidationResult(
+                    tx.tx_id,
+                    False,
+                    "PHANTOM_READ_CONFLICT",
+                    f"a key appeared or vanished under {', '.join(phantom)} since simulation",
                 )
                 continue
 
