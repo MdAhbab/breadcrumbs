@@ -511,24 +511,42 @@ columns outright. Notarisation services already make documents tamper-evident,
 and LiFeChain already puts federated lifelong learning on a blockchain. The
 columns nobody else fills are the last three.
 
-\begin{table}[htbp]
-\centering
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{2.8cm}
+  >{\centering\arraybackslash}p{1.1cm}
+  >{\centering\arraybackslash}p{1.25cm}
+  >{\centering\arraybackslash}p{1.1cm}
+  >{\centering\arraybackslash}p{1.1cm}
+  >{\centering\arraybackslash}p{1.25cm}
+  >{\centering\arraybackslash}p{1.6cm}
+  >{\centering\arraybackslash}p{1.0cm}
+  >{\raggedright\arraybackslash}p{3.3cm}@{}}
 \caption{Comparison with existing systems. ``Internal records'' means a
 company's own operating documents rather than product or material flow.
 ``Absence'' means the system can prove a record was \emph{never} committed.
 ``Completeness'' means it can prove a disclosed set is the whole set for a period.
 ``Witness'' means an independent organisation counter-signs at capture. A dash
 means the capability is absent, not merely weaker.}
-\label{tab:market}
-\scriptsize
-\setlength{\tabcolsep}{3.2pt}
-\begin{tabularx}{\textwidth}{@{}l c c c c c c c Y@{}}
+\label{tab:market}\\
 \toprule
 \textbf{System} & \textbf{Ledger} & \textbf{Internal} & \textbf{Shared} &
 \textbf{Gate on} & \textbf{Absence} & \textbf{Complete-} & \textbf{Wit-} &
 \textbf{Primary purpose} \\
  & & \textbf{records} & \textbf{model} & \textbf{past tasks} & & \textbf{ness} & \textbf{ness} & \\
 \midrule
+\endfirsthead
+\multicolumn{9}{@{}l}{\scriptsize\tablename~\thetable{} (continued)}\\
+\toprule
+\textbf{System} & \textbf{Ledger} & \textbf{Internal} & \textbf{Shared} &
+\textbf{Gate on} & \textbf{Absence} & \textbf{Complete-} & \textbf{Wit-} &
+\textbf{Primary purpose} \\
+ & & \textbf{records} & \textbf{model} & \textbf{past tasks} & & \textbf{ness} & \textbf{ness} & \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
 TextileGenesis, TrusTrace & yes & -- & -- & -- & -- & -- & -- & Material and fibre traceability \\
 AWARE, DigiProd Pass (BGMEA) & yes & -- & -- & -- & -- & -- & -- & Digital Product Passport readiness \\
 Aura Consortium & yes & -- & -- & -- & -- & -- & -- & Luxury product authenticity \\
@@ -547,8 +565,8 @@ Model registries, MLOps gates & -- & -- & -- & partial & -- & -- & -- & Accuracy
 \midrule
 \textbf{Breadcrumbs} & yes & yes & yes & yes & yes & yes & yes & Verifiable internal records, provably complete \\
 \bottomrule
-\end{tabularx}
-\end{table}
+\end{longtable}
+\endgroup
 
 \subsection{The closest prior art, and exactly what is different}
 
@@ -1921,7 +1939,12 @@ would ask to be judged on.
 
 % =============================================================================
 \small
+\begingroup
+% Long bibliography URLs sometimes leave deliberately loose lines. They do not
+% protrude into the margin, so do not report them as bad boxes.
+\hbadness=10000
 \bibliographystyle{plainnat}
 \bibliography{ref}
+\endgroup
 
 \end{document}

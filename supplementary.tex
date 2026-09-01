@@ -176,7 +176,15 @@ and the anchored index that verification also requires.
 Each row names the test that performs the attack. All are in
 \texttt{model/tests/}.
 
-\begin{longtable}{@{}p{4.6cm} p{1.6cm} p{8.4cm}@{}}
+\begingroup
+% Test identifiers may break after underscores; otherwise the monospaced names
+% form single unbreakable boxes wider than the final column.
+\renewcommand{\_}{\char95\discretionary{}{}{}}
+\hbadness=10000
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}>{\rightskip=0pt plus 2em\relax\arraybackslash}p{4.6cm}
+                       >{\rightskip=0pt plus 2em\relax\arraybackslash}p{1.75cm}
+                       >{\rightskip=0pt plus 2em\relax\arraybackslash}p{8.25cm}@{}}
 \caption{Every attack in the suite, and the test that runs it.}
 \label{tab:fullattacks}\\
 \toprule
@@ -253,6 +261,7 @@ Promote with a minority of endorsers & Blocked & \texttt{test\_a\_minority\_of\_
 Swap a benchmark after commitment & Blocked & \texttt{test\_swapping\_a\_benchmark\_between\_commitment\_and\_reveal\_is\_caught} \\
 \textbf{Poison just inside the tolerance} & \textbf{Succeeds} & \texttt{test\_a\_poisoning\_update\_tuned\_to\_sit\_just\_under\_the\_tolerance\_is\_promoted} \\
 \end{longtable}
+\endgroup
 
 % =============================================================================
 \section{Full measurement series}
