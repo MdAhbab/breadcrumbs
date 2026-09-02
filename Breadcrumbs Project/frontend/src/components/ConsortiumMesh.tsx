@@ -1,9 +1,14 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { BOLTS, GRANTS, MOTIONS, ORGS, RECORD_LABEL, type Org } from '../lib/data';
-import { commas, longDate, shortHash } from '../lib/format';
+import {
+  api, recordLabel,
+  type Grant, type LedgerRecord, type Org, type Proposal,
+} from '../lib/api';
+import { commas, shortHash } from '../lib/format';
+import { useApi } from '../lib/useApi';
 import { useReducedMotion } from '../lib/useMotionPref';
+import { Result } from './states';
 import { Modal, ModalHead, Seal } from './ui';
 import './mesh.css';
 
@@ -30,9 +35,9 @@ interface Node extends Org {
 
 const KIND_ORDER = ['factory', 'buyer', 'auditor', 'regulator'] as const;
 
-function layout(): Node[] {
-  const centre = ORGS.find((o) => o.kind === 'consortium')!;
-  const outer = ORGS.filter((o) => o.kind !== 'consortium').sort(
+function layout(orgs: Org[]): Node[] {
+  const centre = orgs.find((o) => o.kind === 'consortium') ?? orgs[0];
+  const outer = orgs.filter((o) => o !== centre).sort(
     (a, b) =>
       KIND_ORDER.indexOf(a.kind as (typeof KIND_ORDER)[number]) -
       KIND_ORDER.indexOf(b.kind as (typeof KIND_ORDER)[number]),
@@ -52,11 +57,20 @@ function layout(): Node[] {
   return nodes;
 }
 
-/** What a member is doing on the network, as a handful of discrete facts. */
-function storyFor(org: Org) {
-  const owned = BOLTS.filter((b) => b.ownerMsp === org.mspId);
-  const asRequester = GRANTS.filter((g) => g.requesterMsp === org.mspId);
-  const endorsed = MOTIONS.filter((m) => m.endorsers.includes(org.mspId));
+/**
+ * What a member is doing on the network, as a handful of discrete facts.
+ *
+ * Counted from the ledger the caller can see. A consortium administrator sees
+ * the channel, so these totals are the channel's; they are not a claim about
+ * what exists beyond it, and the last block says so rather than letting a reader
+ * assume the number is universal.
+ */
+function storyFor(
+  org: Org, records: LedgerRecord[], grants: Grant[], motions: Proposal[],
+) {
+  const owned = records.filter((b) => b.owner_msp === org.msp_id);
+  const asRequester = grants.filter((g) => g.requester_msp === org.msp_id);
+  const endorsed = motions.filter((m) => m.endorsers.includes(org.msp_id));
 
   return [
     {
@@ -64,12 +78,19 @@ function storyFor(org: Org) {
       body: (
         <>
           <p className="story__lede">
-            {org.name} joined the consortium on {longDate(org.joined)} and holds a{' '}
-            {org.kind} identity on the network.
+            {org.name} holds a {org.kind_label.toLowerCase()} identity issued by its own
+            certificate authority, and is a member of{' '}
+            {org.channels.length === 0
+              ? 'no channel on this network'
+              : `${org.channels.length} channel${org.channels.length === 1 ? '' : 's'}`}.
           </p>
           <div className="story__rows">
-            <Row k="MSP identity" v={<span className="mono">{org.mspId}</span>} />
+            <Row k="MSP identity" v={<span className="mono">{org.msp_id}</span>} />
             <Row k="Country" v={org.country} />
+            <Row
+              k="Channels"
+              v={<span className="mono">{org.channels.join(', ') || 'none'}</span>}
+            />
             <Row k="Status" v={<Seal tone="sealed">in good standing</Seal>} />
           </div>
         </>
@@ -82,15 +103,15 @@ function storyFor(org: Org) {
           owned.length ? (
             <>
               <p className="story__lede">
-                {owned.length} bolts sealed, {commas(owned.reduce((a, b) => a + b.rowCount, 0))}{' '}
-                threads in total.
+                {commas(owned.length)} bolts sealed,{' '}
+                {commas(owned.reduce((a, b) => a + b.row_count, 0))} threads in total.
               </p>
               <div className="story__rows">
                 {owned.slice(0, 4).map((b) => (
                   <Row
-                    key={b.recordId}
-                    k={RECORD_LABEL[b.recordType]}
-                    v={<span className="mono">{shortHash(b.merkleRoot)}</span>}
+                    key={b.record_id}
+                    k={recordLabel(b.record_type)}
+                    v={<span className="mono">{shortHash(b.merkle_root)}</span>}
                   />
                 ))}
               </div>
@@ -104,12 +125,12 @@ function storyFor(org: Org) {
           <>
             <p className="story__lede">
               {asRequester.length
-                ? `${asRequester.length} grants held or requested. Each covers exactly one field.`
+                ? `${commas(asRequester.length)} grants held. Each covers exactly one field.`
                 : 'Holds no access grants. This member observes the network only.'}
             </p>
             <div className="story__rows">
               {asRequester.slice(0, 4).map((g) => (
-                <Row key={g.grantId} k={g.fieldName} v={g.status} />
+                <Row key={g.grant_id} k={g.field_name} v={g.status} />
               ))}
             </div>
           </>
@@ -126,7 +147,11 @@ function storyFor(org: Org) {
           </p>
           <div className="story__rows">
             {endorsed.map((m) => (
-              <Row key={m.id} k={m.caseNo} v={m.title.slice(0, 44) + (m.title.length > 44 ? '…' : '')} />
+              <Row
+                key={m.id}
+                k={m.kind.replace(/_/g, ' ')}
+                v={m.title.slice(0, 44) + (m.title.length > 44 ? '…' : '')}
+              />
             ))}
           </div>
         </>
@@ -145,12 +170,34 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 export function ConsortiumMesh() {
-  const nodes = useMemo(layout, []);
+  const world = useApi(
+    () => Promise.all([api.orgs(), api.records(), api.grants(), api.proposals()]) as
+      Promise<[Org[], LedgerRecord[], Grant[], Proposal[]]>,
+    [],
+  );
+  return (
+    <Result query={world} pendingLabel="Reading the network">
+      {([orgs, records, grants, motions]) => (
+        <Mesh orgs={orgs} records={records} grants={grants} motions={motions} />
+      )}
+    </Result>
+  );
+}
+
+function Mesh({
+  orgs, records, grants, motions,
+}: {
+  orgs: Org[];
+  records: LedgerRecord[];
+  grants: Grant[];
+  motions: Proposal[];
+}) {
+  const nodes = useMemo(() => layout(orgs), [orgs]);
   const [open, setOpen] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const reduced = useReducedMotion();
 
-  const selected = nodes.find((n) => n.mspId === open) ?? null;
+  const selected = nodes.find((n) => n.msp_id === open) ?? null;
   const centre = nodes[0];
 
   return (
@@ -163,10 +210,10 @@ export function ConsortiumMesh() {
           <circle cx="50" cy="50" r="16.5" className="mesh__guide mesh__guide--faint" />
 
           {nodes.slice(1).map((n) => {
-            const lit = hover === n.mspId || open === n.mspId;
+            const lit = hover === n.msp_id || open === n.msp_id;
             return (
               <line
-                key={n.mspId}
+                key={n.msp_id}
                 x1={centre.x} y1={centre.y} x2={n.x} y2={n.y}
                 className={`mesh__edge ${lit ? 'is-lit' : ''}`}
               />
@@ -175,25 +222,25 @@ export function ConsortiumMesh() {
 
           {/* The document channel: a direct link between the factory and its buyer. */}
           <line
-            x1={nodes.find((n) => n.mspId === 'ApexTextileMSP')!.x}
-            y1={nodes.find((n) => n.mspId === 'ApexTextileMSP')!.y}
-            x2={nodes.find((n) => n.mspId === 'PrimarkSourcingMSP')!.x}
-            y2={nodes.find((n) => n.mspId === 'PrimarkSourcingMSP')!.y}
+            x1={nodes.find((n) => n.msp_id === 'ApexTextileMSP')!.x}
+            y1={nodes.find((n) => n.msp_id === 'ApexTextileMSP')!.y}
+            x2={nodes.find((n) => n.msp_id === 'PrimarkSourcingMSP')!.x}
+            y2={nodes.find((n) => n.msp_id === 'PrimarkSourcingMSP')!.y}
             className="mesh__edge mesh__edge--doc"
           />
 
           {nodes.map((n) => {
-            const lit = hover === n.mspId || open === n.mspId;
+            const lit = hover === n.msp_id || open === n.msp_id;
             return (
               <g
-                key={n.mspId}
+                key={n.msp_id}
                 className={`mesh__node mesh__node--${n.kind} ${lit ? 'is-lit' : ''}`}
                 transform={`translate(${n.x} ${n.y})`}
-                onMouseEnter={() => setHover(n.mspId)}
+                onMouseEnter={() => setHover(n.msp_id)}
                 onMouseLeave={() => setHover(null)}
-                onClick={() => setOpen(n.mspId)}
+                onClick={() => setOpen(n.msp_id)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(n.mspId); }
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(n.msp_id); }
                 }}
                 tabIndex={0}
                 role="button"
@@ -231,12 +278,12 @@ export function ConsortiumMesh() {
         </ul>
         <ul className="mesh__list">
           {nodes.map((n) => (
-            <li key={n.mspId}>
+            <li key={n.msp_id}>
               <button
                 type="button"
-                className={`mesh__listbtn ${open === n.mspId ? 'is-on' : ''}`}
-                onClick={() => setOpen(n.mspId)}
-                onMouseEnter={() => setHover(n.mspId)}
+                className={`mesh__listbtn ${open === n.msp_id ? 'is-on' : ''}`}
+                onClick={() => setOpen(n.msp_id)}
+                onMouseEnter={() => setHover(n.msp_id)}
                 onMouseLeave={() => setHover(null)}
               >
                 <span className={`swatch swatch--${n.kind}`} />
@@ -247,14 +294,33 @@ export function ConsortiumMesh() {
         </ul>
       </div>
 
-      {selected && <OrgStory org={selected} onClose={() => setOpen(null)} />}
+      {selected && (
+        <OrgStory
+          org={selected}
+          records={records}
+          grants={grants}
+          motions={motions}
+          onClose={() => setOpen(null)}
+        />
+      )}
     </div>
   );
 }
 
 /* ------------------------------------------------------------- the story --- */
-function OrgStory({ org, onClose }: { org: Org; onClose: () => void }) {
-  const blocks = useMemo(() => storyFor(org), [org]);
+function OrgStory({
+  org, records, grants, motions, onClose,
+}: {
+  org: Org;
+  records: LedgerRecord[];
+  grants: Grant[];
+  motions: Proposal[];
+  onClose: () => void;
+}) {
+  const blocks = useMemo(
+    () => storyFor(org, records, grants, motions),
+    [org, records, grants, motions],
+  );
   const [i, setI] = useState(0);
 
   const next = useCallback(
@@ -263,7 +329,7 @@ function OrgStory({ org, onClose }: { org: Org; onClose: () => void }) {
   );
   const prev = useCallback(() => setI((v) => Math.max(0, v - 1)), []);
 
-  useEffect(() => setI(0), [org.mspId]);
+  useEffect(() => setI(0), [org.msp_id]);
 
   // Advancing is the primary gesture, so it must work from the keyboard too.
   // Escape, Tab and the scroll lock belong to Modal.
@@ -293,7 +359,11 @@ function OrgStory({ org, onClose }: { org: Org; onClose: () => void }) {
         ))}
       </div>
 
-      <ModalHead eyebrow={`${org.kind} · ${org.country}`} title={org.name} onClose={onClose} />
+      <ModalHead
+        eyebrow={`${org.kind_label} · ${org.country}`}
+        title={org.name}
+        onClose={onClose}
+      />
 
       <div className="modal__body" key={i}>
         <p className="stamp-type story__label">{block.label}</p>

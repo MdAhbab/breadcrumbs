@@ -6,35 +6,40 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
-import type { RoleId } from '../lib/data';
+import type { RoleId } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useBelow } from '../lib/useMotionPref';
 import { ChainStatus } from './ChainStatus';
+import { Notices } from './Notices';
 import './shell.css';
 
+// Every destination is a route, never a record. The previous version linked
+// straight at `rc-001`, `vr-001` and `m-v8-rc2` — identifiers from a fixture
+// file — so the navigation broke the moment the world came from the ledger
+// instead. Index pages choose their own subject from what actually exists.
 const NAV: Record<RoleId, { to: string; label: string; icon: typeof LayoutGrid }[]> = {
   factory: [
     { to: '/factory/dashboard', label: 'Loom floor', icon: LayoutGrid },
     { to: '/factory/upload', label: 'Seal a record', icon: UploadIcon },
-    { to: '/factory/records/rc-001', label: 'Bolts', icon: FileStack },
+    { to: '/factory/records', label: 'Bolts', icon: FileStack },
     { to: '/periods', label: 'Closed periods', icon: CalendarCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   buyer: [
     { to: '/buyer/portal', label: 'Request a fact', icon: Search },
     { to: '/periods', label: 'Completeness', icon: CalendarCheck },
-    { to: '/verify/vr-001', label: 'A verification', icon: ShieldCheck },
+    { to: '/verify', label: 'Verify a record', icon: ShieldCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   auditor: [
     { to: '/auditor/workspace', label: 'The bench', icon: Gauge },
     { to: '/periods', label: 'Completeness & absence', icon: CalendarCheck },
-    { to: '/verify/vr-001', label: 'A verification', icon: ShieldCheck },
+    { to: '/verify', label: 'Verify a record', icon: ShieldCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   consortium: [
     { to: '/governance', label: 'The chamber', icon: ScrollText },
-    { to: '/model/gate/m-v8-rc2', label: 'Gate decision', icon: KeyRound },
+    { to: '/model/gate', label: 'Gate decisions', icon: KeyRound },
     { to: '/model/registry', label: 'Model lineage', icon: GitBranch },
     { to: '/anchor', label: 'Accumulator', icon: Binary },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
@@ -167,6 +172,7 @@ export function Shell() {
         </ul>
 
         <ChainStatus />
+        <Notices />
 
         <div className="nav__foot">
           <div className="nav__who">

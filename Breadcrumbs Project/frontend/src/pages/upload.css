@@ -80,3 +80,43 @@
 }
 .up__rrow .stamp-type { color: var(--ink-quiet); }
 .up__doneactions { display: flex; gap: var(--s3); flex-wrap: wrap; }
+
+/* The file input covers the drop target so the whole panel stays clickable
+   while remaining a real <input type="file"> for the keyboard. */
+.drop { position: relative; }
+.drop__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* A record the witness rule has drawn into its sample. Amber, not red: this is
+   the mechanism working, and the seal will be refused for a good reason. */
+.up__witness {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--brass-type);
+  border-radius: 3px;
+  background: rgba(184, 147, 74, 0.08);
+}
+
+.up__witness-head { margin: 0 0 4px; font-weight: 500; }
+
+.up__preview {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.up__preview pre {
+  margin: 8px 0;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}

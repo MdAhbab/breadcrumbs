@@ -1,6 +1,6 @@
 import { ShieldCheck, ShieldOff, ShieldQuestion } from 'lucide-react';
 
-import { CHECK_CODES, type WitnessRequirement } from '../lib/anchor';
+import { CHECK_CODES, type WitnessRequirement } from '../lib/api';
 import { dateTime } from '../lib/format';
 import { Seal } from './ui';
 import './mechanisms.css';
@@ -34,6 +34,26 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
                 ?? 'the consortium has not adopted the witness rule on this channel'}
               . No counter-signature was required for this record, so its absence
               is not a finding.
+            </p>
+          </div>
+        </header>
+      </section>
+    );
+  }
+
+  if (req.predates_rule) {
+    return (
+      <section className="wit wit--none">
+        <header className="wit__head">
+          <ShieldQuestion size={16} />
+          <div>
+            <p className="wit__title">Committed before the rule came into force</p>
+            <p className="small wit__sub">
+              This record was committed on {dateTime(req.committed_at ?? '')}, and the
+              consortium adopted the witness rule under round {req.round_id} on{' '}
+              {dateTime(req.round_opened_at ?? '')}. No counter-signature was required of
+              it, and its absence is not a finding. The contract answers for the round
+              that is active now, so the dates are what separate these two cases.
             </p>
           </div>
         </header>

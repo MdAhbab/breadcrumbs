@@ -1,12 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { GATE_PROMOTE, GATE_REJECT, GATE_STEPS, type GateDecision } from '../lib/data';
+
+import { api, taskLabel, type GateDecision } from '../lib/api';
 import { bp, bpDelta } from '../lib/format';
+import { useApi } from '../lib/useApi';
 import { useReducedMotion } from '../lib/useMotionPref';
 import { Seal } from './ui';
 import './gate.css';
 
 type Phase = 'idle' | 'running' | 'promote' | 'reject';
+
+/**
+ * The seven checks `evaluate_gate` performs, in the order it performs them.
+ *
+ * They are steps of the algorithm rather than fields of a decision, so they live
+ * beside the animation that draws them. The jam always falls on the last one,
+ * because the backwards-looking check is the one this whole mechanism exists for.
+ */
+const GATE_STEPS = [
+  'Verify benchmark hashes',
+  'Collect signed submissions',
+  'Check endorsement threshold',
+  'Check agreement within \u03b4',
+  'Take medians',
+  'Test gain on the new task',
+  'Test regression on earlier tasks',
+];
 
 /**
  * The Continuity Gate, as a lock.
@@ -23,6 +42,12 @@ export function GateSimulator({
   decision, compact = false,
 }: { decision?: GateDecision; compact?: boolean }) {
   const reduced = useReducedMotion();
+  // The two candidates the buttons submit are real decisions off the model
+  // channel, fetched from the public explainer endpoint so this works signed out.
+  const about = useApi(
+    () => (decision ? Promise.resolve(null) : api.about().then((a) => a.gate)),
+    [decision],
+  );
   const [phase, setPhase] = useState<Phase>('idle');
   const [step, setStep] = useState(0);
   const [result, setResult] = useState<GateDecision | null>(decision ?? null);
@@ -53,7 +78,7 @@ export function GateSimulator({
     );
   };
 
-  const shown = result ?? GATE_PROMOTE;
+  const shown = result;
   const settled = phase === 'promote' || phase === 'reject';
   const jammedAt = phase === 'reject' ? GATE_STEPS.length - 1 : -1;
 
@@ -91,13 +116,29 @@ export function GateSimulator({
               quietly forgotten something the network already knew.
             </p>
             <div className="gate__actions">
-              <button type="button" className="btn btn--primary btn--md" onClick={() => run(GATE_PROMOTE)}>
+              <button
+                type="button"
+                className="btn btn--primary btn--md"
+                disabled={!about.data?.promoted}
+                onClick={() => about.data?.promoted && run(about.data.promoted)}
+              >
                 Submit a good candidate
               </button>
-              <button type="button" className="btn btn--onDark btn--md" onClick={() => run(GATE_REJECT)}>
+              <button
+                type="button"
+                className="btn btn--onDark btn--md"
+                disabled={!about.data?.rejected}
+                onClick={() => about.data?.rejected && run(about.data.rejected)}
+              >
                 Submit a forgetful candidate
               </button>
             </div>
+            {about.error && (
+              <p className="small on-dark-muted">
+                The gate decisions live on the model channel and the API is not
+                answering, so there is nothing real to replay here.
+              </p>
+            )}
           </>
         )}
 
@@ -112,7 +153,7 @@ export function GateSimulator({
           </ol>
         )}
 
-        {settled && (
+        {settled && shown && (
           <div className={`outcome outcome--${phase}`} aria-live="polite">
             <Seal tone={phase === 'promote' ? 'sealed' : 'broken'} dark>
               {phase === 'promote' ? 'Promoted' : 'Rejected'}
@@ -134,15 +175,15 @@ export function GateSimulator({
                 </tr>
               </thead>
               <tbody>
-                {shown.perTask.map((t) => (
-                  <tr key={t.taskId} className={t.pass ? '' : 'is-fail'}>
+                {shown.per_task.map((t) => (
+                  <tr key={t.task_id} className={t.pass ? '' : 'is-fail'}>
                     <th scope="row">
-                      {t.label}
-                      {t.isNewTask && <span className="gate__new stamp-type">new</span>}
+                      {taskLabel(t.task_id)}
+                      {t.is_new_task && <span className="gate__new stamp-type">new</span>}
                     </th>
-                    <td className="mono">{bp(t.previousBp)}%</td>
-                    <td className="mono">{bp(t.candidateBp)}%</td>
-                    <td className={`mono ${t.pass ? 'ok' : 'bad'}`}>{bpDelta(t.changeBp)}</td>
+                    <td className="mono">{bp(t.previous_bp)}%</td>
+                    <td className="mono">{bp(t.candidate_bp)}%</td>
+                    <td className={`mono ${t.pass ? 'ok' : 'bad'}`}>{bpDelta(t.change_bp)}</td>
                   </tr>
                 ))}
               </tbody>

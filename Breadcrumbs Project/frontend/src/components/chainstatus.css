@@ -144,3 +144,46 @@
 .chainstat__hash { grid-area: hash; color: var(--slub-type); font-size: 10px; }
 
 .chainstat__note { color: var(--slub-type); }
+
+/* -- notices --------------------------------------------------------------- */
+.notices {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  margin-top: 8px;
+  border: 1px solid rgba(244, 241, 232, 0.14);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--btn-off-fg);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.notices:hover { border-color: rgba(244, 241, 232, 0.3); }
+
+.notices__label { flex: 1; }
+
+.notices__count {
+  min-width: 20px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: var(--brass-type);
+  color: var(--indigo-vat, #16233a);
+  font-size: 0.6875rem;
+  text-align: center;
+}
+
+.notices__list { list-style: none; margin: 0; padding: 0; }
+
+.notices__row {
+  display: grid;
+  gap: 3px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.notices__row:last-child { border-bottom: 0; }
+.notices__kind { color: var(--ink-quiet); }

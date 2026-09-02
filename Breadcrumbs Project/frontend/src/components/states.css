@@ -1,0 +1,85 @@
+/* The three states a screen has when it is not showing data. */
+
+.state {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 22px 24px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.state__kind {
+  color: var(--ink-quiet);
+  margin: 0 0 4px;
+}
+
+.state__message {
+  margin: 0;
+  color: var(--ink);
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.state__body { flex: 1; min-width: 0; }
+
+.state__icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 3px;
+  background: var(--btn-off-bg);
+  color: var(--ink-quiet);
+}
+
+.state--failed:not(.is-denied) .state__icon { color: var(--madder); }
+
+/* A refusal is the capability table working, not a fault. It reads calm. */
+.state--failed.is-denied { border-style: dashed; }
+
+/* Loading is the same brass thread as the boot screen and the route change, so
+   "something is happening" has one mark in this product rather than three. */
+.state--pending {
+  align-items: center;
+  border-style: dashed;
+  background: transparent;
+}
+
+.state__thread {
+  position: relative;
+  display: block;
+  width: 96px;
+  height: 1px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.state__thread::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--brass-type);
+  transform-origin: left center;
+  animation: state-draw 1.15s var(--ease-inout, cubic-bezier(0.65, 0, 0.35, 1)) infinite;
+}
+
+@keyframes state-draw {
+  0%   { transform: scaleX(0); transform-origin: left center; }
+  48%  { transform: scaleX(1); transform-origin: left center; }
+  52%  { transform: scaleX(1); transform-origin: right center; }
+  100% { transform: scaleX(0); transform-origin: right center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .state__thread::after { animation: none; transform: scaleX(0.6); }
+}
+
+.state--empty {
+  display: block;
+  border-style: dashed;
+  background: transparent;
+  color: var(--ink-quiet);
+}

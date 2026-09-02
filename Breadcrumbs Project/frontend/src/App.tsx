@@ -21,6 +21,7 @@ const LoomFloor = lazy(() => import('./pages/LoomFloor'));
 const ModelRegistry = lazy(() => import('./pages/ModelRegistry'));
 const Observatory = lazy(() => import('./pages/Observatory'));
 const Periods = lazy(() => import('./pages/Periods'));
+const Records = lazy(() => import('./pages/Records'));
 const RecordDetail = lazy(() => import('./pages/RecordDetail'));
 const Upload = lazy(() => import('./pages/Upload'));
 const VerifyResult = lazy(() => import('./pages/VerifyResult'));
@@ -51,16 +52,21 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        {/* With a receipt identifier this is a public check that needs no
+            account; without one it is the live prover for whoever holds a grant. */}
+        <Route path="/verify" element={<VerifyResult />} />
         <Route path="/verify/:id" element={<VerifyResult />} />
 
         <Route element={<Protected><Shell /></Protected>}>
           <Route path="/factory/dashboard" element={<LoomFloor />} />
           <Route path="/factory/upload" element={<Upload />} />
+          <Route path="/factory/records" element={<Records />} />
           <Route path="/factory/records/:id" element={<RecordDetail />} />
           <Route path="/buyer/portal" element={<Lightbox />} />
           <Route path="/auditor/workspace" element={<AuditorBench />} />
           <Route path="/governance" element={<Chamber />} />
           <Route path="/regulator" element={<Observatory />} />
+          <Route path="/model/gate" element={<GateDecisionPage />} />
           <Route path="/model/gate/:id" element={<GateDecisionPage />} />
           <Route path="/model/registry" element={<ModelRegistry />} />
           <Route path="/periods" element={<Periods />} />

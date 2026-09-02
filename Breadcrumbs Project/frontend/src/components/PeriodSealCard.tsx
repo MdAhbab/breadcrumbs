@@ -1,6 +1,6 @@
 import { FileStack, History } from 'lucide-react';
 
-import type { PeriodSeal } from '../lib/anchor';
+import type { PeriodSeal } from '../lib/api';
 import { longDate } from '../lib/format';
 import { HashChip, Seal } from './ui';
 import './mechanisms.css';

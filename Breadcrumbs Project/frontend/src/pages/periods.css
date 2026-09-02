@@ -21,3 +21,29 @@
   gap: var(--s5);
   align-items: start;
 }
+
+/* The period picker: with two dozen sealed buckets, choosing one is the first
+   thing a verifier does, so it sits above the arithmetic rather than beside it. */
+.periods__picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.periods__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 320px;
+  max-width: 100%;
+}
+
+.periods__pick .stamp-type { color: var(--ink-quiet); }
+
+.periods__hint {
+  color: var(--ink-quiet);
+  margin: 0 0 4px;
+  max-width: 44ch;
+}

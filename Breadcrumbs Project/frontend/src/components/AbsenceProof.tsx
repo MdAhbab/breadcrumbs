@@ -1,7 +1,8 @@
 import { FileSearch, Search } from 'lucide-react';
 import { useState } from 'react';
 
-import { ABSENCE, type Absence } from '../lib/anchor';
+import { ApiError, api, type Absence } from '../lib/api';
+import { Failed } from './states';
 import { Seal } from './ui';
 import './mechanisms.css';
 
@@ -16,31 +17,30 @@ import './mechanisms.css';
  *   the ledger holds no record under this identifier — a lookup; and
  *   this element was never accumulated up to the current epoch — a Bezout proof.
  *
- * Only the second is cryptography, and its scope is narrow. The scope sentence
- * is printed on the result, not tucked into a tooltip.
+ * Only the second is cryptography, and its scope is narrow. Both the result and
+ * the scope sentence come from the contract, which is what stops this screen
+ * from quietly widening the claim: an earlier version invented a passing proof
+ * for any reference it did not recognise.
  */
-const UNKNOWN = (reference: string): Absence => ({
-  reference,
-  provable: true,
-  epoch: 4,
-  ledger_holds_record: false,
-  never_committed: true,
-  proof_ok: true,
-  reason: '',
-  scope:
-    `This proves the canonical element for ‘${reference}’ was never accumulated `
-    + 'up to epoch 4. It says nothing about later epochs, and nothing about '
-    + 'documents that were never offered to this ledger at all.',
-});
-
 export function AbsenceProof() {
   const [value, setValue] = useState('ISO45001-FORGED-Q3-2026');
   const [result, setResult] = useState<Absence | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const run = () => {
+  const run = async () => {
     const key = value.trim();
     if (!key) return;
-    setResult(ABSENCE[key] ?? UNKNOWN(key));
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await api.nonMembership(key));
+    } catch (err) {
+      setResult(null);
+      setError(err instanceof ApiError ? err : new ApiError(0, 'the proof could not be built'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -55,11 +55,16 @@ export function AbsenceProof() {
             className="input mono"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && run()}
+            onKeyDown={(e) => e.key === 'Enter' && void run()}
             placeholder="ISO45001-PASS-Q3-2026"
           />
-          <button type="button" className="btn btn--primary btn--md" onClick={run}>
-            <Search size={14} /> Prove
+          <button
+            type="button"
+            className="btn btn--primary btn--md"
+            onClick={() => void run()}
+            disabled={busy}
+          >
+            <Search size={14} /> {busy ? 'Proving…' : 'Prove'}
           </button>
         </div>
         <p className="small field__hint">
@@ -67,6 +72,8 @@ export function AbsenceProof() {
           here without asking the factory anything.
         </p>
       </div>
+
+      {error && <Failed error={error} />}
 
       {result && (
         <div className={`absence__out ${result.never_committed ? 'is-absent' : 'is-present'}`}>
@@ -96,12 +103,16 @@ export function AbsenceProof() {
             <div className="absence__r">
               <span className="stamp-type">Non-membership proof</span>
               <Seal tone={result.proof_ok ? 'sealed' : 'broken'}>
-                {result.proof_ok ? 'verifies' : 'does not hold'}
+                {result.provable
+                  ? result.proof_ok ? 'verifies' : 'does not hold'
+                  : 'not applicable'}
               </Seal>
             </div>
             <div className="absence__r">
               <span className="stamp-type">Checked at</span>
-              <span className="mono">epoch {result.epoch}</span>
+              <span className="mono">
+                {result.epoch === null ? 'no epoch' : `epoch ${result.epoch}`}
+              </span>
             </div>
           </div>
 

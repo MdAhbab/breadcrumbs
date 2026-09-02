@@ -142,3 +142,13 @@
 
 .wax__head { color: var(--raw-cotton); }
 .wax__body { color: rgba(244, 241, 232, 0.6); max-width: 34ch; margin-bottom: var(--s3); }
+
+/* Attestations already signed, listed under the block that writes them. */
+.signing__past {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(244, 241, 232, 0.14);
+}
+
+.signing__past ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.signing__past li { padding: 3px 0; }

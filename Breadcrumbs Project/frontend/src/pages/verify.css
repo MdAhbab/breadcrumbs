@@ -252,3 +252,11 @@
   gap: var(--s3);
   flex-wrap: wrap;
 }
+
+/* A value that was disclosed to somebody else. It is deliberately quiet: this
+   screen proves a verification happened, not what the figure was. */
+.specimen__value--withheld {
+  font-style: italic;
+  color: var(--ink-quiet);
+  font-size: clamp(1.4rem, 4vw, 2.4rem);
+}

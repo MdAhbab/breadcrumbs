@@ -268,3 +268,20 @@
 .recompute > div { flex: 1; min-width: 240px; }
 .recompute__head { color: var(--raw-cotton); font-weight: 500; }
 .recompute__body { color: rgba(244, 241, 232, 0.6); margin-top: 4px; max-width: 60ch; }
+
+/* A submission the contract refused: a duplicate, an unresolvable certificate,
+   a signature that did not verify. Worth showing — a decision made from three
+   accepted submissions out of five is a different fact from one made from three. */
+.endorser--out { border-style: dashed; opacity: 0.82; }
+.endorser__foot { margin: 6px 0 0; }
+
+/* The decision index reuses the per-task table; its reason column is prose. */
+.gptable__reason { white-space: normal; max-width: 46ch; }
+
+/* A task with no promoted history behind it. Not a zero, and it must not read
+   as one: there is nothing to have drifted from yet. */
+.gptable__none {
+  font-style: italic;
+  opacity: 0.6;
+  white-space: nowrap;
+}

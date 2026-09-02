@@ -1,6 +1,6 @@
 import { AlertTriangle, Check, X } from 'lucide-react';
 
-import type { Verification } from '../lib/anchor';
+import type { Verification } from '../lib/api';
 import './mechanisms.css';
 
 /**

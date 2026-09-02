@@ -7,7 +7,8 @@ import { Link } from 'react-router-dom';
 
 import { GateSimulator } from '../components/GateSimulator';
 import { Seal, Stamp } from '../components/ui';
-import { LIMITATIONS, MATRIX } from '../lib/data';
+import { api } from '../lib/api';
+import { useApi } from '../lib/useApi';
 import { useBelow, useReducedMotion } from '../lib/useMotionPref';
 import './landing.css';
 
@@ -26,6 +27,15 @@ export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
   const [showCanvas, setShowCanvas] = useState(false);
   const [stuck, setStuck] = useState(false);
+
+  // The comparison table, the admissions and the corpus figures are served from
+  // `/api/about` rather than held here, so one edit changes them everywhere and
+  // the interface cannot keep a friendlier copy of the limitations than the
+  // report does. The endpoint needs no token: a claim about a system's honesty
+  // that you have to sign in to read is not much of a claim.
+  const about = useApi(() => api.about(), []);
+  const limitations = about.data?.limitations ?? [];
+  const matrix = about.data?.comparison ?? { columns: [], rows: [] };
 
   // The header is transparent over the hero and takes a ground once the reader
   // has left it, so it never competes with the opening statement.
@@ -46,6 +56,13 @@ export default function Landing() {
     );
     return () => window.cancelAnimationFrame(id);
   }, [reduced, isPhone]);
+
+  // The sections above grow when the API answers, which moves every pinned
+  // trigger below them. ScrollTrigger caches those positions at creation, so
+  // without this the pinned store would let go several hundred pixels early.
+  useEffect(() => {
+    if (about.data) ScrollTrigger.refresh();
+  }, [about.data]);
 
   useEffect(() => {
     if (reduced) {
@@ -255,15 +272,15 @@ export default function Landing() {
               <thead>
                 <tr>
                   <th scope="col">System</th>
-                  {MATRIX.columns.map((c, i) => (
-                    <th key={c} scope="col" className={i === MATRIX.columns.length - 1 ? 'is-ours' : ''}>
+                  {matrix.columns.map((c, i) => (
+                    <th key={c} scope="col" className={i === matrix.columns.length - 1 ? 'is-ours' : ''}>
                       {c}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {MATRIX.rows.map((row) => {
+                {matrix.rows.map((row) => {
                   const ours = row.name === 'Breadcrumbs';
                   return (
                     <tr key={row.name} className={ours ? 'is-ours' : ''}>
@@ -312,7 +329,7 @@ export default function Landing() {
           </div>
 
           <ol className="limits" data-rise>
-            {LIMITATIONS.map((l, i) => (
+            {limitations.map((l, i) => (
               <li key={i} className="limit">
                 <span className="limit__n mono">{String(i + 1).padStart(2, '0')}</span>
                 <p>{l}</p>
@@ -320,8 +337,22 @@ export default function Landing() {
             ))}
           </ol>
 
+          {about.data?.provenance.corpus === 'present' && (
+            <p className="small unwind-note">
+              The demonstration behind this page runs on{' '}
+              {about.data.provenance.records_on_ledger?.toLocaleString('en-GB')} documents
+              from a synthetic corpus generated at seed {about.data.provenance.seed}, over
+              the period {about.data.provenance.periods}. Every factory, worker and
+              measurement in it is invented, and the manifest digest is{' '}
+              <span className="mono">
+                {about.data.provenance.manifest_sha256?.slice(0, 16)}…
+              </span>
+            </p>
+          )}
           <p className="small unwind-note">
-            Every one of these is in the report, in the same words.
+            {limitations.length === 0
+              ? 'These are served by the API, which is not answering. They are in the report, in the same words.'
+              : 'Every one of these is in the report, in the same words.'}
           </p>
         </div>
       </section>

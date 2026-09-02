@@ -52,3 +52,108 @@
 .ver__meta { color: var(--ink-quiet); }
 .ver__link { font-size: 13px; color: var(--brass-type); text-decoration: none; margin-left: auto; }
 .ver__link:hover { text-decoration: underline; }
+
+/* The change against the parent, beside each accuracy. A version that gained
+   and a version that regressed should not read the same at a glance. */
+.acc__d { font-size: 0.8125em; }
+.acc__d.is-up { color: var(--verdigris, currentColor); }
+.acc__d.is-down { color: var(--madder); }
+.acc.is-fail .acc__bar > span { background: var(--madder); }
+
+/* -- the rest of the learning plane --------------------------------------- */
+.plane { margin-top: 42px; }
+
+.reg__h2 {
+  font-size: 1.15rem;
+  margin: 0 0 6px;
+}
+
+.plane__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 22px;
+  margin: 16px 0 22px;
+}
+
+.plane__col {
+  padding: 18px 20px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.plane__head { color: var(--ink-quiet); margin: 0 0 10px; }
+.plane__list { list-style: none; margin: 0; padding: 0; }
+
+.plane__row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.plane__row:last-child { border-bottom: 0; }
+.plane__row--tight { flex-direction: row; align-items: center; gap: 10px; }
+.plane__what { font-weight: 500; }
+
+.plane__note { margin: 10px 0 0; color: var(--ink-quiet); max-width: 70ch; }
+.plane__note--warn { color: var(--ink); border-left: 2px solid var(--brass-type); padding-left: 12px; }
+
+.plane__col--wide { margin-bottom: 22px; }
+.plane__nobase { font-style: italic; }
+
+/* -- what is actually running --------------------------------------------- */
+.deployed {
+  margin-top: 34px;
+  padding: 20px 22px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+
+.deployed--none { border-style: dashed; }
+
+.deployed__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+  margin: 14px 0 4px;
+}
+
+.deployed__fig { display: flex; flex-direction: column; gap: 2px; }
+.deployed__fig .small { color: var(--ink-quiet); }
+.deployed__n { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+
+.deployed__kinds { margin-top: 18px; }
+.deployed__kinds .stamp-type { color: var(--ink-quiet); }
+
+.deployed__kind {
+  display: grid;
+  grid-template-columns: 13rem 1fr 4rem;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 0;
+}
+
+.deployed__kindname { text-transform: capitalize; }
+
+.deployed__kindbar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--btn-off-bg);
+  overflow: hidden;
+}
+
+.deployed__kindbar > span {
+  display: block;
+  height: 100%;
+  background: var(--brass-type);
+}
+
+@media (max-width: 640px) {
+  .deployed__kind { grid-template-columns: 1fr 3.5rem; }
+  .deployed__kindbar { display: none; }
+}

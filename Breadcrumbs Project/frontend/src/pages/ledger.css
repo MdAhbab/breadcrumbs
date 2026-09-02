@@ -106,3 +106,14 @@
 .tx__code.bad { color: var(--madder); }
 .tx__sub, .tx__end { color: var(--ink-quiet); }
 .tx__why { color: var(--madder); max-width: 48ch; margin-top: 4px; }
+
+/* Paging, because the chain is now a thousand blocks rather than a fixed 24. */
+.led__paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 12px 0 4px;
+}
+
+.led__integrity.is-bad { color: var(--madder); border-color: var(--madder); }
