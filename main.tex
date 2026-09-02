@@ -203,12 +203,13 @@ only if it has not lost more than an agreed tolerance on any earlier task.
 The system runs. It is \num{LedgerBlocksWritten} blocks and
 \num{LedgerDocuments} documents in the measurements reported here, at
 \numunit{LedgerDocumentsPerSecond}{committed documents per second}, and it passes
-206 tests of which more than thirty name a specific attack and try it.
-\textbf{Three of those attacks succeed}, and Section~\ref{sec:security} reports
-them as successes: a model poisoned just inside the gate's tolerance is promoted,
-a colluding assigned witness is not stopped, and whoever holds the factorisation
-of the accumulator modulus can forge a witness against the accumulator alone. We
-would rather present those than have them found.
+273 tests, 27 of which name a specific attack and try it. \textbf{Two of those
+attacks succeed} and a third is bounded rather than prevented, and
+Section~\ref{sec:security} reports all three: a colluding assigned witness is not
+stopped, whoever holds the factorisation of the accumulator modulus can forge a
+witness against the accumulator alone, and a model poisoned just inside the
+gate's tolerance is promoted once, though repeating it is now caught by the
+cumulative drift bound. We would rather present those than have them found.
 
 The timing is deliberate. Bangladesh is scheduled to leave Least Developed
 Country status on 24 November 2026, although a three-year deferral has been
@@ -600,7 +601,7 @@ run a version of it at internet scale for a decade \citep{laurie2014ct}.
 
 What we have not found anywhere is the combination of a \emph{sealed reporting
 period} with an accumulator, so that a verifier can establish not merely that a
-disclosed record is genuine but that the disclosed set is the entire set --- and
+disclosed record is genuine but that the disclosed set is the entire set, and
 the pairing of that with an independent counter-signatory who is assigned by a
 seed no participant controls and who is penalised when the record is later found
 false. Stated as narrowly as we can defend it, the contribution is that
@@ -843,7 +844,7 @@ Closing a bucket is a transaction:
 A verifier then checks completeness with arithmetic and nothing else: recompute
 the root over what you were given, compare the count. The factory withholding one
 register produces a root that does not match and a count that is short by one,
-and the four registers it did disclose still verify perfectly --- which is
+and the four registers it did disclose still verify perfectly, which is
 exactly the point, because that is the situation every existing system reports as
 clean.
 
@@ -874,8 +875,8 @@ the contract rather than by convention.
 
 \textbf{The witness is assigned, not chosen.} A factory that picks its own
 counter-signatory has bought an alibi. The assignment is computed from a hash of
-a shared seed and the record's own identifier, so it is deterministic --- every
-endorsing peer derives the same answer, which chaincode requires --- and the
+a shared seed and the record's own identifier, so it is deterministic. Every
+endorsing peer derives the same answer, which is what chaincode requires, and the
 factory cannot influence it.
 
 \textbf{The seed comes from commit--reveal.} Each member commits to the hash of a
@@ -896,15 +897,15 @@ times that. Findings are filed by an auditor organisation, are permanent, and
 name every organisation that vouched.
 
 Witnessing everything would be right for a paper and wrong for a factory
-producing four hundred documents a month, so high-stakes types --- payroll and
-safety --- are always witnessed and the rest are sampled at a rate the consortium
+producing four hundred documents a month, so high-stakes types, payroll and
+safety, are always witnessed and the rest are sampled at a rate the consortium
 sets, drawn from the same shared seed so a factory cannot know in advance which
 of its routine records will be checked.
 
 \textbf{What this does not do,} stated as plainly as we can: an assigned witness
 willing to sign for a document it never examined is not stopped, and our test
 suite contains a passing test that demonstrates exactly that. The claim we make
-is narrow and we make it in these words --- unilateral falsification becomes
+is narrow and we make it in these words: unilateral falsification becomes
 two-party collusion that is recorded, attributable and penalised. It is not a
 claim that records are true.
 
@@ -925,7 +926,7 @@ committed. ``We hold no record of that'' stops being a filing failure and become
 evidence.
 
 \textbf{Verification stops depending on ledger size.} A verifier holds
-\numunit{AccumulatorAccumulatorStateBytes}{bytes} --- one group element --- rather
+\numunit{AccumulatorAccumulatorStateBytes}{bytes}, one group element, rather
 than a copy of every commitment it might need to check against. That is what makes
 it realistic for a European buyer to verify a Bangladeshi factory's records
 without running a peer.
@@ -942,8 +943,8 @@ document is what makes people abandon blockchains for record-keeping. Folding an
 epoch into a single accumulator update takes \num{LedgerDocuments} documents from
 \num{LedgerCommitTransactions} ledger writes to
 \num{LedgerEpochTransactions}, and per-document chain growth falls by a factor of
-\num{LedgerStorageReductionFactor}. The writer pays for that in compute --- the
-epoch is slower per document than the commits it replaces --- and every verifier
+\num{LedgerStorageReductionFactor}. The writer pays for that in compute. The
+epoch is slower per document than the commits it replaces, and every verifier
 afterwards is paid back in constant-time checking. That trade is the design, and
 quoting the storage saving without the compute cost would be quoting half of it.
 
@@ -953,7 +954,7 @@ they like. This is the standard objection to RSA accumulators, it is correct, an
 our test suite contains a passing test in which an attacker is handed the factors
 and successfully forges a witness. We answer it structurally rather than by
 insisting the trapdoor is safe: \textbf{the accumulator is never the authority.}
-A record is accepted only when three independent checks agree --- the ledger holds
+A record is accepted only when three independent checks agree: the ledger holds
 it with the claimed root, the witness verifies, and the element appears in the
 on-chain anchored index written by the epoch that admitted it. The trapdoor buys
 the second check and neither of the others, so the attack degrades from
@@ -992,7 +993,7 @@ with the others.
 
 That closes the gap our own security audit records as its largest. Everything runs
 against one store, and an attacker with write access to it can rewrite history
-\emph{consistently} --- recompute every link, re-sign every block, leave no
+\emph{consistently}: recompute every link, re-sign every block, leave no
 internal contradiction. Nothing inside a chain detects that. What detects it is
 that the other organisations still hold digests they signed themselves, and two
 members holding different digests for the same epoch is conclusive evidence that
@@ -1119,16 +1120,27 @@ exercised end to end in the demonstration: one candidate that improves everythin
 is promoted, and a second that damages an earlier task is rejected on-chain with
 the reason recorded permanently.
 
-The gate also has a weakness that we found by attacking it and that the report
-must carry. The rule rejects a candidate losing more than $\tau$ on an earlier
-task, so an attacker who knows $\tau$ does not lose more than $\tau$: it damages
-each earlier task by just under the threshold, gains on the new one, and the
-contract promotes it --- correctly, by its own rule. Across enough rounds the
-damage compounds. So the defensible claim is bounded: the gate prevents
-\emph{unnoticed} regression and bounds regression \emph{per round}. It does not
-bound cumulative regression, and a consortium relying on it needs a drift check
-against the original baseline as well. That is future work, not a property this
-implementation has.
+The gate had a weakness that we found by attacking it, and the fix is worth
+describing because the attack is one any per-round threshold admits. The original
+rule rejected a candidate losing more than $\tau$ on an earlier task, so an
+attacker who knows $\tau$ simply does not lose more than $\tau$: it damages each
+earlier task by just under the threshold, gains on the new one, and the contract
+promotes it. That is the correct outcome under its own rule. Across enough
+rounds the damage compounds without limit, and no individual decision is ever wrong.
+
+The contract therefore carries a second bound. It records, for every task, the
+best accuracy that task has ever reached under a promoted model, and refuses a
+candidate that has fallen more than $\sigma$ below that high-water mark even
+when the loss this round is within $\tau$. Only promotion raises the mark, so a
+candidate cannot lift the bar with a submission it expects to fail and then
+degrade from the higher baseline.
+
+The defensible claim is therefore: the gate prevents \emph{unnoticed} regression,
+bounds per-round regression at $\tau$, and bounds cumulative regression at
+$\sigma$ against the high-water mark. It does not make the attacker harmless.
+Damage of up to $\sigma$ remains available, and choosing $\sigma$ is a
+consortium's judgement about how far a model may drift before it should be
+retired rather than amended.
 
 % =============================================================================
 \section{Threat model, and what happens when we attack it}
@@ -1136,12 +1148,12 @@ implementation has.
 
 The tests behind this section follow one rule, taken from our own security audit:
 for every guarantee the system asserts, write the test that names an attacker and
-tries to break it. There are 206 tests, of which more than thirty are attacks.
+tries to break it. There are 273 tests, of which 27 are attacks.
 
 Two adversaries are modelled. The \textbf{network adversary} can observe, modify,
 delay, drop and replay messages between organisations but holds no valid
 certificate. The \textbf{dishonest member} holds genuine certificates and behaves
-badly --- and is the dangerous one, because a permissioned network has no
+badly. This is the dangerous one, because a permissioned network has no
 anonymous membership for an outsider to exploit.
 
 \begin{table}[htbp]
@@ -1149,7 +1161,7 @@ anonymous membership for an outsider to exploit.
 \caption{Attacks attempted against the system, and what happened. ``Blocked''
 means the attack fails and a test proves it. ``Bounded'' means it is not
 prevented, but its cost or its visibility changes in a way we can state. ``Succeeds''
-means exactly that. The three that succeed are reported because a security
+means exactly that. The ones that are not blocked are reported because a security
 section in which everything fails is not evidence of a secure system.}
 \label{tab:attacks}
 \small
@@ -1179,13 +1191,13 @@ Promote a model with a minority of endorsers & Blocked & The gate counts distinc
 Serve two members different histories & Blocked & Digest comparison names the epoch \\
 File a finding against a rival & Blocked & Only an auditor may, and the finding names its author \\
 \textbf{Collude with your assigned witness} & \textbf{Succeeds} & Not prevented. Requires two organisations; both are named and slashed \\
-\textbf{Poison a model just inside $\tau$} & \textbf{Succeeds} & Permitted by the rule. Bounds per round, not cumulatively \\
+\textbf{Poison a model just inside $\tau$} & \textbf{Bounded} & One round is permitted by the rule; repeating it is stopped by the $\sigma$ drift bound \\
 \textbf{Forge a witness holding the trapdoor} & \textbf{Succeeds} & Against the accumulator alone. Fails the ledger and index checks \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-\subsection{The three that succeed}
+\subsection{The two that succeed, and the one we bounded}
 
 \textbf{Colluding witness.} An assigned counter-signatory willing to sign for a
 document it never examined is not stopped by anything in this design, and no
@@ -1195,12 +1207,16 @@ specific claim it made, and a later finding costs the witness more than four
 times what honest attestation ever earned.
 
 \textbf{Poisoning inside the tolerance.} Discussed in
-Section~\ref{sec:novel}. The gate bounds per-round regression, not cumulative
-regression, and we would rather say so than let a reader assume otherwise.
+Section~\ref{sec:novel}. A single candidate that gives up just under $\tau$ is
+still promoted, and should be. That is the tolerance doing its job. What no
+longer works is repeating it: the drift bound $\sigma$ measures every task
+against the best it has ever scored, so total damage is capped rather than
+unbounded. The attacker is contained, not defeated, and $\sigma$ of degradation
+is still available to a participant willing to spend rounds on it.
 
 \textbf{Trapdoor forgery.} The test hands an attacker the factorisation of the
 modulus and it successfully mints a membership witness for a record that was
-never committed --- and then fails, because verification requires the ledger to
+never committed, and then fails, because verification requires the ledger to
 hold the record and the anchored index to contain the element, and the trapdoor
 buys neither. The forgery is real; the rewritten history is not. This is the
 reason the accumulator is deliberately an accelerator rather than an authority,
@@ -1262,8 +1278,8 @@ for everyone afterwards.}
 \midrule
 Ledger transactions & \num{LedgerCommitTransactions} & \num{LedgerEpochTransactions} \\
 Chain bytes per document & \num{LedgerChainBytesPerDocument} & \num{LedgerEpochBytesPerDocument} \\
-Storage reduction & --- & \num{LedgerStorageReductionFactor}$\times$ \\
-Commit throughput & \numunit{LedgerDocumentsPerSecond}{documents/s} & --- \\
+Storage reduction & n/a & \num{LedgerStorageReductionFactor}$\times$ \\
+Commit throughput & \numunit{LedgerDocumentsPerSecond}{documents/s} & n/a \\
 Write time per document & \numunit{LedgerCommitMsPerDocument}{ms} & \numunit{LedgerEpochMsPerDocument}{ms} \\
 \bottomrule
 \end{tabular}
@@ -1504,6 +1520,206 @@ way. If these summaries are informative enough to train a usable model on their
 own, then they leak more than we assumed. That makes the privacy work in
 Section~\ref{sec:novel} more urgent, not less.
 
+\subsection{Answering it, partly, on row-level documents}
+\label{sec:corpus}
+
+The objection above is specific enough to test, so we tested it. The simulation
+behind Figure~\ref{fig:results} runs on Gaussian clusters. Those classes differ
+mainly in their average values, which is the easiest possible shape for a summary
+of means and variances to capture. So we rebuilt the evaluation on documents
+instead. The corpus holds 19{,}980 synthetic compliance records across five record
+types, six sites and nine anomaly kinds. They are filed the way a factory really
+files them, with four different date formats, numbers stored as text, mixed
+capitalisation, and a messiness rate that differs from site to site.
+
+This is not a second sample from the same distribution. The six sites are the
+federated clients, and each one gets an uneven share of the anomaly kinds drawn
+from a Dirichlet($\alpha{=}0.6$) mixture. The three violation waves are the
+continual stages, so by the time wave~3 arrives, wave~1's data is gone. The
+detector reads features taken from domain rules: whether stated totals add up,
+whether check digits are valid, whether dates run in the right order, and how
+leading digits are distributed. None of that can be rebuilt from a summary of
+class means, which is what the objection asked for.
+
+Figure~\ref{fig:corpus} and Table~\ref{tab:corpus} give the result. It agrees
+with Figure~\ref{fig:results} in direction, and the effect is smaller. Prototype
+replay gains 6.6 points of average balanced accuracy over sequential federated
+averaging here, against 17.9 points in the simpler simulation. Forgetting halves,
+from 16.8 to 8.5. Under sequential averaging, wave~1 falls to exactly chance on
+every seed, which is total forgetting, and replay recovers 17.8 points of it. A
+smaller effect on harder data is what we expected. A larger one would have made
+us suspicious.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=14.5cm, height=6.8cm,
+  ybar=2.5pt, bar width=13pt,
+  font=\sffamily\small,
+  ymin=0, ymax=112, ytick={0,20,40,60,80,100},
+  ylabel={Balanced accuracy after all three waves (percent)},
+  symbolic x coords={Wave 1, Wave 2, Wave 3, Average},
+  xtick=data,
+  ymajorgrids=true, grid style={tcline,line width=0.5pt},
+  axis line style={tcgrey,line width=0.6pt},
+  tick label style={font=\sffamily\footnotesize},
+  label style={font=\sffamily\footnotesize},
+  legend style={font=\sffamily\footnotesize,at={(0.5,-0.19)},anchor=north,
+                legend columns=3,draw=tcline},
+  nodes near coords, every node near coord/.append style={
+      font=\sffamily\tiny,color=tctext,yshift=7pt,
+      /pgf/number format/fixed,/pgf/number format/precision=0},
+  error bars/y dir=both, error bars/y explicit,
+]
+\addplot[fill=tcgrey!55,draw=tcgrey] coordinates {
+  (Wave 1,50.0) +- (0,0.1) (Wave 2,92.4) +- (0,6.7)
+  (Wave 3,68.8) +- (0,0.9) (Average,70.4) +- (0,2.1)};
+\addplot[fill=tcblue!75,draw=tcblue] coordinates {
+  (Wave 1,67.8) +- (0,3.4) (Wave 2,99.7) +- (0,0.5)
+  (Wave 3,63.4) +- (0,2.4) (Average,77.0) +- (0,1.5)};
+\addplot[fill=tcgreen!45,draw=tcgreen] coordinates {
+  (Wave 1,85.7) +- (0,2.7) (Wave 2,100.0) +- (0,0.0)
+  (Wave 3,63.9) +- (0,2.0) (Average,83.2) +- (0,0.3)};
+\draw[tcgrey,dashed,line width=0.9pt]
+  ({rel axis cs:0,0}|-{axis cs:Wave 1,50}) -- ({rel axis cs:1,0}|-{axis cs:Wave 1,50});
+\node[font=\sffamily\tiny,text=tcgrey,anchor=south east,
+      fill=white,fill opacity=0.85,text opacity=1,inner sep=1.5pt]
+  at ({rel axis cs:0.995,0}|-{axis cs:Wave 1,50}) {chance = 50};
+\legend{Sequential federated averaging, Prototype replay (Breadcrumbs),
+        Centralised pooling (not permitted)}
+\end{axis}
+\end{tikzpicture}
+\caption{Federated continual learning on the document corpus, five seeds. Six
+sites are the federated clients; the three violation waves are the continual
+stages. Measured at the 10\% false-positive budget of
+Table~\ref{tab:corpus_operating}.}
+\label{fig:corpus}
+\end{figure}
+
+\textbf{The operating point is a decision, and we had been avoiding it.} Our
+first version of this experiment picked a class with a four-way $\arg\max$. That
+has no threshold to set. It flagged 39.1\% of clean documents, which means two in
+every five honest records would go to an auditor, and the number moved between
+9\% and 43\% when nothing changed but the random seed. That is not a property of
+the model. It is what happens when nobody chooses. We now score each document by
+$P(\text{anomalous})$ and compare it against a threshold picked on a held-out
+slice of the \emph{training} data. The false-positive rate becomes a number the
+consortium sets. Table~\ref{tab:corpus_operating} gives the curve. ROC-AUC is
+$0.894\,\pm\,0.004$, and because it does not depend on the threshold, it is the
+right number for comparing methods.
+
+\textbf{What this settles, and what it does not.} It answers the objection. The
+result holds on data that a summary of means and variances cannot describe, so
+``prototype replay works'' can now be told apart from ``this data is easy to
+summarise''. It does not make the corpus real. These are still invented documents
+with an anomaly rate we chose, and the detector still reads hand-built statistics
+rather than raw rows. Table~\ref{tab:corpus_kinds} carries the control that keeps
+us honest. A \texttt{cross\_inconsistency} document is internally consistent and
+disagrees with a \emph{different} document from the same period, so nothing in a
+single document can reveal it. Those documents are flagged less often than clean
+ones are. If that row had shown a high detection rate, something in the pipeline
+would have been wrong.
+
+
+\begin{table}[htbp]
+\centering
+\caption{Federated continual learning on the document corpus, mean and standard
+deviation over five seeds. Six sites act as federated clients with a
+Dirichlet($\alpha{=}0.6$) partition; the three violation waves are the continual
+stages. Balanced accuracy is reported because 4.11\% of the corpus is anomalous
+and plain accuracy would reward a detector that finds nothing; chance is 50.0.
+Recall is measured as filing a document under the correct wave, not merely
+flagging it. Every figure is measured at the 10\% false-positive budget of
+Table~\ref{tab:corpus_operating}. Backward transfer is $-25.2\,\pm\,3.5$ for
+sequential averaging and $-12.7\,\pm\,2.0$ for prototype replay. Unlike
+Table~\ref{tab:results}, these are row-level documents with nine anomaly kinds,
+not Gaussian clusters.}
+\label{tab:corpus}
+\small
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{@{}l c c c c c@{}}
+\toprule
+\textbf{Method} & \textbf{Wave 1} & \textbf{Wave 2} & \textbf{Wave 3} &
+\textbf{Average} & \textbf{Forgetting} \\
+\midrule
+Chance & 50.0 & 50.0 & 50.0 & 50.0 & n/a \\
+Sequential federated averaging & 50.0\,$\pm$\,0.1 & 92.4\,$\pm$\,6.7 &
+  \textbf{68.8\,$\pm$\,0.9} & 70.4\,$\pm$\,2.1 & 16.8\,$\pm$\,2.3 \\
+\textbf{Prototype replay (ours)} & \textbf{67.8\,$\pm$\,3.4} &
+  \textbf{99.7\,$\pm$\,0.5} & 63.4\,$\pm$\,2.4 & \textbf{77.0\,$\pm$\,1.5} &
+  \textbf{8.5\,$\pm$\,1.3} \\
+\midrule
+\textit{Centralised pooling (not permitted)} & \textit{85.7\,$\pm$\,2.7} &
+  \textit{100.0\,$\pm$\,0.0} & \textit{63.9\,$\pm$\,2.0} & \textit{83.2\,$\pm$\,0.3} &
+  \textit{n/a} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Choosing the operating point. A four-way $\arg\max$ has no adjustable
+threshold, and the point it happens to land on gave a false-positive rate of
+39.1\,$\pm$\,8.0, which is unusable for an auditor and unstable across seeds. Scoring
+instead on $P(\text{anomalous})$ against a threshold chosen on a held-out 15\%
+split of the \emph{training} shards makes the false-positive rate a quantity the
+consortium sets. The benchmarks are never used to choose it. ROC-AUC is
+$0.894\,\pm\,0.004$ and does not depend on the threshold at all. Note that the
+5\% budget dominates the 10\% one: it scores higher balanced accuracy while
+flagging half as many clean documents.}
+\label{tab:corpus_operating}
+\small
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+\textbf{False-positive budget} & \textbf{Detection} & \textbf{Realised FP} &
+\textbf{Balanced} \\
+\midrule
+1\%  & 67.3\,$\pm$\,1.9 &  1.0\,$\pm$\,0.2 & 83.1\,$\pm$\,1.0 \\
+5\%  & 74.4\,$\pm$\,1.8 &  5.1\,$\pm$\,0.5 & \textbf{84.7\,$\pm$\,0.9} \\
+10\% & 77.3\,$\pm$\,2.3 & 10.4\,$\pm$\,0.8 & 83.5\,$\pm$\,1.2 \\
+\midrule
+\textit{$\arg\max$, no threshold (previous)} & \textit{88.7} & \textit{43.2} &
+  \textit{72.8} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Detection by anomaly kind on the held-out cross-wave benchmark, for the
+prototype-replay detector after all three waves, at the 10\% budget. Mean and
+standard deviation over the same five seeds. The false-positive rate is given in
+the same table rather than a footnote, because a per-kind detection rate without
+it is not a result: a model that answers ``anomalous'' more often scores better
+on every row and is worse at the job. \texttt{cross\_inconsistency} is the
+control. Those documents are internally consistent and contradict a
+\emph{different} document of the same period, so no single-document feature can
+see them, and at 8.3\% they are flagged \emph{less} often than clean documents
+are, which is the correct result and the one we would have had to explain away
+had it come out otherwise.}
+\label{tab:corpus_kinds}
+\small
+\begin{tabular}{@{}l r r@{}}
+\toprule
+\textbf{Anomaly kind} & \textbf{Detected} & \textbf{$n$} \\
+\midrule
+Back-dated signature          & 100.0\,$\pm$\,0.0 &  98 \\
+Benford first-digit violation & 100.0\,$\pm$\,0.0 & 145 \\
+Certificate / CAS check digit & 100.0\,$\pm$\,0.0 & 125 \\
+Arithmetic inconsistency      &  99.2\,$\pm$\,0.4 &  95 \\
+Duplicated reference          &  90.4\,$\pm$\,13.5 & 160 \\
+Implausible roundness         &  80.0\,$\pm$\,15.5 &  39 \\
+Overtime above the ceiling    &  70.9\,$\pm$\,17.6 &  11 \\
+Site-relative outlier         &  50.1\,$\pm$\,1.6 & 284 \\
+\midrule
+\textit{Clean documents (false positives)} & \textit{10.4\,$\pm$\,0.8} & \textit{971} \\
+\textit{Cross-document inconsistency (control)} & \textit{8.3\,$\pm$\,5.1} & \textit{70} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \section{What is built, and what is not}
 \label{sec:proto}
 
@@ -1515,7 +1731,7 @@ it'' is a claim a judge is entitled to check line by line.
 with RSA-3072 identities, endorsement policies evaluated over distinct
 organisations, a Raft-style ordering service, deterministic chaincode, hash-chained
 blocks and a versioned world state with multi-version concurrency control. Four
-contracts run on it --- \texttt{doccustody} for commitments, seals, witnesses and
+contracts run on it: \texttt{doccustody} for commitments, seals, witnesses and
 findings; \texttt{anchor} for the accumulator and the delay beacon;
 \texttt{fedmodel} for the Continuity Gate; \texttt{reputation} for contribution
 scores. Above them sit the accumulator library, the Merkle disclosure layer, the
@@ -1525,19 +1741,19 @@ no Docker and runs on any laptop.
 \textbf{What that is not.} It is \emph{Fabric-modelled}, not Fabric. The
 architecture follows Hyperledger Fabric's execute--order--validate model and the
 chaincodes are also written as real Fabric contracts in \texttt{model/fabric/}
-with a \texttt{docker-compose} network --- but \textbf{no Fabric peer has ever run
+with a \texttt{docker-compose} network, but \textbf{no Fabric peer has ever run
 them}. Where a number in this report comes from the Python chain, that is what we
 claim, and every performance figure in Section~\ref{sec:performance} is labelled
 accordingly. Running the real deployment is the next task and it needs a machine
 with Docker and 16 gigabytes.
 
-\textbf{How it is tested.} 206 tests, of which more than thirty name a specific
-attacker and attempt the attack. Three of those attacks succeed and are reported
-as successes in Section~\ref{sec:security}. The suite was written the way our own
+\textbf{How it is tested.} 273 tests, of which 27 name a specific attacker and
+attempt the attack. Two of those attacks succeed and a third is bounded rather
+than prevented; all three are reported in Section~\ref{sec:security}. The suite was written the way our own
 security audit recommends: for every guarantee the system asserts, a test that
-tries to break it. That discipline found two critical flaws during the audit ---
-endorsement signatures verified against a caller-supplied key, and a single actor
-able to forge every organisation's Continuity Gate evaluation --- either of which
+tries to break it. That discipline found two critical flaws during the audit.
+Endorsement signatures were verified against a caller-supplied key, and a single
+actor could forge every organisation's Continuity Gate evaluation. Either of these
 would have made the project's headline guarantee false while the demonstration
 appeared to work perfectly.
 
@@ -1547,14 +1763,14 @@ identifiers failing a checksum, overtime beyond the legal ceiling, back-dated
 entries, and values far from a site's own normal. Nothing in it is real, the
 anomaly rate is chosen rather than observed, and no claim about the industry
 follows from it. A second-generation corpus, specified in the supplementary
-material, adds row-level records and --- more importantly --- a labelled
+material, adds row-level records and, more importantly, a labelled
 \emph{adversary trace} of attempted tampering, withholding, back-dated seals and
 witness collusion, without which the ledger's guarantees can be asserted but not
 scored.
 
 \textbf{The demonstration} performs a full cycle: commits documents, seals a
 reporting period, discloses a subset and watches the completeness check catch it,
-folds an epoch into the accumulator, and submits two model candidates --- one that
+folds an epoch into the accumulator, and submits two model candidates, one that
 improves everything and is promoted, one that damages an earlier task and is
 rejected on-chain. That rejection, and the withheld-record refusal, are the two
 moments worth showing.
@@ -1840,16 +2056,20 @@ happy path.
 Collected in one place, so nobody has to find them scattered through the report.
 
 \begin{enumerate}[leftmargin=1.4em,itemsep=0.15em]
-\item \textbf{Three attacks in our own suite succeed} (Section~\ref{sec:security}):
-a model poisoned just inside the gate's tolerance is promoted, a colluding assigned
-witness is not stopped, and the holder of the modulus's factorisation can forge a
-membership witness against the accumulator alone. The first two are bounded rather
-than prevented; the third is defeated by the other two verification checks but not
-by the accumulator itself.
-\item The Continuity Gate bounds regression \emph{per round}, not cumulatively.
-An adversary willing to lose slightly less than the tolerance every round can
-degrade a model without limit, and a drift check against the original baseline is
-future work.
+\item \textbf{Two attacks in our own suite succeed, and a third is bounded
+rather than prevented} (Section~\ref{sec:security}). A colluding assigned witness
+is not stopped, and is bounded in cost rather than prevented: falsification now
+requires two organisations, both named, and the witness loses more than it earned.
+The holder of the modulus's factorisation can forge a membership witness against
+the accumulator alone, and is defeated by the other two verification checks but
+not by the accumulator itself. The third, a model poisoned just inside the gate's
+tolerance, is promoted for one round as it should be, but repeating it is caught
+by the $\sigma$ drift bound.
+\item The Continuity Gate bounds regression per round at $\tau$ and cumulatively
+at $\sigma$ against each task's best-ever score. An adversary willing to lose
+slightly less than the tolerance every round is therefore capped at $\sigma$ of
+total damage rather than unbounded, but $\sigma$ is still available to it, and
+the right value is a consortium's judgement rather than something we can derive.
 \item Period seals defeat withholding at disclosure. They do not compel a factory
 to commit a record in the first place, so a document kept entirely off the ledger
 leaves a seal that is internally consistent and silent.
@@ -1908,22 +2128,23 @@ moving a file.
 The part we consider new is narrower than either of those and we would rather
 state it narrowly than have it trimmed for us. Every provenance system on the
 market proves that a document is genuine. None proves that the set you were shown
-is the whole set --- and the fraud that actually happens is not a forged register
+is the whole set, and the fraud that actually happens is not a forged register
 but a second one, and a decision about which to disclose. A sealed reporting
 period turns that decision into an arithmetic contradiction: the four registers a
 factory does hand over all verify perfectly, and the count and the root say that
-a fifth existed. Around that sit three mechanisms sharing one RSA group ---
+a fifth existed. Around that sit three mechanisms sharing one RSA group:
 constant-size verifier state, proofs of absence, constant-time epoch checking, and
 a delay function that stops history being manufactured faster than it can be
 lived. And beside it sits an independent counter-signatory who is assigned rather
 than chosen and who has something to lose.
 
-We have tried to be equally clear about what is not true. Three attacks in our own
-test suite succeed and are reported as successes. The Continuity Gate bounds
-regression per round and not cumulatively. Sealing defeats withholding, not
-never-recording. The witness converts unilateral falsification into two-party
+We have tried to be equally clear about what is not true. Two attacks in our own
+test suite succeed and are reported as successes, and a third is bounded rather
+than prevented. The Continuity Gate bounds regression both per round and
+cumulatively, but a determined participant can still spend that budget. Sealing
+defeats withholding, not never-recording. The witness converts unilateral falsification into two-party
 collusion rather than preventing it. The accumulator modulus has a dealer, and the
-design is arranged so that a trapdoor cannot rewrite history --- which is a weaker
+design is arranged so that a trapdoor cannot rewrite history, which is a weaker
 statement than the trapdoor not existing. RSA-3072 is disallowed after 2035, and
 the accumulator, unlike the signatures, has no post-quantum successor to migrate
 to. The learning results are on invented data, and our own probe cannot separate
@@ -1931,9 +2152,9 @@ to. The learning results are on invented data, and our own probe cannot separate
 
 What we can say is that the system runs, that its guarantees have tests that try
 to break them, that every performance number in this report was produced by a
-benchmark rather than typed, and that the two claims we would defend hardest ---
-a withheld record is caught by arithmetic, and no single participant can promote a
-model --- are each demonstrated by a test that fails against the previous version
+benchmark rather than typed. Two claims we would defend hardest are that a
+withheld record is caught by arithmetic, and that no single participant can
+promote a model. Each is demonstrated by a test that fails against the previous version
 of the code. That combination, rather than any individual mechanism, is what we
 would ask to be judged on.
 
