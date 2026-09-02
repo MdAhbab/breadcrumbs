@@ -31,7 +31,7 @@ from model.consortium import DOCUMENT_CHANNEL
 
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
-from ..config import ROLES
+from ..config import ROLES, settings
 from ..scoping import scoped_records
 
 router = APIRouter(tags=["anchor"])
@@ -88,7 +88,10 @@ class EpochRequest(BaseModel):
 class BeaconRequest(BaseModel):
     epoch: int = Field(ge=0)
     iterations: int = Field(gt=0)
-    minimum_iterations: int = Field(ge=0)
+    # Defaulted from settings rather than required from the caller. The contract
+    # compares the submitted work against the submitted minimum, so leaving this
+    # open would let a publisher pass zero and satisfy the check trivially.
+    minimum_iterations: int = Field(default=settings.anchor_minimum_iterations, ge=0)
 
 
 class VerifyRequest(BaseModel):
@@ -119,7 +122,14 @@ def anchor_state(user: CurrentUser) -> dict:
             "installed": False,
             "reason": "no accumulator parameters have been installed on this channel",
         }
-    return _no_bare_bigints({"installed": True, **state})
+    return _no_bare_bigints({
+        "installed": True,
+        **state,
+        # The delay work one epoch is expected to carry. The interface compares a
+        # beacon against it, so it has to come from the same place the publisher
+        # reads it from rather than being a constant typed into the frontend.
+        "minimum_iterations": settings.anchor_minimum_iterations,
+    })
 
 
 @router.get("/anchor/group")

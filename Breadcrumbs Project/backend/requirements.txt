@@ -8,4 +8,3 @@ python-multipart>=0.0.9
 cryptography>=42
 numpy>=2.0
 torch>=2.2
-flwr[simulation]>=1.9

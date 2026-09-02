@@ -53,10 +53,17 @@ class GateRequest(BaseModel):
     tau_bp: int = 500
     k: int = 3
     delta_bp: int = 100
+    # The cumulative bound: how far a task may fall below the best it has ever
+    # reached under a promoted model. Optional, because the contract defaults it
+    # to twice tau_bp; named here so a consortium can tighten it deliberately
+    # rather than only ever getting the default. The contract refuses a sigma
+    # below tau, which would make the per-round check unreachable.
+    sigma_bp: int | None = None
 
 
 @router.get("/current")
 def current_model(user: CurrentUser) -> dict | None:
+    require_capability(user, "read_model")
     return ledger.query(
         MODEL_CHANNEL, "fedmodel", "get_current_model", {}, user.role
     )
@@ -71,11 +78,13 @@ def registry(user: CurrentUser) -> list[dict]:
     feature: a registry that only lists what shipped cannot answer "what did you
     try, and why was it refused?".
     """
+    require_capability(user, "read_model")
     return ledger.query(MODEL_CHANNEL, "fedmodel", "list_models", {}, user.role)
 
 
 @router.get("/rounds")
 def rounds(user: CurrentUser) -> list[dict]:
+    require_capability(user, "read_model")
     return ledger.query(MODEL_CHANNEL, "fedmodel", "list_rounds", {}, user.role)
 
 
@@ -89,11 +98,13 @@ def benchmarks(user: CurrentUser) -> list[dict]:
     against, so training on the benchmark requires collusion rather than being
     something any member can do quietly.
     """
+    require_capability(user, "read_model")
     return ledger.query(MODEL_CHANNEL, "fedmodel", "list_benchmarks", {}, user.role)
 
 
 @router.get("/decisions/{candidate_id}")
 def decision(candidate_id: str, user: CurrentUser) -> dict:
+    require_capability(user, "read_model")
     found = ledger.query(
         MODEL_CHANNEL, "fedmodel", "get_decision", {"candidate_id": candidate_id}, user.role
     )
@@ -142,9 +153,12 @@ def evaluate_gate(body: GateRequest, user: CurrentUser) -> dict:
     """
     require_capability(user, "write_model")
     try:
+        # An unset sigma_bp must not reach the contract as an explicit null,
+        # or `args.get("sigma_bp", default)` finds the key and returns None.
+        arguments = {k: v for k, v in body.model_dump().items() if v is not None}
         result = ledger.invoke(
             MODEL_CHANNEL, "fedmodel", "evaluate_gate",
-            {**body.model_dump(), "timestamp": now()},
+            {**arguments, "timestamp": now()},
             role=user.role, endorsers=ledger.gate_endorsers(), timestamp=now(),
         )
     except ledger.LedgerError as exc:
@@ -164,6 +178,51 @@ def evaluate_gate(body: GateRequest, user: CurrentUser) -> dict:
     }
 
 
+@router.get("/high-water")
+def high_water(user: CurrentUser) -> dict:
+    """
+    The best each task has ever scored under a promoted model.
+
+    The gate's cumulative bound is measured against these, and a ceiling nobody
+    can inspect is a number the operator could be moving. Serving them is what
+    makes the drift figure on a decision checkable rather than assertable.
+
+    `null` for a task means nothing has ever been promoted on it, so there is no
+    history to have drifted from — which is a different statement from zero and
+    the interface has to say so.
+    """
+    require_capability(user, "read_model")
+    marks = ledger.query(MODEL_CHANNEL, "fedmodel", "list_high_water", {}, user.role)
+    rounds_list = ledger.query(MODEL_CHANNEL, "fedmodel", "list_rounds", {}, user.role)
+    tasks = sorted({t for r in rounds_list for t in r["tasks"]})
+    return {
+        "marks": {task: marks.get(task) for task in tasks},
+        "note": (
+            "A task's high-water mark only moves when a candidate is promoted, so "
+            "a rejected submission cannot raise the bar it will be measured "
+            "against next time."
+        ),
+    }
+
+
+@router.get("/detector")
+def detector_status(user: CurrentUser) -> dict:
+    """
+    What is actually deployed, and how well it is known to work.
+
+    Separate from the registry on purpose. The registry is the ledger's record
+    of which candidate the gate promoted; this is the file on disk that the API
+    will really load and run. They can disagree — a promoted model that was
+    never exported, or an artefact trained after the last gate decision — and a
+    product that showed only the first would be reporting an intention rather
+    than a deployment.
+    """
+    require_capability(user, "read_model")
+    from .. import detector
+
+    return detector.status()
+
+
 @router.get("/memory-bank")
 def memory_bank(user: CurrentUser) -> dict:
     """
@@ -172,6 +231,7 @@ def memory_bank(user: CurrentUser) -> dict:
     The privacy note is served from the model package rather than written here,
     so no interface can quietly soften it.
     """
+    require_capability(user, "read_model")
     from model.ai import MemoryBank
 
     rounds_list = ledger.query(MODEL_CHANNEL, "fedmodel", "list_rounds", {}, user.role)

@@ -42,6 +42,10 @@ class AmendRequest(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class ReopenRequest(BaseModel):
+    reason: str = Field(min_length=1)
+
+
 class CompletenessRequest(BaseModel):
     owner_msp: str
     site: str
@@ -56,6 +60,39 @@ def _fail(exc: ledger.LedgerError) -> HTTPException:
         status.HTTP_403_FORBIDDEN if denied else status.HTTP_400_BAD_REQUEST,
         {"message": exc.message, "code": exc.code},
     )
+
+
+def _own_bucket(bucket: str, user) -> tuple[str, str, str]:
+    """
+    Split a bucket path and refuse one that names somebody else.
+
+    The contract already re-derives the key from the caller's certificate, so a
+    caller naming another organisation could never *reach* their seal. What it
+    could do was silently act on its own bucket for the same site, type and
+    period — the request said one thing and the ledger did another. That is not
+    a security hole, but an API that quietly reinterprets what it was asked is
+    how one gets built later. This makes the mismatch an error instead.
+    """
+    parts = bucket.split("|")
+    if len(parts) != 4:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            {"code": "BAD_BUCKET", "message": "a bucket is owner|site|record_type|period"},
+        )
+    owner, site, record_type, period = parts
+    if owner != user.msp_id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            {
+                "code": "NOT_YOUR_BUCKET",
+                "message": (
+                    f"{bucket} belongs to {owner}. A seal is one organisation's "
+                    "statement about its own records, and you are signed in as "
+                    f"{user.msp_id}."
+                ),
+            },
+        )
+    return site, record_type, period
 
 
 @router.get("/seals")
@@ -104,13 +141,7 @@ def amend_seal(bucket: str, body: AmendRequest, user: CurrentUser) -> dict:
     identity in the key is never taken from the request.
     """
     require_capability(user, "write_seals")
-    parts = bucket.split("|")
-    if len(parts) != 4:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            {"code": "BAD_BUCKET", "message": "a bucket is owner|site|record_type|period"},
-        )
-    _, site, record_type, period = parts
+    site, record_type, period = _own_bucket(bucket, user)
     try:
         return ledger.invoke(
             DOCUMENT_CHANNEL, "doccustody", "amend_seal",
@@ -119,6 +150,39 @@ def amend_seal(bucket: str, body: AmendRequest, user: CurrentUser) -> dict:
                 "record_type": record_type,
                 "period": period,
                 "added_record_ids": body.added_record_ids,
+                "reason": body.reason,
+                "timestamp": now(),
+            },
+            user.role,
+        )
+    except ledger.LedgerError as exc:
+        raise _fail(exc) from exc
+
+
+@router.post("/seals/{bucket}/reopen")
+def reopen_seal(bucket: str, body: ReopenRequest, user: CurrentUser) -> dict:
+    """
+    Reopen a closed period so a late record can be committed into it.
+
+    This is the first of the three steps the contract requires — reopen, commit,
+    amend — and it exists as its own endpoint because the reason has to be
+    recorded *before* the membership changes, not alongside it. Reopening is
+    permanent and counted: a period that has been opened four times is telling
+    you something about the factory whether or not anybody meant it to.
+
+    While a period is reopened, `check_completeness` refuses to answer with the
+    old count. It reports the period as mid-revision instead, which is the
+    honest state and the one this endpoint exists to make reachable.
+    """
+    require_capability(user, "write_seals")
+    site, record_type, period = _own_bucket(bucket, user)
+    try:
+        return ledger.invoke(
+            DOCUMENT_CHANNEL, "doccustody", "reopen_seal",
+            {
+                "site": site,
+                "record_type": record_type,
+                "period": period,
                 "reason": body.reason,
                 "timestamp": now(),
             },

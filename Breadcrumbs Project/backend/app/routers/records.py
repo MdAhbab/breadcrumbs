@@ -159,14 +159,76 @@ def commit_record(
     }
 
 
+@router.post("/records/{record_id}/screen")
+def screen_record(
+    record_id: str, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    Run the detector over one committed record.
+
+    This is the only place in the product where the model is actually executed.
+    Everything else about the learning plane is governance — which benchmark was
+    sealed, who signed what, whether the gate promoted it — and none of that
+    scores a document.
+
+    Scoped exactly like reading the record, and for the same reason: a score is
+    a statement about a document's contents, so being able to obtain one for a
+    document you may not read would be a disclosure with extra steps.
+
+    The response is deliberately not just a number. It carries the threshold,
+    the measured false-positive rate at that threshold, and a sentence saying
+    what the score is not, because a bare probability beside a cryptographic
+    proof invites a reader to treat the two as the same kind of fact. They are
+    not: the proof is checkable and the score is an opinion.
+    """
+    require_capability(user, "read_records")
+    from .. import detector
+    from ..scoping import scoped_records
+
+    if not any(r["record_id"] == record_id for r in scoped_records(user)):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {record_id}")
+
+    stored = db.get(StoredDocument, record_id)
+    if stored is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            {
+                "code": "NO_BODY",
+                "message": (
+                    f"{record_id} is committed on the ledger but its rows are not in "
+                    "this store. The detector reads the document, so there is nothing "
+                    "for it to score."
+                ),
+            },
+        )
+
+    return {
+        "record_id": record_id,
+        **detector.screen(stored.record_type, stored.rows),
+    }
+
+
 @router.get("/grants")
 def list_grants(user: CurrentUser) -> list[dict]:
+    """
+    Grants, from whichever end the caller stands at.
+
+    A buyer or auditor sees what it holds; a factory sees what it has issued.
+    The consortium sees the channel, and that is not a widening of scope: a grant
+    is on-chain metadata naming two organisations, a purpose code and a field
+    name, with no personal data in it, and the consortium is a member of the
+    channel it is written on. Filtering the consortium by `owner_msp` returned
+    nothing — BGMEA owns no records — which made the network view state that
+    every member held no grants at all. An empty list is a claim, and that one
+    was false.
+    """
     require_capability(user, "read_grants")
-    args = (
-        {"requester_msp": user.msp_id}
-        if user.role in ("buyer", "auditor")
-        else {"owner_msp": user.msp_id}
-    )
+    if user.role == "consortium":
+        args: dict[str, str] = {}
+    elif user.role in ("buyer", "auditor"):
+        args = {"requester_msp": user.msp_id}
+    else:
+        args = {"owner_msp": user.msp_id}
     return ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_grants", args, user.role)
 
 

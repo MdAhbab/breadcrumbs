@@ -5,11 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from model.consortium import ORGS
+from model.consortium import DOCUMENT_CHANNEL, ORGS
 
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
-from ..db import Incident, Notification, Proposal, SlaPoint, as_dict, get_session
+from ..db import Incident, Notification, Proposal, as_dict, get_session
 
 router = APIRouter(tags=["governance"])
 
@@ -61,21 +61,55 @@ def members(user: CurrentUser) -> list[dict]:
 
 @router.get("/ops/sla")
 def sla(user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    """
+    Operations, split into what is counted and what is not measured.
+
+    Verifications are counted from the receipts on the chain *at request time*.
+    They used to be read from a table written once during the seed, so an auditor
+    could verify fifty records and the operations page would still report the
+    four it had been born with. A figure that stops moving when the thing it
+    counts moves is not a measurement.
+
+    Uptime and response time are not measured at all: this prototype runs no
+    monitoring, and a 99.95% figure with a flat green line under it would be a
+    decorative number in a product whose whole argument is that decorative
+    numbers are the problem. They are reported as unmeasured, with the reason.
+    """
     require_capability(user, "read_sla")
-    points = db.query(SlaPoint).order_by(SlaPoint.day).all()
-    if not points:
-        return {"points": [], "kpis": {}}
-    uptimes = [float(p.uptime_pct) for p in points]
+
+    receipts = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_receipts", {}, user.role
+    ) or []
+    per_day: dict[str, int] = {}
+    for receipt in receipts:
+        day = str(receipt.get("verified_at", ""))[:10]
+        if day:
+            per_day[day] = per_day.get(day, 0) + 1
+
+    points = [
+        {"day": day, "verifications": count, "uptime_pct": None, "avg_response_ms": None}
+        for day, count in sorted(per_day.items())
+    ]
+
     return {
-        "points": [as_dict(p) for p in points],
+        "points": points,
         "kpis": {
-            "monthly_uptime_pct": round(sum(uptimes) / len(uptimes), 3),
+            "total_verifications": len(receipts),
+            "days_observed": len(points),
+            "monthly_uptime_pct": None,
             "uptime_target_pct": 99.5,
-            "total_verifications": sum(p.verifications for p in points),
-            "avg_response_ms": round(sum(p.avg_response_ms for p in points) / len(points)),
+            "avg_response_ms": None,
             "response_target_ms": 500,
             "rpo": "15 min",
             "rto": "4 hr",
+        },
+        "unmeasured": {
+            "fields": ["monthly_uptime_pct", "avg_response_ms"],
+            "reason": (
+                "This prototype runs no uptime or latency monitoring. The targets "
+                "are the consortium's service-level commitments; the observed "
+                "figures do not exist and are not invented here."
+            ),
         },
         "incidents": [as_dict(i) for i in db.query(Incident).all()],
     }
@@ -83,6 +117,7 @@ def sla(user: CurrentUser, db: Session = Depends(get_session)) -> dict:
 
 @router.get("/ops/incidents/{incident_id}")
 def incident(incident_id: str, user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    require_capability(user, "read_sla")
     found = db.get(Incident, incident_id)
     if found is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"no incident {incident_id}")
@@ -91,6 +126,7 @@ def incident(incident_id: str, user: CurrentUser, db: Session = Depends(get_sess
 
 @router.get("/notifications")
 def notifications(user: CurrentUser, db: Session = Depends(get_session)) -> list[dict]:
+    require_capability(user, "read_directory")
     rows = (
         db.query(Notification)
         .filter(Notification.audience_msp == user.msp_id)
@@ -109,6 +145,7 @@ def regulator_overview(user: CurrentUser, db: Session = Depends(get_session)) ->
     shows its restrictions rather than hiding them, and this is where that is
     actually true rather than merely displayed.
     """
+    require_capability(user, "read_governance")
     proposals_all = db.query(Proposal).all()
     return {
         "read_only_notice": (

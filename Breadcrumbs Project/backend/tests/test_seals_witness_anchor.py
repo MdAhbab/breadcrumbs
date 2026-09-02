@@ -23,9 +23,13 @@ def client(tmp_path_factory):
     os.environ["BREADCRUMBS_LEDGER_PATH"] = str(tmp / "ledger.db")
     os.environ["BREADCRUMBS_DATABASE_URL"] = f"sqlite:///{tmp / 'app.db'}"
 
+    from app import world
     from app.main import app
 
     with TestClient(app) as c:
+        # The seed runs on a background thread so the API can answer straight
+        # away; a test that asks before it finishes gets a 503, correctly.
+        world.wait()
         yield c
 
 
@@ -34,13 +38,70 @@ def auth(client, role: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {body['access_token']}"}
 
 
-SEALED = {
-    "owner_msp": "ApexTextileMSP",
-    "site": "Narayanganj",
-    "record_type": "payroll_register",
-    "period": "2026-05",
-}
-BUCKET = "ApexTextileMSP|Narayanganj|payroll_register|2026-05"
+@pytest.fixture(scope="module")
+def world(client):
+    """
+    The subjects these tests operate on, discovered from the running world.
+
+    They used to be literals — `rc-001`, a Narayanganj bucket — which tied the
+    guarantees to one hand-written fixture set. The world is now built from the
+    corpus, so the subjects are found the way a user would find them: by asking
+    the API what exists. A test that can no longer find a withheld period fails
+    loudly here rather than quietly passing against a bucket that no longer has
+    anything interesting in it.
+    """
+    factory, buyer = auth(client, "factory"), auth(client, "buyer")
+    factory_records = client.get("/api/records", headers=factory).json()
+    buyer_records = client.get("/api/records", headers=buyer).json()
+    seals = client.get("/api/seals", headers=factory).json()
+
+    by_bucket_factory: dict[str, list[str]] = {}
+    for record in factory_records:
+        by_bucket_factory.setdefault(record["bucket"], []).append(record["record_id"])
+    by_bucket_buyer: dict[str, list[str]] = {}
+    for record in buyer_records:
+        by_bucket_buyer.setdefault(record["bucket"], []).append(record["record_id"])
+
+    # A period the buyer can ask about and whose disclosure is short. This is the
+    # corpus's own withholding attack: it names the disclosed set, and the seed
+    # grants exactly that set, so the shortfall is the dataset's, not the test's.
+    short = next(
+        bucket for bucket, granted in sorted(by_bucket_buyer.items())
+        if len(granted) < len(by_bucket_factory.get(bucket, []))
+        and any(s["bucket"] == bucket for s in seals)
+    )
+    amended = next(s for s in seals if s.get("amendments"))
+
+    # A record whose witness was actually assigned, and one the buyer cannot see.
+    witnessed = None
+    for record in factory_records:
+        body = client.get(
+            f"/api/records/{record['record_id']}/witness-requirement", headers=factory
+        ).json()
+        if body.get("required"):
+            witnessed = record["record_id"]
+            break
+
+    granted_ids = {r["record_id"] for r in buyer_records}
+    out_of_scope = next(
+        r["record_id"] for r in factory_records if r["record_id"] not in granted_ids
+    )
+
+    owner, site, record_type, period = short.split("|")
+    return {
+        "bucket": short,
+        "sealed": {
+            "owner_msp": owner, "site": site,
+            "record_type": record_type, "period": period,
+        },
+        "disclosed": sorted(by_bucket_buyer[short]),
+        "everything": sorted(by_bucket_factory[short]),
+        "amended_bucket": amended["bucket"],
+        "amended_seal": amended,
+        "witnessed_record": witnessed,
+        "any_record": factory_records[0]["record_id"],
+        "out_of_scope_record": out_of_scope,
+    }
 
 
 def _bignums(value, path="$"):
@@ -67,17 +128,18 @@ def test_the_regulator_may_not_read_seals(client):
     assert r.json()["detail"]["code"] == "CAPABILITY_DENIED"
 
 
-def test_the_regulator_may_not_ask_who_witnessed_a_record(client):
+def test_the_regulator_may_not_ask_who_witnessed_a_record(client, world):
     r = client.get(
-        "/api/records/rc-001/witness-requirement", headers=auth(client, "regulator")
+        f"/api/records/{world['any_record']}/witness-requirement",
+        headers=auth(client, "regulator"),
     )
     assert r.status_code == 403
 
 
-def test_the_regulator_may_not_run_a_completeness_check(client):
+def test_the_regulator_may_not_run_a_completeness_check(client, world):
     r = client.post(
         "/api/completeness",
-        json={**SEALED, "disclosed_record_ids": []},
+        json={**world["sealed"], "disclosed_record_ids": []},
         headers=auth(client, "regulator"),
     )
     assert r.status_code == 403
@@ -99,83 +161,64 @@ def test_the_regulator_may_read_the_accumulator_because_it_is_a_network_fact(cli
     assert epochs.json(), "the seed folds one epoch, so the timeline is not empty"
 
 
-def test_the_regulator_still_cannot_verify_a_record(client):
+def test_the_regulator_still_cannot_verify_a_record(client, world):
     r = client.post(
-        "/api/records/rc-001/verify", json={}, headers=auth(client, "regulator")
+        f"/api/records/{world['any_record']}/verify", json={},
+        headers=auth(client, "regulator"),
     )
     assert r.status_code == 403
 
 
 # -- completeness: the arithmetic, not the assurance ----------------------
-def test_a_withheld_record_is_caught_by_arithmetic(client):
+def test_a_withheld_record_is_caught_by_arithmetic(client, world):
     """
-    The demonstration. The buyer holds grants against four of the registers in the
-    period, and the period holds six — five committed before the seal and one late
-    one brought in through the reopen/commit/amend route. Nobody has to be trusted
-    to notice the difference.
+    The demonstration, and it is the corpus's demonstration rather than ours.
 
-    Counts are derived from the ledger rather than written as literals, so seeding
-    another record does not silently turn this into a test of nothing.
+    `adversary_trace.json` describes a withholding attack: a period produced N
+    documents and disclosed fewer, and it names which ones. The seed grants the
+    buyer exactly the disclosed set. Nobody has to be trusted to notice the
+    difference — the sealed root and the computed root simply differ.
     """
-    granted = [
-        r["record_id"]
-        for r in client.get("/api/records", headers=auth(client, "buyer")).json()
-        if r["bucket"] == BUCKET
-    ]
-    assert len(granted) == 4
+    disclosed, everything = world["disclosed"], world["everything"]
+    assert len(disclosed) < len(everything)
 
     body = client.post(
         "/api/completeness",
-        json={**SEALED, "disclosed_record_ids": granted},
+        json={**world["sealed"], "disclosed_record_ids": disclosed},
         headers=auth(client, "buyer"),
     ).json()
-    sealed_total = len(
-        [
-            r["record_id"]
-            for r in client.get("/api/records", headers=auth(client, "factory")).json()
-            if r["bucket"] == BUCKET
-        ]
-    )
 
     assert body["sealed"] is True
     assert body["complete"] is False
-    assert body["sealed_count"] == sealed_total
-    assert sealed_total > len(granted)
-    assert body["disclosed_count"] == 4
+    assert body["sealed_count"] == len(everything)
+    assert body["disclosed_count"] == len(disclosed)
     assert body["sealed_root"] != body["computed_root"]
     assert "not disclosed" in body["reason"]
 
 
-def test_disclosing_everything_sealed_passes(client):
+def test_disclosing_everything_sealed_passes(client, world):
     """The check is not simply pessimistic: the full set matches."""
-    everything = [
-        r["record_id"]
-        for r in client.get("/api/records", headers=auth(client, "factory")).json()
-        if r["bucket"] == BUCKET
-    ]
-    assert len(everything) >= 5
     body = client.post(
         "/api/completeness",
-        json={**SEALED, "disclosed_record_ids": everything},
+        json={**world["sealed"], "disclosed_record_ids": world["everything"]},
         headers=auth(client, "factory"),
     ).json()
     assert body["complete"] is True
     assert body["sealed_root"] == body["computed_root"]
 
 
-def test_padding_the_disclosure_with_invented_ids_does_not_pass(client):
+def test_padding_the_disclosure_with_invented_ids_does_not_pass(client, world):
     """A count that matches is not a root that matches."""
-    granted = [
-        r["record_id"]
-        for r in client.get("/api/records", headers=auth(client, "buyer")).json()
-        if r["bucket"] == BUCKET
-    ]
+    padded = [*world["disclosed"]]
+    while len(padded) < len(world["everything"]):
+        padded.append(f"doc-invented-{len(padded)}")
+
     body = client.post(
         "/api/completeness",
-        json={**SEALED, "disclosed_record_ids": [*granted, "rc-invented"]},
+        json={**world["sealed"], "disclosed_record_ids": padded},
         headers=auth(client, "buyer"),
     ).json()
-    assert body["disclosed_count"] == 5
+    assert body["disclosed_count"] == len(world["everything"])
     assert body["complete"] is False
 
 
@@ -192,13 +235,18 @@ def test_a_buyer_cannot_ask_about_a_period_it_holds_no_grant_in(client):
     assert r.status_code == 403
 
 
-def test_the_seal_carries_its_amendment_history(client):
-    seals = client.get("/api/seals", headers=auth(client, "factory")).json()
-    seal = next(s for s in seals if s["bucket"] == BUCKET)
-    assert seal["version"] == 2
-    assert len(seal["amendments"]) == 1
+def test_the_seal_carries_its_amendment_history(client, world):
+    """
+    An amended period keeps what it used to say.
+
+    The seed reopens and re-seals the periods the corpus trace flags for
+    late-amendment abuse, so the history here is a record of an attack the
+    dataset describes rather than an edit invented to populate a panel.
+    """
+    seal = world["amended_seal"]
+    assert seal["version"] >= 2
+    assert len(seal["amendments"]) >= 1
     assert seal["amendments"][0]["reason"]
-    assert seal["amendments"][0]["previous_root"] != seal["records_root"] or True
 
 
 def test_a_factory_cannot_amend_a_bucket_it_does_not_own(client):
@@ -215,9 +263,11 @@ def test_a_factory_cannot_amend_a_bucket_it_does_not_own(client):
 
 
 # -- witnesses ------------------------------------------------------------
-def test_the_witness_rule_is_in_force_and_says_who_was_assigned(client):
+def test_the_witness_rule_is_in_force_and_says_who_was_assigned(client, world):
+    assert world["witnessed_record"], "no record in the world was assigned a witness"
     body = client.get(
-        "/api/records/rc-001/witness-requirement", headers=auth(client, "factory")
+        f"/api/records/{world['witnessed_record']}/witness-requirement",
+        headers=auth(client, "factory"),
     ).json()
     assert body["in_force"] is True
     assert body["round_id"] == "sr-001"
@@ -227,15 +277,16 @@ def test_the_witness_rule_is_in_force_and_says_who_was_assigned(client):
         assert "ApexTextileMSP" not in body["witnesses"], "an owner cannot witness itself"
 
 
-def test_a_buyer_cannot_ask_about_a_record_it_holds_no_grant_against(client):
+def test_a_buyer_cannot_ask_about_a_record_it_holds_no_grant_against(client, world):
     r = client.get(
-        "/api/records/rc-005/witness-requirement", headers=auth(client, "buyer")
+        f"/api/records/{world['out_of_scope_record']}/witness-requirement",
+        headers=auth(client, "buyer"),
     )
     assert r.status_code == 404
 
 
 # -- the accumulator ------------------------------------------------------
-def test_no_big_integer_is_ever_serialised_as_a_json_number(client):
+def test_no_big_integer_is_ever_serialised_as_a_json_number(client, world):
     """
     A 3072-bit value silently becomes a wrong float in the browser. Every group
     element must cross as hex, and this walks the actual responses rather than
@@ -247,7 +298,7 @@ def test_no_big_integer_is_ever_serialised_as_a_json_number(client):
         assert _bignums(body) == [], f"{path} leaked a bare big integer"
 
     verified = client.post(
-        "/api/records/rc-001/verify", json={}, headers=headers
+        f"/api/records/{world['any_record']}/verify", json={}, headers=headers
     ).json()
     assert _bignums(verified) == []
 
@@ -261,13 +312,14 @@ def test_the_group_ships_with_the_ceremony_that_produced_it(client):
 
 
 # -- the three checks -----------------------------------------------------
-def test_verification_reports_three_independent_checks(client):
+def test_verification_reports_three_independent_checks(client, world):
     """
     Not one badge. The witness check is the only one a trapdoor holder can
     forge, and the interface can only say so if the response separates them.
     """
     body = client.post(
-        "/api/records/rc-001/verify", json={}, headers=auth(client, "factory")
+        f"/api/records/{world['any_record']}/verify", json={},
+        headers=auth(client, "factory"),
     ).json()
 
     assert body["anchored"] is True
@@ -280,13 +332,13 @@ def test_verification_reports_three_independent_checks(client):
     assert forgeable == {"ledger": False, "witness": True, "index": False}
 
 
-def test_the_combined_verdict_is_the_conjunction_of_the_three(client):
+def test_the_combined_verdict_is_the_conjunction_of_the_three(client, world):
     """
     A claimed root the ledger does not hold must fail check 1 and the whole
     thing with it, even though the witness and the index are untouched.
     """
     body = client.post(
-        "/api/records/rc-001/verify",
+        f"/api/records/{world['any_record']}/verify",
         json={"merkle_root": "f" * 64},
         headers=auth(client, "factory"),
     ).json()
@@ -295,9 +347,10 @@ def test_the_combined_verdict_is_the_conjunction_of_the_three(client):
     assert body["verified"] is False
 
 
-def test_a_record_outside_the_callers_scope_cannot_be_verified(client):
+def test_a_record_outside_the_callers_scope_cannot_be_verified(client, world):
     r = client.post(
-        "/api/records/rc-005/verify", json={}, headers=auth(client, "buyer")
+        f"/api/records/{world['out_of_scope_record']}/verify", json={},
+        headers=auth(client, "buyer"),
     )
     assert r.status_code == 404
 
@@ -317,14 +370,14 @@ def test_a_reference_that_was_never_committed_is_proved_absent(client):
     assert _bignums(body) == []
 
 
-def test_the_absence_proof_does_not_claim_more_than_it_shows(client):
+def test_the_absence_proof_does_not_claim_more_than_it_shows(client, world):
     """
     A real record's identifier must not come back as "never committed" — the
     ledger lookup is part of the answer, not decoration.
     """
     body = client.post(
         "/api/anchor/non-membership",
-        json={"reference": "rc-001"},
+        json={"reference": world["any_record"]},
         headers=auth(client, "auditor"),
     ).json()
     assert body["ledger_holds_record"] is True

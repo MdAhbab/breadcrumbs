@@ -23,15 +23,44 @@ def client(tmp_path_factory):
     os.environ["BREADCRUMBS_DATABASE_URL"] = f"sqlite:///{tmp / 'app.db'}"
 
     # Imported after the environment is set, so settings pick the temp paths up.
+    from app import world
     from app.main import app
 
     with TestClient(app) as c:
+        # The seed runs on a background thread so the API can answer straight
+        # away; a test that asks before it finishes gets a 503, correctly.
+        world.wait()
         yield c
 
 
 def auth(client, role: str) -> dict[str, str]:
     body = client.post("/api/auth/verify", json={"role": role, "code": "123456"}).json()
     return {"Authorization": f"Bearer {body['access_token']}"}
+
+
+@pytest.fixture(scope="module")
+def payroll_grant(client):
+    """
+    A live payroll grant, found rather than assumed.
+
+    The world is built from the corpus now, so record identifiers are corpus
+    document ids and the row counts are whatever the generator produced. These
+    tests care about the *shape* of a disclosure proof — one row out, a
+    logarithmic path — so they discover a subject and derive the expected path
+    length from the record's own row count.
+    """
+    buyer = auth(client, "buyer")
+    grants = [
+        g for g in client.get("/api/grants", headers=buyer).json()
+        if g["status"] == "active" and g["field_name"] == "net_pay_bdt"
+    ]
+    assert grants, "the buyer holds no live payroll grant"
+    grant = grants[0]
+    record = client.get(
+        f"/api/records/{grant['record_id']}", headers=buyer
+    ).json()["record"]
+    return {"grant": grant, "record": record}
+
 
 
 # -- authentication -------------------------------------------------------
@@ -85,7 +114,7 @@ def test_the_regulator_cannot_write_anything(client):
     r = client.post(
         "/api/verify", headers=headers,
         json={
-            "grant_id": "g-001", "record_id": "rc-001", "row_index": 0,
+            "grant_id": "g-0001", "record_id": "doc-any", "row_index": 0,
             "field_name": "net_pay_bdt", "receipt_id": "vr-reg",
         },
     )
@@ -116,12 +145,16 @@ def test_a_factory_sees_only_its_own_records(client):
 
 
 # -- verification ---------------------------------------------------------
-def test_verifying_one_row_proves_it_without_revealing_the_rest(client):
+def test_verifying_one_row_proves_it_without_revealing_the_rest(client, payroll_grant):
+    import math
+
+    grant, record = payroll_grant["grant"], payroll_grant["record"]
+    rows = record["row_count"]
     r = client.post(
         "/api/verify", headers=auth(client, "buyer"),
         json={
-            "grant_id": "g-001", "record_id": "rc-001", "row_index": 21,
-            "field_name": "net_pay_bdt", "receipt_id": "vr-t1",
+            "grant_id": grant["grant_id"], "record_id": grant["record_id"],
+            "row_index": 0, "field_name": "net_pay_bdt", "receipt_id": "vr-t1",
         },
     )
     assert r.status_code == 200
@@ -129,17 +162,19 @@ def test_verifying_one_row_proves_it_without_revealing_the_rest(client):
     assert body["verified"] is True
     assert body["proof"]["match"] is True
     assert body["proof"]["rows_disclosed"] == 1
-    assert body["proof"]["rows_in_record"] == 1847
-    # Logarithmic, not linear. That is the entire claim.
-    assert len(body["proof"]["steps"]) == 11
+    assert body["proof"]["rows_in_record"] == rows
+    # Logarithmic, not linear. That is the entire claim, and it is asserted
+    # against the record's real size rather than against a remembered constant.
+    assert len(body["proof"]["steps"]) == math.ceil(math.log2(rows))
 
 
-def test_verifying_a_field_outside_the_grant_is_refused_by_the_contract(client):
+def test_verifying_a_field_outside_the_grant_is_refused_by_the_contract(client, payroll_grant):
+    grant = payroll_grant["grant"]
     r = client.post(
         "/api/verify", headers=auth(client, "buyer"),
         json={
-            "grant_id": "g-001", "record_id": "rc-001", "row_index": 21,
-            "field_name": "national_id", "receipt_id": "vr-t2",
+            "grant_id": grant["grant_id"], "record_id": grant["record_id"],
+            "row_index": 0, "field_name": "national_id", "receipt_id": "vr-t2",
         },
     )
     assert r.status_code == 403
@@ -147,23 +182,24 @@ def test_verifying_a_field_outside_the_grant_is_refused_by_the_contract(client):
     assert "grant covers net_pay_bdt" in r.json()["detail"]["message"]
 
 
-def test_a_record_that_does_not_exist_is_a_404(client):
+def test_a_record_that_does_not_exist_is_a_404(client, payroll_grant):
     r = client.post(
         "/api/verify", headers=auth(client, "buyer"),
         json={
-            "grant_id": "g-001", "record_id": "rc-nope", "row_index": 0,
-            "field_name": "net_pay_bdt", "receipt_id": "vr-t3",
+            "grant_id": payroll_grant["grant"]["grant_id"], "record_id": "doc-nope",
+            "row_index": 0, "field_name": "net_pay_bdt", "receipt_id": "vr-t3",
         },
     )
     assert r.status_code == 404
 
 
-def test_a_row_index_past_the_end_is_rejected(client):
+def test_a_row_index_past_the_end_is_rejected(client, payroll_grant):
+    grant = payroll_grant["grant"]
     r = client.post(
         "/api/verify", headers=auth(client, "buyer"),
         json={
-            "grant_id": "g-001", "record_id": "rc-001", "row_index": 999_999,
-            "field_name": "net_pay_bdt", "receipt_id": "vr-t4",
+            "grant_id": grant["grant_id"], "record_id": grant["record_id"],
+            "row_index": 999_999, "field_name": "net_pay_bdt", "receipt_id": "vr-t4",
         },
     )
     assert r.status_code == 400

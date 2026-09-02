@@ -74,13 +74,61 @@ def witness_requirement(record_id: str, user: CurrentUser) -> dict:
         },
         user.role,
     )
+    # `witness_requirement` answers for the round that is active *now*, because
+    # the contract has no historical view of its own rounds. A record committed
+    # before the consortium adopted the rule therefore comes back as "required"
+    # with no attestations, which reads on screen as an assigned witness having
+    # refused to sign. It is not: nothing was required of it. The comparison
+    # below is what lets the interface tell those two apart.
+    round_opened_at = ""
+    if requirement.get("round_id"):
+        rnd = ledger.query(
+            DOCUMENT_CHANNEL, "doccustody", "get_seed_round",
+            {"round_id": requirement["round_id"]}, user.role,
+        )
+        round_opened_at = (rnd or {}).get("opened_at", "")
+
+    committed_at = record.get("committed_at", "")
     return {
         **requirement,
         # What was actually collected at capture, as against what was required.
         # The gap between the two is the interesting part and the UI shows it.
         "attestations": record.get("attestations", []),
         "attested_by": record.get("witnesses", []),
+        "committed_at": committed_at,
+        "round_opened_at": round_opened_at,
+        "predates_rule": bool(
+            round_opened_at and committed_at and committed_at < round_opened_at
+        ),
     }
+
+
+@router.get("/witness/requirement")
+def planned_requirement(
+    record_id: str, record_type: str, user: CurrentUser
+) -> dict:
+    """
+    Who *would* be assigned to counter-sign a record that does not exist yet.
+
+    The contract exposes this deliberately — "callable before committing, so a
+    factory can find out who to ask rather than guess" — and the interface needs
+    it for the same reason. Without it, sealing a witnessed record type is a
+    button that fails with a refusal the user could not have anticipated.
+
+    The owner is the caller's own MSP and is not taken from the request: asking
+    who would witness somebody else's record would leak the assignment for a
+    document that caller has nothing to do with.
+    """
+    require_capability(user, "read_witness")
+    return ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "witness_requirement",
+        {
+            "record_id": record_id,
+            "record_type": record_type,
+            "owner_msp": user.msp_id,
+        },
+        user.role,
+    )
 
 
 @router.get("/seed-rounds/{round_id}")
