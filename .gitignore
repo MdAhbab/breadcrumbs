@@ -28,6 +28,9 @@ venv/
 node_modules/
 dist/
 .vite/
+# TypeScript's incremental build cache. It was tracked by mistake and changes on
+# every build, so it turned up in the diff of unrelated work.
+*.tsbuildinfo
 
 # Local databases and ledger state
 *.db
@@ -35,12 +38,16 @@ dist/
 *.sqlite3
 ledger_data/
 
-# Generated and downloaded data. None of it belongs in the repository: the
-# synthetic corpus is reproducible from a seed, and the real datasets in
-# docs/future_works.md are large and redistributable only from their source.
+# Downloaded data stays out. The real datasets named in docs/future_works.md are
+# large and redistributable only from their source.
+#
+# The synthetic corpus is IN, deliberately. It is 24 MB, which git handles
+# without complaint, and having it in the repository means a clone can run the
+# demo and reproduce Figure 4 without first generating anything. It is still
+# reproducible from seed 7 — `python -m data.cli --seed 7 --scale small` gives
+# byte-identical output, and `data/tests/test_determinism.py` proves it — but
+# "reproducible" and "present" are different promises and a judge wants both.
 Breadcrumbs Project/model/datagen/corpus/
-Breadcrumbs Project/data/
-corpus/
 datasets/
 downloads/
 *.parquet
@@ -49,6 +56,11 @@ downloads/
 *.npy
 *.npz
 
+# ...and the corpus is the exception to the two rules above. The negation has to
+# come after them, and no parent directory may be excluded, or git never
+# descends far enough to see it.
+!Breadcrumbs Project/data/corpus/**
+
 # Trained weights. The Continuity Gate records a model's hash on the ledger, so a
 # checkpoint is identifiable from the chain without being stored beside it.
 *.pt
@@ -56,6 +68,11 @@ downloads/
 *.onnx
 *.safetensors
 checkpoints/
+
+# Feature cache: derived from the corpus and the extractor, and rebuilt on demand.
+# model/artefacts/training.json is NOT ignored — it is the source of truth for
+# figure 4 and the numbers in the report.
+Breadcrumbs Project/model/.cache/
 
 # design prompt: local working file, not part of the repo
 Breadcrumbs Project/frontend/claude_design_prompt.md

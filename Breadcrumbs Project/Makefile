@@ -46,7 +46,7 @@ test-fast:
 	$(BIN)/python -m pytest -m "not slow"
 
 lint:
-	$(BIN)/ruff check model backend
+	$(BIN)/ruff check model backend data
 
 demo:
 	$(BIN)/python -m model.demo

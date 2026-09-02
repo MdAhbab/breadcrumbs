@@ -1,0 +1,146 @@
+{
+    "by_anomaly_kind": {
+        "arithmetic": 111,
+        "backdating": 61,
+        "benford": 135,
+        "checksum": 79,
+        "cross_inconsistency": 43,
+        "duplication": 131,
+        "outlier": 217,
+        "overtime": 12,
+        "roundness": 32
+    },
+    "by_record_type": {
+        "chemical_inventory": 4439,
+        "machine_maintenance": 4050,
+        "payroll_register": 3795,
+        "production_output": 4076,
+        "safety_inspection": 3620
+    },
+    "by_site": {
+        "ashulia": {
+            "anomalous": 221,
+            "by_kind": {
+                "arithmetic": 35,
+                "backdating": 8,
+                "benford": 39,
+                "checksum": 26,
+                "cross_inconsistency": 12,
+                "duplication": 30,
+                "outlier": 64,
+                "overtime": 3,
+                "roundness": 4
+            },
+            "total": 5976
+        },
+        "chattogram": {
+            "anomalous": 209,
+            "by_kind": {
+                "arithmetic": 18,
+                "backdating": 15,
+                "benford": 26,
+                "checksum": 25,
+                "cross_inconsistency": 1,
+                "duplication": 27,
+                "outlier": 74,
+                "overtime": 7,
+                "roundness": 16
+            },
+            "total": 4896
+        },
+        "gazipur": {
+            "anomalous": 148,
+            "by_kind": {
+                "arithmetic": 31,
+                "backdating": 14,
+                "benford": 30,
+                "checksum": 10,
+                "cross_inconsistency": 7,
+                "duplication": 21,
+                "outlier": 34,
+                "overtime": 1
+            },
+            "total": 3492
+        },
+        "mirpur": {
+            "anomalous": 58,
+            "by_kind": {
+                "arithmetic": 6,
+                "backdating": 5,
+                "benford": 9,
+                "checksum": 5,
+                "cross_inconsistency": 12,
+                "duplication": 4,
+                "outlier": 11,
+                "roundness": 6
+            },
+            "total": 1224
+        },
+        "narayanganj": {
+            "anomalous": 61,
+            "by_kind": {
+                "arithmetic": 4,
+                "backdating": 8,
+                "benford": 6,
+                "checksum": 3,
+                "cross_inconsistency": 1,
+                "duplication": 15,
+                "outlier": 18,
+                "roundness": 6
+            },
+            "total": 1584
+        },
+        "savar": {
+            "anomalous": 124,
+            "by_kind": {
+                "arithmetic": 17,
+                "backdating": 11,
+                "benford": 25,
+                "checksum": 10,
+                "cross_inconsistency": 10,
+                "duplication": 34,
+                "outlier": 16,
+                "overtime": 1
+            },
+            "total": 2808
+        }
+    },
+    "by_wave": {
+        "1": {
+            "anomalous": 293,
+            "by_kind": {
+                "arithmetic": 77,
+                "benford": 8,
+                "cross_inconsistency": 14,
+                "duplication": 128,
+                "outlier": 22,
+                "overtime": 12,
+                "roundness": 32
+            },
+            "total": 6660
+        },
+        "2": {
+            "anomalous": 266,
+            "by_kind": {
+                "backdating": 61,
+                "benford": 126,
+                "checksum": 79
+            },
+            "total": 6660
+        },
+        "3": {
+            "anomalous": 262,
+            "by_kind": {
+                "arithmetic": 34,
+                "benford": 1,
+                "cross_inconsistency": 29,
+                "duplication": 3,
+                "outlier": 195
+            },
+            "total": 6660
+        }
+    },
+    "overall_anomaly_rate": 0.0411,
+    "total_anomalous": 821,
+    "total_documents": 19980
+}
