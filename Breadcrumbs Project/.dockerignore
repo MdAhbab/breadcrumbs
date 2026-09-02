@@ -1,0 +1,24 @@
+# Build context hygiene. Without this the 24 MB corpus arrives alongside a
+# 600 MB virtual environment and a node_modules tree, and the build is slow for
+# no reason.
+.venv/
+**/node_modules/
+**/dist/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.vite/
+*.egg-info/
+model/.cache/
+model/fabric/fabric-samples/
+
+# Local state. The world is rebuilt on boot.
+*.db
+*.sqlite
+*.sqlite3
+
+# Not needed at run time.
+**/tests/
+docs/
+*.md
+!DEPLOY.md

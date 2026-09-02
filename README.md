@@ -59,16 +59,21 @@ loses more than four times what honest attestation earns if the record is later 
 That does not make records true. It converts unilateral falsification into two-party
 collusion that is recorded and attributable, and we say it in exactly those words.
 
-## Three attacks in our own test suite succeed
+## Two attacks in our own test suite succeed, and a third is bounded
 
 They are in the report as successes, and `make attacks` runs them:
 
-- A model poisoned just inside the Continuity Gate's tolerance is **promoted**. The gate
-  bounds regression per round, not cumulatively.
 - A colluding assigned witness is **not stopped**. Nothing in this design class can stop it.
+  What changes is that falsification now needs two organisations rather than one, both
+  named, and the witness loses more than honest attestation ever earned.
 - Whoever holds the factorisation of the accumulator modulus **can forge** a membership
   witness — against the accumulator alone. It still fails the ledger check and the anchored
   index, which is why the accumulator is an accelerator and never the authority.
+- A model poisoned just inside the Continuity Gate's tolerance is **promoted once**, and
+  should be: that is the tolerance doing its job. Repeating it no longer works. The gate now
+  bounds cumulative drift against each task's best-ever score as well as per-round loss, so
+  an attacker giving up slightly less than the tolerance every round is capped rather than
+  unbounded. Bounded, not eliminated.
 
 A security section where everything fails is not evidence of a secure system.
 
@@ -84,24 +89,39 @@ A security section where everything fails is not evidence of a secure system.
 └── Breadcrumbs Project/      The system.
     ├── model/                Ledger, chaincode, accumulator, Merkle, learning plane.
     ├── backend/              FastAPI + SQLite. Wraps model/, never reimplements it.
-    ├── frontend/             React + TypeScript client.
-    ├── docs/                 Handoff prompts, corpus spec, future work.
+    ├── frontend/             React + TypeScript client. Reads every figure from the API.
+    ├── data/                 The corpus generator, and the 20,000-document corpus.
+    ├── docs/                 Future work, and the figure specifications.
     ├── AUDIT.md              Security review: findings, fixes, what is still open.
+    ├── DEPLOY.md             Putting it on the internet, including the AI.
+    ├── Dockerfile            The whole thing in one container.
     └── SETUP.md              A fresh machine.
 ```
 
 ## Running it
 
 ```bash
+python3 run.py    # the product: API and web app together, one Ctrl-C stops both
+```
+
+Or, for the parts:
+
+```bash
 cd "Breadcrumbs Project"
 make setup      # venv, dependencies, node modules
 make demo       # twelve acts, end to end, on a real ledger
-make test       # 210 tests
+make test       # 273 tests
 make attacks    # only the tests that attack the system
 make bench      # measure everything; regenerates results.tex
 make api        # backend on :8000
 make web        # frontend on :5173
+
+python -m model.run train   # train the detector: 25 seconds, CPU, no GPU
+python -m model.run --help  # evaluation, adversary scoring, benchmarks
 ```
+
+Deploying it, including what "deploying the AI" actually means, is in
+`Breadcrumbs Project/DEPLOY.md`.
 
 No Docker required. The report's numbers regenerate from `make bench` — nothing in the
 document is typed by hand, and an unmeasured figure renders as a bold `??` on the page.

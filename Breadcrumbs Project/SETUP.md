@@ -21,10 +21,17 @@ That creates `.venv`, installs the package with all extras, and installs the
 frontend's node modules. Then:
 
 ```bash
-make demo     # the eight-act end-to-end demo — start here
-make test     # 91 tests
+make demo     # the twelve-act end-to-end demo — start here
+make test     # 273 tests
 make api      # API on :8000, docs at /docs
 make web      # frontend on :5173
+```
+
+Or start the API and the web app together, wait for the ledger to build, and
+get the links printed for you:
+
+```bash
+python3 ../run.py
 ```
 
 On Windows without `make`, run the same commands directly:
@@ -38,6 +45,27 @@ python -m venv .venv
 ## If Python 3.11 is not your default
 
 `make setup PY=python3.12` — or whichever interpreter you have in range.
+
+## Training the detector
+
+The product runs without a trained model and says so on screen where a score
+would go. To train one — about 25 seconds, CPU only, no GPU:
+
+```bash
+python -m model.run train
+```
+
+That writes `model/artefacts/`, which is what the API loads to score documents.
+`python -m model.run --help` lists the rest: evaluation, the adversary scoring,
+the benchmarks and the demo.
+
+## Deploying it somewhere
+
+See `DEPLOY.md`. The short version is one container:
+
+```bash
+docker build -t breadcrumbs . && docker run -p 8000:8000 breadcrumbs
+```
 
 ## Real Hyperledger Fabric
 
@@ -59,9 +87,11 @@ been executed, and the README is explicit about what that means.
 Breadcrumbs Project/
 ├── model/       the system: ledger, chaincode, Merkle, learning plane
 ├── backend/     FastAPI over it
-├── frontend/    React client and the design specification
-├── deck/        the presentation prompt
+├── frontend/    React client
+├── data/        the synthetic corpus generator, and the corpus itself
+├── docs/        future work, and the figure specifications
 ├── AUDIT.md     security review, findings, and what is left to do
+├── DEPLOY.md    putting it on the internet, including the AI
 └── Makefile
 ```
 
@@ -77,6 +107,15 @@ or `pip install -e .` from `Breadcrumbs Project`.
 
 **`torch` will not install** — you are on Python 3.13+. Use `make setup PY=python3.12`.
 
-**Port already in use** — `make api` and `make web` use 8000 and 5173. The
-frontend proxies `/api` to 8000, so if you move the API, update
-`frontend/vite.config.ts`.
+**Port already in use** — `make api` and `make web` use 8000 and 5173. If you
+move the API, set `VITE_API_URL` for the frontend and add the frontend's origin
+to `BREADCRUMBS_CORS_ORIGINS` for the API. `python3 ../run.py --api-port X
+--web-port Y` does both for you.
+
+**The API seems to hang for 40 seconds on startup** — it is not hanging. It is
+committing 688 documents, running the accumulator ceremony and training the
+detector. It answers `/api/health` from the first moment and reports progress.
+
+**Two files called `run.py`** — the one in the repository root starts the
+application; `model/run.py` runs training and benchmarks. Each says so at the
+top.
