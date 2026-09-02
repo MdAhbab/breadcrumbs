@@ -284,13 +284,30 @@ def wait_for_world(api_port: int, service: Service, timeout: float = 240.0) -> d
 
 
 def wait_for_web(web_port: int, service: Service, timeout: float = 90.0) -> bool:
+    """
+    Wait for Vite to answer, asking for it by the same name the browser uses.
+
+    This asked for 127.0.0.1 once, and that is the one address Vite is not on.
+    Told to serve "localhost", Node resolves the name and binds the single
+    address it gets back — on any recent macOS that is ::1, so the dev server
+    listens on [::1]:5173 and nothing at all is on 127.0.0.1. The browser
+    resolves the same name and is served perfectly; this check was refused every
+    time, ran out its ninety seconds, and took the API down with it. The app
+    died in the middle of a working session because the supervisor could not
+    find something that was never lost. Ask for the name and the resolver hands
+    over both families, which http.client then tries in turn.
+    """
     deadline = time.time() + timeout
+    url = f"http://localhost:{web_port}/"
     while time.time() < deadline:
         if not service.alive:
             return False
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/", timeout=3):
+            with urllib.request.urlopen(url, timeout=3):
                 return True
+        except urllib.error.HTTPError:
+            # It replied. A dev server answering 404 is still a dev server.
+            return True
         except (urllib.error.URLError, OSError):
             time.sleep(0.5)
     return False
@@ -424,9 +441,19 @@ def main() -> int:
         return 1
 
     if with_web and not wait_for_web(args.web_port, services[1], timeout=90):
-        say(paint("  ✕ the web app did not come up — see the 'web' lines above", RED))
-        shutdown()
-        return 1
+        if services[1].alive:
+            # The process is still up, so this is the check failing rather than
+            # the app. Never stop a running product over an unanswered probe —
+            # that is what made a healthy session end by itself.
+            say(paint("  ! the web app has not answered yet, but it is still "
+                      "running", BRASS))
+            say(paint(f"    try http://localhost:{args.web_port} — and see the "
+                      "'web' lines above if it is blank", DIM))
+        else:
+            say(paint("  ✕ the web app did not come up — see the 'web' lines "
+                      "above", RED))
+            shutdown()
+            return 1
 
     report(health, args.api_port, args.web_port, with_web)
 
