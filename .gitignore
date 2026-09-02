@@ -61,13 +61,24 @@ downloads/
 # descends far enough to see it.
 !Breadcrumbs Project/data/corpus/**
 
-# Trained weights. The Continuity Gate records a model's hash on the ledger, so a
-# checkpoint is identifiable from the chain without being stored beside it.
+# Trained weights, in general. A large checkpoint does not belong in git, and the
+# Continuity Gate records a model's hash on the ledger, so one is identifiable
+# from the chain without being stored beside it.
 *.pt
 *.pth
 *.onnx
 *.safetensors
 checkpoints/
+
+# ...except this detector, which is the exception the general rule deserves. The
+# whole of it is 60 KB: the network is 3,796 parameters, and beside it sit the
+# feature scaler and the chosen operating point. Those three files ARE the
+# deployment — the API loads them and scores documents with them — so a clone or
+# a container built from one would otherwise come up with no detector at all and
+# have to train before it could answer. Rebuild them with
+# `python -m model.run train`, which takes about 25 seconds on a CPU.
+!Breadcrumbs Project/model/artefacts/*.pt
+!Breadcrumbs Project/model/artefacts/*.npz
 
 # Feature cache: derived from the corpus and the extractor, and rebuilt on demand.
 # model/artefacts/training.json is NOT ignored — it is the source of truth for

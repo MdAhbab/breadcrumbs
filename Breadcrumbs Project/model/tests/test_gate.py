@@ -23,7 +23,12 @@ NEW_TASK = "chemical_misreporting"
 # least 2.00pp on the new task. tau: it may not lose more than 3.00pp on any
 # earlier one. k: three organisations must evaluate. delta: they may differ by
 # at most 1.00pp before the contract calls it a disagreement.
+# sigma: across any number of rounds it may not fall more than 6.00pp below the
+# best that task has ever scored. Distinct from tau, which bounds a single round;
+# a per-round bound alone permits unbounded total drift, which is the attack in
+# test_attacks_insider.py that used to succeed outright.
 GAMMA, TAU, K, DELTA = 200, 300, 3, 100
+SIGMA = TAU * 2
 
 
 def signed_submission(consortium, msp_id, candidate_id, candidate_hash, accuracies):
@@ -463,7 +468,9 @@ def test_every_decision_is_recorded_with_who_evaluated_it(ready):
     assert d["outcome"] == "reject"
     assert sorted(d["endorsers"]) == sorted(GATE_ORGS[:3])
     assert d["memory_bank_hash"].startswith("7c1d")
-    assert d["parameters"] == {"gamma_bp": GAMMA, "tau_bp": TAU, "k": K, "delta_bp": DELTA}
+    assert d["parameters"] == {
+        "gamma_bp": GAMMA, "tau_bp": TAU, "sigma_bp": SIGMA, "k": K, "delta_bp": DELTA,
+    }
     # Each task carries the benchmark hash it was judged against.
     assert all(len(t["benchmark_hash"]) == 64 for t in d["per_task"])
 
@@ -480,3 +487,145 @@ def test_the_gate_policy_requires_three_organisations():
     assert tx_policy.satisfied_by(
         {"ApexTextileMSP", "BGMEAConsortiumMSP", "BVCertificationMSP"}
     )
+
+
+# -- the cumulative bound ------------------------------------------------
+def _open_round(consortium, round_id):
+    """Another round on the same committed benchmarks."""
+    consortium.network.invoke(
+        MODEL_CHANNEL, "fedmodel", "open_round",
+        {
+            "round_id": round_id,
+            "tasks": TASKS,
+            "contributors": ["ApexTextileMSP", "NoorGarmentsMSP", "CrescentFashionMSP"],
+            "memory_bank_hash": "7c1d" + "0" * 56 + "9ab4",
+            "timestamp": TS,
+        },
+        consortium.who("rafiqul.islam"), consortium.endorsers(GATE_ORGS[:3]), TS,
+    )
+
+
+def _submit(consortium, round_id, candidate_id, acc):
+    """Three organisations evaluate the same candidate and sign what they measured."""
+    subs = []
+    for msp in GATE_ORGS[:3]:
+        ident = consortium.org_identity(msp)
+        payload = {
+            "round_id": round_id, "candidate_id": candidate_id,
+            "candidate_hash": "b" * 64, "accuracies": acc,
+        }
+        subs.append({
+            "endorser_msp": msp,
+            "certificate_pem": ident.certificate_pem(),
+            "signature": sign(ident.private_key, payload),
+            "accuracies": acc,
+        })
+    _, result, response = consortium.network.invoke(
+        MODEL_CHANNEL, "fedmodel", "evaluate_gate",
+        {
+            "round_id": round_id, "candidate_id": candidate_id,
+            "candidate_hash": "b" * 64, "parent_id": "m-v7", "new_task": NEW_TASK,
+            "submissions": subs, "gamma_bp": GAMMA, "tau_bp": TAU, "sigma_bp": SIGMA,
+            "k": K, "delta_bp": DELTA, "timestamp": TS,
+        },
+        consortium.who("rafiqul.islam"), consortium.endorsers(GATE_ORGS[:3]), TS,
+    )
+    assert result.valid, result.reason
+    return response
+
+
+def test_damage_kept_just_under_tau_every_round_is_stopped_by_the_cumulative_bound(ready):
+    """
+    THE ATTACK THAT USED TO SUCCEED.
+
+    An attacker who knows tau never exceeds it. It gives up tau-1 on an earlier
+    task each round, gains on the new one, and every single decision is correct
+    by the per-round rule. Before the cumulative bound existed, repeating that
+    ruined the model with no decision ever being wrong — which is the standard
+    weakness of any per-round threshold.
+
+    Here the same attacker is run four rounds. The first three are promoted, as
+    they should be: each is individually within tolerance. The fourth is refused,
+    not because that round was worse than the others but because the model has
+    now drifted further from its best than the consortium agreed to tolerate.
+    """
+    c = ready
+    outcomes = []
+
+    # Round 8 is already open from the fixture. A candidate that holds the
+    # earlier tasks steady and gains on the new one sets the high-water mark.
+    wage, cert, chem = 7730, 7650, 5010
+    acc = accuracies(wage, cert, chem + 490, prev=(wage, cert, chem))
+    outcomes.append(_submit(c, "round-8", "m-v8", acc))
+    chem += 490
+
+    marks = c.network.query(MODEL_CHANNEL, "fedmodel", "list_high_water", {},
+                              caller=c.who("rafiqul.islam"))
+    assert marks["wage_register_inconsistency"] == 7730
+
+    # Now bleed the wage task by just under tau, round after round.
+    for i, round_id in enumerate(["round-9", "round-10", "round-11"], start=9):
+        _open_round(c, round_id)
+        previous = (wage, cert, chem)
+        wage -= TAU - 1
+        chem += 300
+        outcomes.append(_submit(c, round_id, f"m-v{i}", accuracies(wage, cert, chem, prev=previous)))
+
+    codes = [o["reason_code"] for o in outcomes]
+    assert codes[:3] == ["OK", "OK", "OK"], codes
+    assert codes[3] == "CUMULATIVE_REGRESSION", codes
+
+    # Not because this round was worse — it lost exactly what the two promoted
+    # rounds before it lost.
+    refused = outcomes[3]
+    row = next(r for r in refused["per_task"] if r["task_id"] == "wage_register_inconsistency")
+    assert row["previous_bp"] - row["candidate_bp"] <= TAU
+    assert row["drift_from_best_bp"] > SIGMA
+    assert row["best_bp"] == 7730
+
+    # And the model in force is still the last one that passed, not the attacker's.
+    current = c.network.query(MODEL_CHANNEL, "fedmodel", "get_current_model", {},
+                            caller=c.who("rafiqul.islam"))
+    assert current["model_id"] == "m-v10"
+
+
+def test_the_cumulative_bound_measures_from_the_best_not_the_most_recent(ready):
+    """
+    A rejected candidate must not be able to move the baseline.
+
+    Otherwise an attacker submits one deliberately excellent candidate it knows
+    will fail some other check, watches the high-water mark rise, and then has
+    room to degrade everything afterwards. Only promotion raises the mark.
+    """
+    c = ready
+    acc = accuracies(7730, 7650, 5500, prev=(7730, 7650, 5010))
+    _submit(c, "round-8", "m-v8", acc)
+    before = c.network.query(MODEL_CHANNEL, "fedmodel", "list_high_water", {},
+                              caller=c.who("rafiqul.islam"))
+
+    # A candidate that scores far higher on an earlier task but is refused for
+    # failing to improve on the new one.
+    _open_round(c, "round-9")
+    refused = _submit(c, "round-9", "m-v9",
+                      accuracies(9900, 9900, 5500, prev=(7730, 7650, 5500)))
+    assert refused["reason_code"] == "NO_IMPROVEMENT"
+
+    after = c.network.query(MODEL_CHANNEL, "fedmodel", "list_high_water", {},
+                              caller=c.who("rafiqul.islam"))
+    assert after == before
+
+
+def test_a_cumulative_bound_below_the_per_round_one_is_refused(ready):
+    """
+    A sigma under tau would make the per-round check unreachable.
+
+    That is a misconfiguration rather than an unusually strict policy, and the
+    contract should say so rather than quietly enforcing whichever is tighter.
+    """
+    c = ready
+    subs = [
+        signed_submission(c, msp, "m-v8", "b" * 64, accuracies(7730, 7650, 5500))
+        for msp in GATE_ORGS[:3]
+    ]
+    with pytest.raises(Exception, match="below tau_bp"):
+        run_gate(c, "m-v8", subs, sigma_bp=TAU - 1)

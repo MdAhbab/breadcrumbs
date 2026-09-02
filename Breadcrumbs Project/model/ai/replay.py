@@ -107,17 +107,54 @@ class MemoryBank:
         return out
 
     def merge(self, contributions: dict[int, Prototype]) -> None:
-        """Fold one factory's summaries into the shared bank."""
+        """
+        Fold one factory's summaries into the shared bank.
+
+        The bank is deliberately bounded — it is shared between organisations and
+        anchored on the ledger, so it cannot grow without limit. What matters is
+        *how* it is bounded when it overflows.
+
+        Truncating the concatenation, which is what this did originally, kept
+        whichever centres merged first. Over a run of several stages that meant
+        the first two factories of the first stage and nothing afterwards: every
+        later contribution was silently discarded, and rehearsal quietly stopped
+        covering the stages it existed to protect.
+
+        Keeping the centres with the largest counts is no better. It throws away
+        whole modes — a small factory with an unusual error profile is exactly
+        the contributor whose summary is worth keeping, and it is the first one
+        a count-ranked cull deletes.
+
+        So nothing is discarded. When the bank is over capacity the two closest
+        centres are combined into their count-weighted mean, repeatedly, until it
+        fits. Every contribution still influences the bank; near-duplicates cost
+        one slot between them instead of one each.
+        """
         for class_id, proto in contributions.items():
             if class_id not in self.prototypes:
                 self.prototypes[class_id] = proto
                 continue
             existing = self.prototypes[class_id]
+            centres = np.vstack([existing.centres, proto.centres])
+            counts = np.concatenate([existing.counts, proto.counts]).astype(float)
+
+            while len(centres) > self.k * 2:
+                # Pairwise distances, with the diagonal excluded so a centre is
+                # never its own nearest neighbour.
+                d = np.sqrt(((centres[:, None, :] - centres[None, :, :]) ** 2).sum(axis=2))
+                np.fill_diagonal(d, np.inf)
+                i, j = np.unravel_index(np.argmin(d), d.shape)
+                total = counts[i] + counts[j]
+                centres[i] = (centres[i] * counts[i] + centres[j] * counts[j]) / max(total, 1e-9)
+                counts[i] = total
+                centres = np.delete(centres, j, axis=0)
+                counts = np.delete(counts, j)
+
             self.prototypes[class_id] = Prototype(
                 class_id,
-                np.vstack([existing.centres, proto.centres])[: self.k * 2],
+                centres,
                 (existing.variance + proto.variance) / 2.0,
-                np.concatenate([existing.counts, proto.counts])[: self.k * 2],
+                counts.astype(int),
             )
 
     def sample(

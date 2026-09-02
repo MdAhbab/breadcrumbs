@@ -51,14 +51,16 @@ STAGE_CLASSES = [[0, 1], [0, 2], [0, 3]]
 class Detector(nn.Module):
     """Two hidden layers, tanh activations, four-way output."""
 
-    def __init__(self, n_features: int = N_FEATURES, hidden: int = 48):
+    def __init__(
+        self, n_features: int = N_FEATURES, hidden: int = 48, n_classes: int = N_CLASSES
+    ):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_features, hidden),
             nn.Tanh(),
             nn.Linear(hidden, hidden),
             nn.Tanh(),
-            nn.Linear(hidden, N_CLASSES),
+            nn.Linear(hidden, n_classes),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

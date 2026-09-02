@@ -15,7 +15,7 @@ dependencies = [
 [project.optional-dependencies]
 # The learning plane. Split out so the ledger can be installed and tested
 # without pulling ~2 GB of PyTorch — useful in CI and on a small machine.
-ml = ["torch>=2.2", "flwr[simulation]>=1.9"]
+ml = ["torch>=2.2"]
 api = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

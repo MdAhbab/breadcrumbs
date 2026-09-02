@@ -87,23 +87,30 @@ def test_a_minority_of_colluding_endorsers_cannot_promote_a_model():
 
 def test_a_poisoning_update_tuned_to_sit_just_under_the_tolerance_is_promoted():
     """
-    AN ATTACK THAT SUCCEEDS, and the most important honest result in this suite.
+    A SINGLE ROUND OF THIS ATTACK STILL SUCCEEDS, and should.
 
     The gate rejects a candidate that loses more than tau on any earlier task. An
-    attacker who knows tau does not have to lose more than tau. It damages each
+    attacker who knows tau does not have to lose more than tau: it damages each
     earlier task by just under the threshold, gains on the new one, and the
-    contract promotes it — correctly, by its own rule.
+    contract promotes it — correctly, by its own rule. That is what this test
+    pins, and it is still true.
 
-    Repeat that across rounds and the damage compounds: a rule that permits a
-    2.99-point loss per round permits an arbitrary loss over enough rounds, which
-    is the standard weakness of any per-round threshold and is not specific to
-    this design.
+    What has changed is what happens when the attack is *repeated*. A per-round
+    bound alone is not a bound: a rule permitting a 2.99-point loss each round
+    permits an arbitrary loss over enough rounds. The contract now also measures
+    every earlier task against the best it has ever scored under a promoted
+    model and refuses a candidate that has drifted more than sigma from it, so
+    the total damage is capped rather than unbounded.
+    See test_gate.py::test_damage_kept_just_under_tau_every_round_is_stopped_by
+    _the_cumulative_bound, which runs exactly this attacker for four rounds and
+    watches the fourth get refused.
 
-    What the report may claim is therefore bounded and should be worded exactly
-    this way: the gate prevents *unnoticed* regression, and bounds regression
-    *per round*. It does not bound cumulative regression, and a consortium
-    relying on it needs a drift check against the ORIGINAL baseline as well —
-    which is future work, not a property this implementation has.
+    So the claim the report may make is: the gate prevents *unnoticed*
+    regression, bounds regression per round at tau, and bounds cumulative
+    regression at sigma against the high-water mark. It does not make the
+    attacker harmless — sigma of damage is still available to it, and choosing
+    sigma is a consortium's judgement about how much drift is tolerable before a
+    model should be retired rather than amended.
     """
     from model.tests.test_gate import TAU, run_gate
 
