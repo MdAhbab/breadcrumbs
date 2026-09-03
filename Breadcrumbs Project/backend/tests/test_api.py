@@ -358,6 +358,22 @@ def test_a_factory_can_disclose_a_record_it_left_out_of_a_period(client):
     # The seal did not move. It could not: it was fixed before any of this.
     assert after["sealed_count"] == before["sealed_count"]
 
+    # Put the world back. The period this found is the corpus's withholding
+    # attack, which later tests in this suite assert the shape of, and the app
+    # module is imported once so they share the ledger this fixture built.
+    # Revoking is also the other half of the claim: access follows the grant, so
+    # withdrawing it returns the check to exactly the shortfall it started at.
+    revoked = client.post(
+        f"/api/grants/{written.json()['response']['grant_id']}/revoke"
+        "?reason=restoring+the+corpus+scenario",
+        headers=factory,
+    )
+    assert revoked.status_code == 200
+    restored = check()
+    assert restored["complete"] is False
+    assert restored["disclosed_count"] == before["disclosed_count"]
+    assert restored["computed_root"] == before["computed_root"]
+
 
 def test_a_revocation_must_say_why(client):
     """The reason goes on the ledger and is shown to the party it cuts off."""
