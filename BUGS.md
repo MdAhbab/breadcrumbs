@@ -8,8 +8,17 @@ Bugs 1–4 were fixed in the first pass. Bug 5 was left open. Bugs 5–15 are th
 second pass: the request→grant→verify path a judge is most likely to walk, and
 the factory's side of it, which had almost no controls at all.
 
-**Status: all fifteen fixed.** Verified live against the running app; 251 tests
-pass, `tsc --noEmit` is clean and the production build is clean.
+**Status: all fifteen fixed.** 251 tests pass, `tsc --noEmit` is clean and the
+production build is clean.
+
+What "verified" means differs by bug, and is worth stating rather than
+flattening. Bugs 1–4 were checked in a browser, with measurements. Bugs 5 and
+7–14 were driven against a live API — the request, grant, revoke, re-issue,
+decline, reconsider and reopen→commit→amend sequences were all executed and
+their responses are quoted below, and five of them now have regression tests.
+Bugs 6, 11, 12, 13 and 15 change what is on screen and were checked by
+typecheck, production build and against the API responses they consume, not by
+looking at the rendered page.
 
 ---
 
@@ -417,8 +426,17 @@ page-scoped rules still win on specificity where a page wants something else.
 ## Not a bug (checked and cleared)
 
 **The Continuity Gate benchmark table** on `/model/gate/:id` looks clipped at the
-right edge on a narrow window, but `.gptable-wrap` carries `overflow-x: auto`
-and scrolls correctly; `document.body.scrollWidth` equals the viewport.
+right edge on a narrow window, but it scrolls correctly and
+`document.body.scrollWidth` equals the viewport. One correction to how that was
+written up the first time: the scrolling does not come from `.gptable-wrap`,
+which has no rule anywhere in the stylesheets. It comes from `scroll-x--dark`,
+carried on the same element. The conclusion holds; the attribution was wrong.
+
+**Class names with no CSS rule** are not the same defect as bug 15 and there are
+twenty-eight of them — `wit__who`, `per__section`, `nav__who` and so on. An
+element named under a BEM scheme that needs no styling of its own is a naming
+convention, not a promise. Bug 15 was the opposite case: a declaration written
+on purpose, asking for a border, and silently discarded.
 
 **Seeded grants outnumbering real ones** is demo-data design, not a defect.
 Worth knowing before the finals: the buyer starts holding 259 grants, so the
