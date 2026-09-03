@@ -25,7 +25,6 @@ from .. import corpus
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
 from ..db import Attestation, BuyerRequest, get_session, notify
-from ..scoping import scoped_records
 
 router = APIRouter(tags=["workspace"])
 
@@ -143,12 +142,23 @@ def activity(user: CurrentUser, limit: int = 40) -> list[dict]:
 @router.get("/audit/queue")
 def audit_queue(user: CurrentUser, db: Session = Depends(get_session)) -> dict:
     """
-    The auditor's bench: every record it holds a live grant against.
+    The auditor's bench: every grant it holds, and what has become of each.
 
     "Queued" and "verified" are not stored anywhere — they are read from whether
     a verification receipt exists on the chain for that grant. A separate status
     column would be a second truth that could drift from the receipts, and the
     receipts are the part a third party can check.
+
+    Records are resolved per grant rather than through `scoped_records`, and the
+    difference matters. That helper is deliberately active-grants-only, which is
+    the right rule for browsing and the wrong one here: it dropped every revoked
+    grant before the loop below could label it, so the `"revoked"` state this
+    function computes was unreachable and a bench row simply vanished when a
+    factory withdrew access. That is the one moment an auditor most needs to see
+    — its batch quietly shrinking is exactly what a suppressed finding would
+    look like. Only grants belonging to this caller are ever resolved, and the
+    metadata was disclosed to it while the grant was live, so nothing new
+    becomes visible.
     """
     require_capability(user, "read_queue")
     grants = ledger.query(
@@ -157,7 +167,12 @@ def audit_queue(user: CurrentUser, db: Session = Depends(get_session)) -> dict:
     )
     receipts = ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_receipts", {}, user.role)
     verified = {r["grant_id"]: r for r in receipts or []}
-    records = {r["record_id"]: r for r in scoped_records(user)}
+    granted_to_me = {g["record_id"] for g in grants}
+    records = {
+        r["record_id"]: r
+        for r in ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_records", {}, user.role)
+        if r["record_id"] in granted_to_me
+    }
 
     items = []
     for grant in grants:

@@ -49,17 +49,48 @@
 }
 
 /* -- the owner's side of the completeness check ---------------------------- */
-/* Deliberately not styled like the verifier's panel. That one delivers a
-   verdict; this one is a register of who holds what, and a factory reading it
-   is doing bookkeeping rather than being judged. */
+/* Same two columns as the verifier's panel, because it is the same period seen
+   from the other end: the records on the left, the reckoning on the right. What
+   it is not is a verdict — a factory reading this is doing bookkeeping, not
+   being judged, so nothing here is green or red. */
 .whoholds {
+  display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .whoholds { grid-template-columns: 1fr; }
+}
+
+.whoholds__label,
+.whoholds__head { color: var(--ink-quiet); margin: 0 0 var(--s4); }
+
+.whoholds__ids { list-style: none; margin: 0; padding: 0; }
+
+.whoholds__id {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule-faint);
+}
+.whoholds__id:last-child { border-bottom: 0; }
+.whoholds__to { color: var(--ink-quiet); white-space: nowrap; }
+/* The one the buyer will find missing. Named here because it is the factory's
+   own record and its own grant ledger — the asymmetry that matters is that the
+   buyer never learns which, and it does not. */
+.whoholds__id.is-held .mono { color: var(--madder); }
+.whoholds__id.is-held .whoholds__to { color: var(--madder); }
+
+.whoholds__panel {
   padding: 20px 22px;
   border: 1px solid var(--rule);
   border-radius: var(--r-md);
   background: var(--paper-2);
 }
-
-.whoholds__head { color: var(--ink-quiet); margin: 0 0 var(--s3); }
 
 .whoholds__count {
   display: flex;
@@ -101,3 +132,28 @@
   max-width: 62ch;
   margin: var(--s4) 0 0;
 }
+
+/* The record the buyer will find missing, made actionable. Naming a gap and
+   offering no way to close it is the same fault as a banner describing a door
+   that is not there. */
+.whoholds__disclose {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  color: var(--madder);
+  border-bottom: 1px dashed var(--madder-30);
+}
+.whoholds__disclose:hover { border-bottom-style: solid; }
+
+.whoholds__form {
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--brass-30);
+  border-radius: var(--r-md);
+  background: var(--brass-wash);
+}
+.whoholds__form p { margin: 0; }
+.whoholds__formrow { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }

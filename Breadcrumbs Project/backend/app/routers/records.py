@@ -49,12 +49,16 @@ class CommitRequest(BaseModel):
 
 
 class GrantRequest(BaseModel):
-    grant_id: str
     record_id: str
     requester_msp: str
     purpose_code: str
     field_name: str
     expires_at: str
+    # Optional, and minted below when it is absent. Making the caller invent a
+    # unique identifier for a ledger key is a footgun: the contract refuses a
+    # duplicate, correctly, and the user sees a collision they had no way to
+    # anticipate.
+    grant_id: str | None = None
 
 
 class VerifyRequest(BaseModel):
@@ -251,15 +255,58 @@ def list_grants(user: CurrentUser) -> list[dict]:
 
 
 @router.post("/grants", status_code=status.HTTP_201_CREATED)
-def grant_access(body: GrantRequest, user: CurrentUser) -> dict:
+def grant_access(
+    body: GrantRequest, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    Disclose one field of one record to one organisation, directly.
+
+    The other way in is answering a buyer's request, which is the usual path.
+    This is the one a factory needs when it is looking at a period it has
+    already sealed and can see a record it never released — there is no request
+    to answer there, and without this the shortfall was visible and not
+    actionable.
+    """
     require_capability(user, "write_grants")
+    args = body.model_dump()
+    args["grant_id"] = body.grant_id or _next_grant_id(user)
     try:
-        return ledger.invoke(
+        result = ledger.invoke(
             DOCUMENT_CHANNEL, "doccustody", "grant_access",
-            {**body.model_dump(), "timestamp": now()}, role=user.role, timestamp=now(),
+            {**args, "timestamp": now()}, role=user.role, timestamp=now(),
         )
     except ledger.LedgerError as exc:
         raise _fail(exc) from exc
+
+    notify(
+        db,
+        body.requester_msp,
+        "access_granted",
+        f"{user.org} disclosed {body.field_name} on {body.record_id} to you "
+        f"until {body.expires_at[:10]}",
+    )
+    db.commit()
+    return result
+
+
+def _next_grant_id(user) -> str:
+    """
+    The next free `g-NNNN`, continuing the scheme the world was seeded with.
+
+    Derived from what is on the chain rather than from a counter somebody has to
+    remember to keep, so it stays correct across a restart that rebuilds the
+    ledger.
+    """
+    existing = {
+        g["grant_id"]
+        for g in ledger.query(
+            DOCUMENT_CHANNEL, "doccustody", "list_grants", {}, user.role
+        ) or []
+    }
+    n = len(existing) + 1
+    while f"g-{n:04d}" in existing:
+        n += 1
+    return f"g-{n:04d}"
 
 
 @router.post("/grants/{grant_id}/revoke")

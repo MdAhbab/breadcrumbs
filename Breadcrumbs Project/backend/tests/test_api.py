@@ -282,6 +282,83 @@ def test_a_declined_request_can_be_reconsidered(client):
     assert row()["decline_reason"] is None
 
 
+def test_a_factory_can_disclose_a_record_it_left_out_of_a_period(client):
+    """
+    The loop the completeness check exists to close.
+
+    A period is sealed at 40 and the buyer holds 39, so its check fails on
+    arithmetic. The factory discloses the fortieth directly — there is no
+    request to answer, which is why `POST /api/grants` has to work without one —
+    and the same check passes, with the two roots converging. The seal never
+    moves, which is the whole point: it fixed the count before any of this.
+    """
+    factory, buyer = auth(client, "factory"), auth(client, "buyer")
+    seals = client.get("/api/seals", headers=factory).json()
+    records = client.get("/api/records", headers=factory).json()
+    grants = client.get("/api/grants", headers=factory).json()
+
+    # A period the buyer is short in, found rather than hardcoded.
+    def held_by_buyer(bucket: str) -> set[str]:
+        return {
+            g["record_id"] for g in grants
+            if g["status"] == "active" and g["requester_msp"] == "PrimarkSourcingMSP"
+            and any(r["record_id"] == g["record_id"] and r["bucket"] == bucket for r in records)
+        }
+
+    target = None
+    for seal in seals:
+        in_bucket = {r["record_id"] for r in records if r["bucket"] == seal["bucket"]}
+        missing = in_bucket - held_by_buyer(seal["bucket"])
+        if in_bucket and missing and len(missing) < len(in_bucket):
+            target = (seal, sorted(missing)[0])
+            break
+    assert target, "no sealed period has a record the buyer was not given"
+    seal, withheld = target
+
+    def check() -> dict:
+        mine = [
+            r["record_id"] for r in client.get("/api/records", headers=buyer).json()
+            if r["bucket"] == seal["bucket"]
+        ]
+        return client.post(
+            "/api/completeness", headers=buyer,
+            json={
+                "owner_msp": seal["owner_msp"], "site": seal["site"],
+                "record_type": seal["record_type"], "period": seal["period"],
+                "disclosed_record_ids": mine,
+            },
+        ).json()
+
+    before = check()
+    assert before["complete"] is False
+    assert before["sealed_root"] != before["computed_root"]
+
+    sibling = next(
+        g for g in grants
+        if g["status"] == "active" and g["requester_msp"] == "PrimarkSourcingMSP"
+        and any(r["record_id"] == g["record_id"] and r["bucket"] == seal["bucket"] for r in records)
+    )
+    # No grant_id: the API mints one rather than making the caller invent a
+    # unique ledger key and discover the collision from the contract.
+    written = client.post(
+        "/api/grants", headers=factory,
+        json={
+            "record_id": withheld, "requester_msp": sibling["requester_msp"],
+            "purpose_code": sibling["purpose_code"], "field_name": sibling["field_name"],
+            "expires_at": sibling["expires_at"],
+        },
+    )
+    assert written.status_code == 201, written.text
+    assert written.json()["response"]["grant_id"].startswith("g-")
+
+    after = check()
+    assert after["complete"] is True
+    assert after["sealed_count"] == after["disclosed_count"]
+    assert after["sealed_root"] == after["computed_root"]
+    # The seal did not move. It could not: it was fixed before any of this.
+    assert after["sealed_count"] == before["sealed_count"]
+
+
 def test_a_revocation_must_say_why(client):
     """The reason goes on the ledger and is shown to the party it cuts off."""
     factory = auth(client, "factory")

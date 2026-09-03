@@ -130,12 +130,20 @@ export default function Lightbox() {
                 <p className="small lbx__side-note">No grant is live against you.</p>
               ) : (
                 <ul className="reqlist">
-                  {newest.slice(0, 8).map((g) => (
+                  {newest.slice(0, 8).map((g) => {
+                    // A revoked grant is still shown — it is part of this
+                    // buyer's history and carries the reason — but it must not
+                    // be a link. Scope follows the grant, so the record page it
+                    // used to open now correctly refuses, and offering a link
+                    // that lands on "no such record" reads as a broken app
+                    // rather than as access having ended.
+                    const Row = g.status === 'active' ? Link : 'div';
+                    const to = g.status === 'active'
+                      ? { to: `/factory/records/${encodeURIComponent(g.record_id)}` }
+                      : {};
+                    return (
                     <li key={g.grant_id}>
-                      <Link
-                        to={`/factory/records/${encodeURIComponent(g.record_id)}`}
-                        className="reqrow"
-                      >
+                      <Row {...(to as { to: string })} className="reqrow">
                         <span className="reqrow__top">
                           <span className="reqrow__org">{shortMsp(g.owner_msp)}</span>
                           <Seal
@@ -158,9 +166,10 @@ export default function Lightbox() {
                         {g.revoked_reason && (
                           <span className="small reqrow__reason">{g.revoked_reason}</span>
                         )}
-                      </Link>
+                      </Row>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
               {grants.length > 8 && (

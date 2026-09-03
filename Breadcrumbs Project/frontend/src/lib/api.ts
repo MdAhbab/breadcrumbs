@@ -822,10 +822,13 @@ export const api = {
   ),
 
   grants: () => get<Grant[]>('/api/grants'),
+  /** Disclose one field of one record directly, with no request to answer. */
   grant: (body: {
-    grant_id: string; record_id: string; requester_msp: string;
-    purpose_code: string; field_name: string; expires_at: string;
-  }) => post('/api/grants', body),
+    record_id: string; requester_msp: string; purpose_code: string;
+    field_name: string; expires_at: string; grant_id?: string;
+  }) => post<{ response: { grant_id: string; status: string }; tx_id: string; block: number }>(
+    '/api/grants', body,
+  ),
   revoke: (grantId: string, reason: string) =>
     post(`/api/grants/${encodeURIComponent(grantId)}/revoke?reason=${encodeURIComponent(reason)}`),
 
