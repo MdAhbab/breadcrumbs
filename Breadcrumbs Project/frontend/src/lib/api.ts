@@ -912,14 +912,27 @@ export const api = {
 };
 
 /* -- display helpers ------------------------------------------------------ */
-/** Record types the ledger accepts, in the words the interface uses. */
+/*
+ * Record types the ledger accepts, in the words the interface uses.
+ *
+ * This map is also what the record-type dropdowns offer, so it is a claim about
+ * what the contract will take. The authority is `VALID_TYPES` in
+ * `model/chaincode/doccustody.py`; anything listed here and missing there is
+ * offered to the user and then refused on commit with a bare `unknown record
+ * type` rejection, which reads as a broken app rather than a rule.
+ *
+ * `production_output` was listed here and was never in `VALID_TYPES`. The
+ * corpus does generate it — the backend counts those documents, excludes them,
+ * and says so on `/api/health` — but no version of the contract has accepted
+ * one, so the option could only ever end in a refusal. A type belongs here
+ * after the chaincode takes it, not before.
+ */
 export const RECORD_LABEL: Record<string, string> = {
   payroll_register: 'Payroll Register',
   safety_inspection: 'Safety Inspection',
   chemical_inventory: 'Chemical Inventory',
   machine_maintenance: 'Machine Maintenance',
   compliance_certificate: 'Compliance Certificate',
-  production_output: 'Production Output',
 };
 
 /** The detector's tasks, in the words the interface uses. */

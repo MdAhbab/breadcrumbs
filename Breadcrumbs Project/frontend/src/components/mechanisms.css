@@ -591,6 +591,9 @@
 .screen__rate .stamp-type { color: var(--ink-quiet); }
 .screen__n { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
 
+/* Two flex items only: the icon, then the sentence in one wrapper. Left as bare
+   text the prose becomes a flex item per text node, and in the narrow record
+   column each is squeezed to a word a line. */
 .screen__blind {
   display: flex;
   gap: 7px;
@@ -599,3 +602,4 @@
   color: var(--ink-quiet);
   max-width: 70ch;
 }
+.screen__blind svg { flex: 0 0 auto; margin-top: 3px; }

@@ -111,9 +111,11 @@ export function Screening({ recordId }: { recordId: string }) {
 
           {result.blind_to && (
             <p className="small screen__blind">
-              <TriangleAlert size={12} /> It is at chance on{' '}
-              <span className="mono">{result.blind_to.kind}</span> —{' '}
-              {pct(result.blind_to.detection)} detection. {result.blind_to.why}
+              <TriangleAlert size={12} />
+              <span>
+                It is at chance on <span className="mono">{result.blind_to.kind}</span> —{' '}
+                {pct(result.blind_to.detection)} detection. {result.blind_to.why}
+              </span>
             </p>
           )}
 

@@ -41,6 +41,7 @@ import json
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -164,6 +165,117 @@ def ensure_corpus(auto: bool) -> bool:
         return False
     say(paint("    done.", GREEN))
     return True
+
+
+# --------------------------------------------------------------------------
+# port and process management
+# --------------------------------------------------------------------------
+def is_port_in_use(port: int) -> bool:
+    """Check if a TCP port is currently open and accepting connections on localhost."""
+    for family, host in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as s:
+                s.settimeout(0.3)
+                if s.connect_ex((host, port)) == 0:
+                    return True
+        except OSError:
+            pass
+    return False
+
+
+def get_pids_listening_on(port: int) -> list[int]:
+    """Find PIDs listening on a specific TCP port using lsof."""
+    try:
+        res = subprocess.run(
+            ["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
+            capture_output=True, text=True, check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            pids = []
+            for line in res.stdout.strip().splitlines():
+                line = line.strip()
+                if line.isdigit():
+                    pid = int(line)
+                    if pid != os.getpid():
+                        pids.append(pid)
+            return pids
+    except Exception:
+        pass
+    return []
+
+
+def kill_process_tree(pid: int, sig: int) -> None:
+    """Kill a process, its parent supervisor if running run.py, and its process group."""
+    # If the parent is an old supervisor running run.py, terminate it as well
+    try:
+        res = subprocess.run(
+            ["ps", "-o", "ppid=,command=", "-p", str(pid)],
+            capture_output=True, text=True, check=False,
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            parts = res.stdout.strip().split(None, 1)
+            if len(parts) >= 1 and parts[0].isdigit():
+                ppid = int(parts[0])
+                cmd = parts[1] if len(parts) > 1 else ""
+                if ppid > 1 and ppid != os.getpid() and "run.py" in cmd:
+                    try:
+                        os.kill(ppid, sig)
+                    except (ProcessLookupError, PermissionError, OSError):
+                        pass
+    except Exception:
+        pass
+
+    # Terminate process group if separate session
+    try:
+        pgid = os.getpgid(pid)
+        my_pgid = os.getpgid(os.getpid())
+        if pgid not in (0, 1, my_pgid):
+            os.killpg(pgid, sig)
+    except (ProcessLookupError, PermissionError, OSError):
+        pass
+
+    # Terminate the target process itself
+    try:
+        os.kill(pid, sig)
+    except (ProcessLookupError, PermissionError, OSError):
+        pass
+
+
+def free_port(port: int, label: str = "") -> None:
+    """
+    Ensure a port is free before starting a service.
+    If another server is already running, terminate it cleanly.
+    """
+    pids = get_pids_listening_on(port)
+    if not pids and not is_port_in_use(port):
+        return
+
+    name = f" ({label})" if label else ""
+    pid_str = f"PID {', '.join(map(str, pids))}" if pids else "unknown PID"
+    say(paint(f"  stopping existing server on port {port}{name} [{pid_str}]…", BRASS))
+
+    for pid in pids:
+        kill_process_tree(pid, signal.SIGTERM)
+
+    # Give processes up to 3 seconds to exit gracefully
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        active = get_pids_listening_on(port)
+        if not active and not is_port_in_use(port):
+            say(paint(f"  ✓ freed port {port}", GREEN))
+            return
+        time.sleep(0.2)
+
+    # Force kill if still holding the port
+    active = get_pids_listening_on(port)
+    for pid in active:
+        kill_process_tree(pid, signal.SIGKILL)
+
+    time.sleep(0.3)
+    if not is_port_in_use(port) and not get_pids_listening_on(port):
+        say(paint(f"  ✓ freed port {port}", GREEN))
+    else:
+        say(paint(f"  ! warning: port {port} may still be in use", RED))
 
 
 # --------------------------------------------------------------------------
@@ -380,6 +492,11 @@ def main() -> int:
 
     preflight(with_web)
     ensure_corpus(args.generate_corpus)
+
+    # Stop any previous servers holding the ports
+    free_port(args.api_port, "API")
+    if with_web:
+        free_port(args.web_port, "web")
 
     api_command = [
         str(VENV_PYTHON), "-m", "uvicorn", "app.main:app",

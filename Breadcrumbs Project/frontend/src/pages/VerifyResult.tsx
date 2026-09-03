@@ -43,14 +43,31 @@ export default function VerifyResult() {
   return id ? <FromReceipt id={id} /> : <LiveProof signedIn={role !== null} />;
 }
 
+/**
+ * Where "back" goes.
+ *
+ * This screen is reachable with an account and without one, and the way out
+ * should match the way in. A visitor holding a receipt belongs on the landing
+ * page; somebody signed in arrived from their own workspace and expects to be
+ * returned to it rather than dropped on the page that explains the product to
+ * strangers.
+ */
+function useWayBack(): { to: string; label: string } {
+  const { role } = useSession();
+  return role
+    ? { to: role.landing, label: role.instrument }
+    : { to: '/', label: 'Breadcrumbs' };
+}
+
 /* -- the public path ------------------------------------------------------ */
 function FromReceipt({ id }: { id: string }) {
   const query = useApi(() => api.receipt(id), [id]);
+  const back = useWayBack();
 
   return (
     <div className="lb">
       <header className="lb__bar">
-        <Link to="/" className="lb__back"><ArrowLeft size={15} /> Breadcrumbs</Link>
+        <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
         <Link to="/verify" className="lb__toggle small">verify something else</Link>
       </header>
 
@@ -182,6 +199,7 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
   const [proof, setProof] = useState<RowProof | null>(null);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
+  const back = useWayBack();
 
   const live = (grants.data ?? []).filter((g) => g.status === 'active');
   const grant = live.find((g) => g.grant_id === picked) ?? live[0];
@@ -209,7 +227,7 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="lb">
       <header className="lb__bar">
-        <Link to="/" className="lb__back"><ArrowLeft size={15} /> Breadcrumbs</Link>
+        <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
       </header>
 
       <main className="lb__main">
@@ -378,6 +396,7 @@ function ProofResult({ proof }: { proof: RowProof }) {
 }
 
 function Afterword() {
+  const { role } = useSession();
   return (
     <footer className="lb__after">
       <p className="lb__after-lede">
@@ -385,8 +404,16 @@ function Afterword() {
         factory for nothing.
       </p>
       <div className="lb__after-actions">
-        <Link to="/" className="btn btn--primary btn--md">What Breadcrumbs is</Link>
-        <Link to="/login" className="btn btn--secondary btn--md">Sign in to the portal</Link>
+        {role ? (
+          <Link to={role.landing} className="btn btn--primary btn--md">
+            Back to {role.instrument}
+          </Link>
+        ) : (
+          <>
+            <Link to="/" className="btn btn--primary btn--md">What Breadcrumbs is</Link>
+            <Link to="/login" className="btn btn--secondary btn--md">Sign in to the portal</Link>
+          </>
+        )}
       </div>
     </footer>
   );
