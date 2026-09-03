@@ -375,6 +375,47 @@ def test_a_factory_can_disclose_a_record_it_left_out_of_a_period(client):
     assert restored["computed_root"] == before["computed_root"]
 
 
+def test_an_organisation_off_the_document_channel_cannot_be_a_party_to_one(client):
+    """
+    Every consortium member is on the model channel, so the contract's check —
+    is this a known MSP — passes for organisations that cannot read a document.
+    A grant to one of those was accepted, written, and unusable forever.
+
+    The directory says which is which, so the interface can stop offering them
+    and the API can stop accepting them.
+    """
+    factory, buyer = auth(client, "factory"), auth(client, "buyer")
+    orgs = client.get("/api/orgs", headers=factory).json()
+    outsider = next(o for o in orgs if not o["on_document_channel"])
+    assert "documents" not in " ".join(outsider["channels"])
+
+    record = client.get("/api/records", headers=factory).json()[0]["record_id"]
+    refused = client.post(
+        "/api/grants", headers=factory,
+        json={
+            "record_id": record, "requester_msp": outsider["msp_id"],
+            "purpose_code": "X-TEST", "field_name": "cas_number",
+            "expires_at": "2028-12-31T00:00:00Z",
+        },
+    )
+    assert refused.status_code == 400
+    assert refused.json()["detail"]["code"] == "NOT_ON_CHANNEL"
+
+    # And the same rule from the other end: a buyer cannot address a request to
+    # a supplier that could never answer it.
+    if outsider["kind"] == "factory":
+        asked = client.post(
+            "/api/requests", headers=buyer,
+            json={
+                "supplier_msp": outsider["msp_id"], "record_type": "payroll_register",
+                "period": "2027-02", "purpose_code": "ETH-WAGE-VERIFY",
+                "field_name": "net_pay_bdt", "expires_at": "2028-12-31T00:00:00Z",
+            },
+        )
+        assert asked.status_code == 400
+        assert asked.json()["detail"]["code"] == "NOT_ON_CHANNEL"
+
+
 def test_a_revocation_must_say_why(client):
     """The reason goes on the ledger and is shown to the party it cuts off."""
     factory = auth(client, "factory")

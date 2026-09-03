@@ -8,9 +8,9 @@ import { Empty, Failed, Result } from '../components/states';
 import { PageHead } from '../components/ui';
 import {
   ApiError, api, recordLabel, shortMsp,
-  type Grant, type LedgerRecord, type PeriodSeal,
+  type Grant, type LedgerRecord, type Org, type PeriodSeal,
 } from '../lib/api';
-import { commas, longDate, period as periodName } from '../lib/format';
+import { commas, period as periodName } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './periods.css';
@@ -33,8 +33,8 @@ export default function Periods() {
   const { role } = useSession();
   const verifier = role?.id === 'buyer' || role?.id === 'auditor';
   const world = useApi(
-    () => Promise.all([api.seals(), api.records(), api.grants()]) as
-      Promise<[PeriodSeal[], LedgerRecord[], Grant[]]>,
+    () => Promise.all([api.seals(), api.records(), api.grants(), api.orgs()]) as
+      Promise<[PeriodSeal[], LedgerRecord[], Grant[], Org[]]>,
     [],
   );
   const [picked, setPicked] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export default function Periods() {
             : 'Nothing has been sealed yet. Sealing a period fixes which records it holds.',
         }}
       >
-        {([seals, records, grants]) => {
+        {([seals, records, grants, orgs]) => {
           const inBucket = (bucket: string) =>
             records.filter((r) => r.bucket === bucket).map((r) => r.record_id).sort();
 
@@ -127,9 +127,17 @@ export default function Periods() {
                   />
                 ) : (
                   <WhoHolds
+                    /* Remounted per period, the same reason the checker is.
+                       Without it a refusal from one period stayed on screen
+                       while a different one was being read, which is how a
+                       stale "field required" ended up under a list nobody had
+                       tried to disclose from. */
+                    key={current.bucket}
                     seal={current}
                     held={inBucket(current.bucket)}
+                    records={records}
                     grants={grants}
+                    orgs={orgs}
                     onChange={world.reload}
                   />
                 )}
@@ -191,18 +199,32 @@ export default function Periods() {
  * Nothing new is fetched. A factory's `/api/grants` is every grant it has
  * issued, and the page already knows which records the period holds.
  */
+/**
+ * The owner's side of the completeness check.
+ *
+ * A buyer recomputes the root over what it was given and compares it to the
+ * count the factory sealed before the disclosure was made. This is the other
+ * end of that arithmetic: how much of this period each counterparty holds, and
+ * which records went to nobody.
+ *
+ * An undisclosed record is a control rather than a label. Naming a gap and
+ * offering no way to close it is the fault this codebase keeps finding in
+ * itself — the reopened period with no amend button, the banner describing a
+ * door that was not there — and a period nobody holds anything in is exactly
+ * where a factory most needs to release something.
+ */
 function WhoHolds({
-  seal, held, grants, onChange,
+  seal, held, records, grants, orgs, onChange,
 }: {
   seal: PeriodSeal;
   held: string[];
+  records: LedgerRecord[];
   grants: Grant[];
+  orgs: Org[];
   onChange: () => void;
 }) {
-  const [opening, setOpening] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<ApiError | null>(null);
   const inPeriod = new Set(held);
+  const typeOf = new Map(records.map((r) => [r.record_id, r.record_type]));
 
   // Who currently holds each record, and the same tallied by organisation.
   const holdersOf = new Map<string, string[]>();
@@ -220,23 +242,40 @@ function WhoHolds({
   const holders = [...new Set([...live.keys(), ...ended.keys()])].sort();
   const undisclosed = held.filter((id) => !holdersOf.has(id));
 
-  // The terms the rest of this period was released on. A record left out of a
-  // disclosure is nearly always an omission rather than a decision, so the
-  // form offers to put it on the same footing as its forty neighbours instead
-  // of asking a factory to reconstruct a purpose code from memory.
-  const sibling = grants.find((g) => inPeriod.has(g.record_id) && g.status === 'active');
+  // Terms to open the form with. This period first; failing that, any grant
+  // this factory has issued on the same kind of record, which is where the
+  // field name and purpose code for a chemical inventory or a safety
+  // inspection actually live. Failing both, the form starts empty and is
+  // filled in — a period nobody holds anything in has nothing to copy, and
+  // that was the case with no control at all.
+  const counterparties = orgs.filter((o) => !o.is_you && o.on_document_channel);
+  const sameType = grants.filter((g) => typeOf.get(g.record_id) === seal.record_type);
+  const sibling = grants.find((g) => inPeriod.has(g.record_id) && g.status === 'active')
+    ?? sameType.find((g) => g.status === 'active')
+    ?? sameType[0];
+
+  const [opening, setOpening] = useState<string | null>(null);
+  const [who, setWho] = useState(
+    () => sibling?.requester_msp ?? counterparties[0]?.msp_id ?? '',
+  );
+  const [field, setField] = useState(() => sibling?.field_name ?? '');
+  const [purpose, setPurpose] = useState(() => sibling?.purpose_code ?? '');
+  const [until, setUntil] = useState(() => (sibling?.expires_at ?? '2028-12-31').slice(0, 10));
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<ApiError | null>(null);
+
+  const ready = who !== '' && field.trim() !== '' && purpose.trim() !== '' && until !== '';
 
   const disclose = async (recordId: string) => {
-    if (!sibling) return;
     setBusy(true);
     setFailure(null);
     try {
       await api.grant({
         record_id: recordId,
-        requester_msp: sibling.requester_msp,
-        purpose_code: sibling.purpose_code,
-        field_name: sibling.field_name,
-        expires_at: sibling.expires_at,
+        requester_msp: who,
+        purpose_code: purpose.trim(),
+        field_name: field.trim(),
+        expires_at: `${until}T00:00:00Z`,
       });
       setOpening(null);
       onChange();
@@ -261,38 +300,78 @@ function WhoHolds({
                   <span className="small whoholds__to">
                     {to.length === 1 ? shortMsp(to[0]) : `${to.length} holders`}
                   </span>
-                ) : sibling ? (
+                ) : (
                   <button
                     type="button"
                     className="whoholds__disclose small"
-                    onClick={() => setOpening(opening === id ? null : id)}
+                    onClick={() => {
+                      setFailure(null);
+                      setOpening(opening === id ? null : id);
+                    }}
                     aria-expanded={opening === id}
                   >
                     not disclosed
                   </button>
-                ) : (
-                  <span className="small whoholds__to">not disclosed</span>
                 )}
               </li>
             );
           })}
         </ul>
+
         {failure && <Failed error={failure} />}
 
-        {opening && sibling && (
+        {opening && (
           <div className="whoholds__form">
             <p className="small">
-              Release <span className="mono">{opening}</span> to{' '}
-              {shortMsp(sibling.requester_msp)} on the same terms as the rest of this
-              period — <span className="mono">{sibling.field_name}</span>,{' '}
-              <span className="mono">{sibling.purpose_code}</span>, until{' '}
-              {longDate(sibling.expires_at)}.
+              Release <span className="mono">{opening}</span> — one field, to one
+              organisation, until a date you set.
             </p>
+
+            <label className="whoholds__field">
+              <span className="stamp-type">To</span>
+              <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>
+                {counterparties.map((o) => (
+                  <option key={o.msp_id} value={o.msp_id}>{o.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="whoholds__pair">
+              <label className="whoholds__field">
+                <span className="stamp-type">Field</span>
+                <input
+                  className="input mono"
+                  value={field}
+                  placeholder="cas_number"
+                  onChange={(e) => setField(e.target.value)}
+                />
+              </label>
+              <label className="whoholds__field">
+                <span className="stamp-type">Purpose</span>
+                <input
+                  className="input mono"
+                  value={purpose}
+                  placeholder="REACH-COMPLIANCE"
+                  onChange={(e) => setPurpose(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <label className="whoholds__field">
+              <span className="stamp-type">Until</span>
+              <input
+                className="input"
+                type="date"
+                value={until}
+                onChange={(e) => setUntil(e.target.value)}
+              />
+            </label>
+
             <div className="whoholds__formrow">
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
-                disabled={busy}
+                disabled={busy || !ready}
                 onClick={() => void disclose(opening)}
               >
                 {busy ? 'Writing to the chain…' : 'Disclose this record'}
@@ -305,9 +384,13 @@ function WhoHolds({
                 Cancel
               </button>
             </div>
+
             <p className="small whoholds__note">
-              This writes a grant, which is the only thing a disclosure ever is here.
-              The seal does not move — it fixed this period at {commas(seal.record_count)}{' '}
+              {sibling
+                ? 'Prefilled from the terms this kind of record was released on before. '
+                : ''}
+              This writes a grant, which is the only thing a disclosure ever is here. The
+              seal does not move — it fixed this period at {commas(seal.record_count)}{' '}
               before any of it was released, and that is what makes the buyer's check
               mean anything.
             </p>
@@ -367,7 +450,7 @@ function WhoHolds({
           Where it is short, the two roots differ and the shortfall is arithmetic rather
           than an accusation. That is the same fact as this screen, seen from the other
           end.
-          {undisclosed.length > 0 && (
+          {undisclosed.length > 0 && undisclosed.length < held.length && (
             <>
               {' '}Here that shortfall is{' '}
               <span className="mono">{undisclosed.join(', ')}</span>.

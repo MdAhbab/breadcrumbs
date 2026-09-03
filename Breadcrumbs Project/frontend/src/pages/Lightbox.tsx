@@ -58,7 +58,7 @@ export default function Lightbox() {
           return (
           <>
             <Ask
-              factories={orgs.filter((o) => o.kind === 'factory')}
+              factories={orgs.filter((o) => o.kind === 'factory' && o.on_document_channel)}
               periods={[...new Set(records.map((r) => r.period))].sort().reverse()}
               onSent={world.reload}
               org={role?.org ?? ''}

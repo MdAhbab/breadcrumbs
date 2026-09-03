@@ -268,6 +268,9 @@ def grant_access(
     actionable.
     """
     require_capability(user, "write_grants")
+    from .workspace import require_document_member
+
+    require_document_member(body.requester_msp, "hold a grant")
     args = body.model_dump()
     args["grant_id"] = body.grant_id or _next_grant_id(user)
     try:

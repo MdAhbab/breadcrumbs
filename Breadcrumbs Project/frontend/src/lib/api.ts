@@ -622,6 +622,14 @@ export interface Org {
   country: string;
   channels: string[];
   is_you: boolean;
+  /*
+   * Whether this organisation can be a party to a document at all. Every member
+   * is on the model channel, so "is on the network" and "can hold a grant" are
+   * different questions — and two dropdowns were asking the first while meaning
+   * the second, offering counterparties that would be written into a grant they
+   * could never read.
+   */
+  on_document_channel: boolean;
 }
 
 export interface ActivityEvent {

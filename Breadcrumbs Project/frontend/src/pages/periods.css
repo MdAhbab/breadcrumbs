@@ -157,3 +157,8 @@
 }
 .whoholds__form p { margin: 0; }
 .whoholds__formrow { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
+
+.whoholds__field { display: flex; flex-direction: column; gap: 4px; margin-top: var(--s3); }
+.whoholds__field .stamp-type { color: var(--ink-quiet); }
+.whoholds__pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+@media (max-width: 560px) { .whoholds__pair { grid-template-columns: 1fr; } }

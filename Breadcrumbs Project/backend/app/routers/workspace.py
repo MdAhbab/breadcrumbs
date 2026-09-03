@@ -57,6 +57,7 @@ def directory(user: CurrentUser) -> list[dict]:
         name: channel.config.get("members", [])
         for name, channel in network.channels.items()
     }
+    on_documents = set(channels.get(DOCUMENT_CHANNEL, []))
     return [
         {
             "msp_id": msp_id,
@@ -66,9 +67,52 @@ def directory(user: CurrentUser) -> list[dict]:
             "country": COUNTRY_NAME.get(country, country),
             "channels": sorted(c for c, members in channels.items() if msp_id in members),
             "is_you": msp_id == user.msp_id,
+            # Whether this organisation can be a party to a document at all.
+            # Every member is on the model channel, so "is on the network" and
+            # "can hold a grant" are different questions, and the interface was
+            # asking the first when it meant the second — offering Noor and
+            # Crescent as suppliers to request from and as counterparties to
+            # disclose to, neither of which can see a document.
+            "on_document_channel": msp_id in on_documents,
         }
         for msp_id, name, kind, country in ORGS
     ]
+
+
+def _document_channel_members() -> set[str]:
+    channel = ledger.consortium().network.channels.get(DOCUMENT_CHANNEL)
+    return set(channel.config.get("members", [])) if channel else set()
+
+
+def require_document_member(msp_id: str, what: str) -> None:
+    """
+    Refuse an organisation that cannot be a party to a document.
+
+    The contract checks that a grantee is a known MSP, which every consortium
+    member is — so a grant to a factory that is not on the document channel is
+    accepted and written, and is then unusable forever: the organisation named
+    in it cannot read the channel it lives on. Nothing is broken by that and
+    nothing works either, which is the worst of both.
+
+    Checked here rather than in the chaincode because tightening `grant_access`
+    to channel membership is a contract change, and this is the same shape of
+    guard `seals.py` already carries: the layer that knows the channel
+    configuration refusing what the layer below would silently accept.
+    """
+    members = _document_channel_members()
+    if msp_id not in members:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            {
+                "code": "NOT_ON_CHANNEL",
+                "message": (
+                    f"{msp_id} is a consortium member but is not on {DOCUMENT_CHANNEL}, "
+                    f"so it cannot {what}. Documents are shared on that channel and "
+                    "nowhere else; a grant to an organisation outside it would be "
+                    "written and never usable."
+                ),
+            },
+        )
 
 
 # What each chaincode function did, in a sentence rather than a function name.
@@ -368,6 +412,7 @@ def make_request(
     body: NewRequest, user: CurrentUser, db: Session = Depends(get_session)
 ) -> dict:
     require_capability(user, "write_requests")
+    require_document_member(body.supplier_msp, "be asked for a document")
     count = db.query(BuyerRequest).count()
     row = BuyerRequest(
         id=f"br-{count + 1:03d}", requester_msp=user.msp_id,
