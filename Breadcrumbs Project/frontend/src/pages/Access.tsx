@@ -6,9 +6,9 @@ import { Empty, Failed, Result } from '../components/states';
 import { PageHead, Seal } from '../components/ui';
 import {
   ApiError, api, recordLabel, shortMsp,
-  type AccessRequest, type Grant, type LedgerRecord,
+  type AccessRequest, type Grant, type LedgerRecord, type VerificationRow,
 } from '../lib/api';
-import { commas, longDate, period } from '../lib/format';
+import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './access.css';
@@ -39,15 +39,15 @@ const PAGE = 30;
 export default function Access() {
   const { role } = useSession();
   const world = useApi(
-    () => Promise.all([api.requests(), api.grants(), api.records()]) as
-      Promise<[AccessRequest[], Grant[], LedgerRecord[]]>,
+    () => Promise.all([api.requests(), api.grants(), api.records(), api.verifications()]) as
+      Promise<[AccessRequest[], Grant[], LedgerRecord[], VerificationRow[]]>,
     [],
   );
 
   return (
     <div className="acc">
       <Result query={world} pendingLabel="Reading your grants off the chain">
-        {([requests, grants, records]) => {
+        {([requests, grants, records, verifications]) => {
           const pending = requests.filter((r) => r.status === 'pending');
           const answered = requests.filter((r) => r.status !== 'pending');
           const active = grants.filter((g) => g.status === 'active');
@@ -72,6 +72,7 @@ export default function Access() {
                       label="ended or revoked"
                       tone="calm"
                     />
+                    <Tally n={verifications.length} label="verifications" tone="calm" />
                   </div>
                 }
               />
@@ -79,6 +80,7 @@ export default function Access() {
               <Awaiting requests={pending} records={records} onDone={world.reload} />
               <Answered requests={answered} records={records} onDone={world.reload} />
               <Issued grants={grants} records={records} onDone={world.reload} />
+              <Verifications rows={verifications} />
             </>
           );
         }}
@@ -670,5 +672,109 @@ function Tally({ n, label, tone }: { n: number; label: string; tone: 'warn' | 'c
       <span className="atally__n">{commas(n)}</span>
       <span className="small atally__l">{label}</span>
     </div>
+  );
+}
+
+/**
+ * What was actually done with the access you gave.
+ *
+ * A grant is permission; a receipt is use. The two were never shown together —
+ * receipts existed one record at a time on a record's own page, so a factory
+ * could see that Primark held three hundred grants and had no way to learn
+ * whether a single one had ever been exercised. The consortium's operations
+ * page counted them and named none.
+ *
+ * The disclosed value is not here, and is not anywhere: it went to one
+ * counterparty under a grant covering one field. What a receipt proves is that
+ * a verification happened and which root it was checked against.
+ */
+function Verifications({ rows }: { rows: VerificationRow[] }) {
+  const [shown, setShown] = useState(PAGE);
+
+  return (
+    <section className="acc__section">
+      <h2 className="acc__h2">Verifications against your records</h2>
+      <p className="lead acc__lede">
+        A grant is permission. This is use — every proof anyone has run against a
+        document of yours, with the field it covered and whether the root still
+        matches what the ledger holds.
+      </p>
+
+      {rows.length === 0 ? (
+        <Empty
+          title="Nothing verified yet"
+          detail="A receipt appears here the first time a counterparty proves a value against one of your records."
+        />
+      ) : (
+        <>
+          <div className="scroll-x">
+            <table className="acctable">
+              <thead>
+                <tr>
+                  <th scope="col">Record</th>
+                  <th scope="col">Verified by</th>
+                  <th scope="col">Field</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">Root</th>
+                  <th scope="col">When</th>
+                  <th scope="col">Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, shown).map((r) => (
+                  <tr key={r.receipt_id}>
+                    <th scope="row">
+                      <Link
+                        to={`/factory/records/${encodeURIComponent(r.record_id)}`}
+                        className="mono"
+                      >
+                        {r.record_id}
+                      </Link>
+                      <span className="small dim acctable__sub">
+                        {recordLabel(r.record_type)} · {period(r.period)} · {r.site}
+                      </span>
+                    </th>
+                    <td>{shortMsp(r.verifier_msp)}</td>
+                    <td className="mono">{r.field_name}</td>
+                    <td>
+                      <Seal tone={r.result === 'match' ? 'sealed' : 'broken'}>
+                        {r.result === 'match' ? 'matched' : 'no match'}
+                      </Seal>
+                    </td>
+                    <td>
+                      {r.root_matches ? (
+                        <span className="small dim">unchanged since</span>
+                      ) : (
+                        <span className="small acctable__drift">
+                          differs from the ledger now
+                        </span>
+                      )}
+                    </td>
+                    <td className="mono dim">{dateTime(r.verified_at)}</td>
+                    <td>
+                      <Link
+                        to={`/verify/${encodeURIComponent(r.receipt_id)}`}
+                        className="mono small"
+                      >
+                        {r.receipt_id}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {shown < rows.length && (
+            <button
+              type="button"
+              className="btn btn--ghost acc__more"
+              onClick={() => setShown((n) => n + PAGE)}
+            >
+              Show {Math.min(PAGE, rows.length - shown)} more
+            </button>
+          )}
+        </>
+      )}
+    </section>
   );
 }

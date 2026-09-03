@@ -416,6 +416,34 @@ def test_an_organisation_off_the_document_channel_cannot_be_a_party_to_one(clien
         assert asked.json()["detail"]["code"] == "NOT_ON_CHANNEL"
 
 
+def test_verifications_are_listable_by_both_parties_and_nobody_else(client):
+    """
+    Receipts were reachable one record at a time and nowhere else, so "has
+    anyone used what I released" was a question a factory could only answer by
+    opening every record page it had.
+
+    Scoped by the two organisations a receipt names, which is not a widening:
+    the verifier already holds the grant and the owner already owns the
+    document. The disclosed value is in neither this response nor any other.
+    """
+    factory = client.get("/api/receipts", headers=auth(client, "factory")).json()
+    assert factory, "the seeded world has no verification receipts"
+    assert {r["owner_msp"] for r in factory} == {"ApexTextileMSP"}
+    assert all("value" not in r for r in factory)
+    # Newest first, and each says whether the root it recorded still stands.
+    assert [r["verified_at"] for r in factory] == sorted(
+        (r["verified_at"] for r in factory), reverse=True
+    )
+    assert all(isinstance(r["root_matches"], bool) for r in factory)
+
+    buyer = client.get("/api/receipts", headers=auth(client, "buyer")).json()
+    assert {r["verifier_msp"] for r in buyer} == {"PrimarkSourcingMSP"}
+
+    # The observer's screen promises it sees no factory data, and a receipt
+    # names a document.
+    assert client.get("/api/receipts", headers=auth(client, "regulator")).status_code == 403
+
+
 def test_a_revocation_must_say_why(client):
     """The reason goes on the ledger and is shown to the party it cuts off."""
     factory = auth(client, "factory")

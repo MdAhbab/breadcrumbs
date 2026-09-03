@@ -54,24 +54,65 @@ export default function Periods() {
       <Result
         query={world}
         pendingLabel="Reading the seals"
-        isEmpty={([seals]) => seals.length === 0}
+        /* Only a verifier has nothing to do here without a seal. A factory
+           with records and no seals has the most to do of anyone — and this
+           used to swallow the whole page, SealActions included, so the one
+           screen that can close a period refused to render until a period had
+           already been closed. */
+        isEmpty={([seals]) => verifier && seals.length === 0}
         empty={{
           title: 'No sealed periods you can see',
-          detail: verifier
-            ? 'A period becomes visible to you once you hold a live grant against a record inside it.'
-            : 'Nothing has been sealed yet. Sealing a period fixes which records it holds.',
+          detail:
+            'A period becomes visible to you once you hold a live grant against a '
+            + 'record inside it.',
         }}
       >
         {([seals, records, grants, orgs]) => {
           const inBucket = (bucket: string) =>
             records.filter((r) => r.bucket === bucket).map((r) => r.record_id).sort();
 
+          const sealOf = new Map(seals.map((s) => [s.bucket, s]));
+
+          // Every period this caller can see, closed or not.
+          //
+          // The picker was built from seals alone, so a record sealed into a
+          // period that had never been closed — which is what sealing a record
+          // for a new month produces — appeared nowhere on this page. It was in
+          // the open-periods list at the foot of the screen the whole time, and
+          // that is not the same as being findable. A verifier still sees only
+          // sealed periods: an unsealed one has no count to check against, and
+          // saying so is the honest answer rather than hiding the period.
+          const buckets = verifier
+            ? seals.map((s) => s.bucket)
+            : [...new Set([...seals.map((s) => s.bucket), ...records.map((r) => r.bucket)])].sort();
+
+          const label = (bucket: string) => {
+            const seal = sealOf.get(bucket);
+            const [, site, recordType, per] = bucket.split('|');
+            const held = inBucket(bucket).length;
+            const suffix = !seal
+              ? ' — not closed yet'
+              : held < seal.record_count ? ` — short by ${seal.record_count - held}` : '';
+            return `${site} · ${recordLabel(recordType)} · ${periodName(per)}${suffix}`;
+          };
+
           // Default to a period whose disclosure is short — the case worth
-          // looking at. If none is, the first seal will do.
+          // looking at. If none is, the first one will do.
           const short = seals.find((s) => inBucket(s.bucket).length < s.record_count);
-          const current = seals.find((s) => s.bucket === picked)
-            ?? short
-            ?? seals[0];
+          const currentBucket = buckets.find((b) => b === picked)
+            ?? short?.bucket
+            ?? buckets[0];
+          const current = currentBucket ? sealOf.get(currentBucket) ?? null : null;
+          const unsealed = buckets.filter((b) => !sealOf.has(b));
+
+          if (!currentBucket) {
+            return (
+              <Empty
+                title="Nothing to show yet"
+                detail="Seal a record and the period it belongs to appears here."
+              />
+            );
+          }
 
           return (
             <>
@@ -81,25 +122,26 @@ export default function Periods() {
                     <span className="stamp-type">Period to check</span>
                     <select
                       className="input"
-                      value={current.bucket}
+                      value={currentBucket}
                       onChange={(e) => setPicked(e.target.value)}
                     >
-                      {seals.map((s) => {
-                        const held = inBucket(s.bucket).length;
-                        return (
-                          <option key={s.bucket} value={s.bucket}>
-                            {s.site} · {recordLabel(s.record_type)} · {periodName(s.period)}
-                            {held < s.record_count ? ` — short by ${s.record_count - held}` : ''}
-                          </option>
-                        );
-                      })}
+                      {buckets.map((b) => (
+                        <option key={b} value={b}>{label(b)}</option>
+                      ))}
                     </select>
                   </label>
-                  {short && (
+                  {verifier && short && (
                     <p className="small periods__hint">
                       {seals.filter((s) => inBucket(s.bucket).length < s.record_count).length} of{' '}
                       {seals.length} periods you can see disclose fewer records than they
                       were sealed with.
+                    </p>
+                  )}
+                  {!verifier && unsealed.length > 0 && (
+                    <p className="small periods__hint">
+                      {unsealed.length} period{unsealed.length === 1 ? '' : 's'} hold records
+                      and {unsealed.length === 1 ? 'has' : 'have'} never been closed. Closing
+                      one is at the foot of this page.
                     </p>
                   )}
                 </div>
@@ -118,7 +160,7 @@ export default function Periods() {
                     question nobody had asked. The owner's question is who holds
                     this period, and that is the answer the buyer's shortfall
                     comes out of. */}
-                {verifier ? (
+                {verifier && current ? (
                   <CompletenessChecker
                     key={current.bucket}
                     seal={current}
@@ -132,9 +174,10 @@ export default function Periods() {
                        while a different one was being read, which is how a
                        stale "field required" ended up under a list nobody had
                        tried to disclose from. */
-                    key={current.bucket}
+                    key={currentBucket}
+                    bucket={currentBucket}
                     seal={current}
-                    held={inBucket(current.bucket)}
+                    held={inBucket(currentBucket)}
                     records={records}
                     grants={grants}
                     orgs={orgs}
@@ -214,15 +257,18 @@ export default function Periods() {
  * where a factory most needs to release something.
  */
 function WhoHolds({
-  seal, held, records, grants, orgs, onChange,
+  bucket, seal, held, records, grants, orgs, onChange,
 }: {
-  seal: PeriodSeal;
+  bucket: string;
+  /** Null while the period is still open: it holds records and has no count. */
+  seal: PeriodSeal | null;
   held: string[];
   records: LedgerRecord[];
   grants: Grant[];
   orgs: Org[];
   onChange: () => void;
 }) {
+  const [, site, recordType, per] = bucket.split('|');
   const inPeriod = new Set(held);
   const typeOf = new Map(records.map((r) => [r.record_id, r.record_type]));
 
@@ -249,7 +295,7 @@ function WhoHolds({
   // filled in — a period nobody holds anything in has nothing to copy, and
   // that was the case with no control at all.
   const counterparties = orgs.filter((o) => !o.is_you && o.on_document_channel);
-  const sameType = grants.filter((g) => typeOf.get(g.record_id) === seal.record_type);
+  const sameType = grants.filter((g) => typeOf.get(g.record_id) === recordType);
   const sibling = grants.find((g) => inPeriod.has(g.record_id) && g.status === 'active')
     ?? sameType.find((g) => g.status === 'active')
     ?? sameType[0];
@@ -389,10 +435,20 @@ function WhoHolds({
               {sibling
                 ? 'Prefilled from the terms this kind of record was released on before. '
                 : ''}
-              This writes a grant, which is the only thing a disclosure ever is here. The
-              seal does not move — it fixed this period at {commas(seal.record_count)}{' '}
-              before any of it was released, and that is what makes the buyer's check
-              mean anything.
+              This writes a grant, which is the only thing a disclosure ever is here.
+              {seal ? (
+                <>
+                  {' '}The seal does not move — it fixed this period at{' '}
+                  {commas(seal.record_count)} before any of it was released, and that is
+                  what makes the buyer's check mean anything.
+                </>
+              ) : (
+                <>
+                  {' '}This period is not closed, so a buyer receiving it has no fixed
+                  count to check the disclosure against. Close it first if that check is
+                  the point.
+                </>
+              )}
             </p>
           </div>
         )}
@@ -407,30 +463,54 @@ function WhoHolds({
       <div className="whoholds__panel">
         <p className="stamp-type whoholds__head">Who holds this period</p>
         <p className="whoholds__count">
-          <span className="whoholds__n">{commas(seal.record_count)}</span>
+          <span className="whoholds__n">{commas(seal ? seal.record_count : held.length)}</span>
           <span className="small">
-            sealed into {recordLabel(seal.record_type)}, {periodName(seal.period)} ·{' '}
-            {seal.site} · version {seal.version}
+            {seal ? (
+              <>
+                sealed into {recordLabel(recordType)}, {periodName(per)} · {site} ·{' '}
+                version {seal.version}
+              </>
+            ) : (
+              <>
+                records in {recordLabel(recordType)}, {periodName(per)} · {site} ·{' '}
+                <strong>not closed yet</strong>
+              </>
+            )}
           </span>
         </p>
 
+        {!seal && (
+          <p className="small whoholds__note">
+            This period holds records and has never been closed, so there is no count
+            fixed for anyone to check a disclosure against. Until it is closed a record
+            can still be added to it quietly. Closing it is at the foot of this page,
+            under <em>Open periods</em>.
+          </p>
+        )}
+
         {holders.length === 0 ? (
           <p className="small whoholds__note">
-            No counterparty holds a grant against anything in this period. It is sealed
-            and undisclosed, which is a complete answer — the seal exists so a
-            disclosure can be checked against it later, not because one has to be made.
+            No counterparty holds a grant against anything in this period.
+            {seal
+              ? ' It is sealed and undisclosed, which is a complete answer — the seal '
+                + 'exists so a disclosure can be checked against it later, not because '
+                + 'one has to be made.'
+              : ' Nothing has been released from it and it has not been closed.'}
           </p>
         ) : (
           <ul className="whoholds__list">
             {holders.map((msp) => {
               const n = live.get(msp) ?? 0;
-              const short = seal.record_count - n;
+              // Measured against the sealed count where there is one, and
+              // against what the ledger holds today where there is not.
+              const total = seal ? seal.record_count : held.length;
+              const short = total - n;
               const revoked = ended.get(msp) ?? 0;
               return (
                 <li key={msp} className={`whoholds__row ${short > 0 ? 'is-short' : ''}`}>
                   <span className="whoholds__who">{shortMsp(msp)}</span>
                   <span className="mono whoholds__of">
-                    {commas(n)} of {commas(seal.record_count)}
+                    {commas(n)} of {commas(seal ? seal.record_count : held.length)}
                   </span>
                   <span className="small whoholds__gap">
                     {short > 0
@@ -446,7 +526,7 @@ function WhoHolds({
 
         <p className="small whoholds__note">
           A buyer checking this period recomputes the root over what it was given and
-          compares it to the count above, which you fixed before you disclosed anything.
+          compares it to the count you fixed when you closed it.
           Where it is short, the two roots differ and the shortfall is arithmetic rather
           than an accusation. That is the same fact as this screen, seen from the other
           end.

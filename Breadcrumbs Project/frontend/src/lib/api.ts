@@ -218,6 +218,16 @@ export interface Receipt {
   verified_at: string;
 }
 
+/** A receipt with the record it names resolved, as `/api/receipts` returns it. */
+export interface VerificationRow extends Receipt {
+  record_type: string;
+  period: string;
+  site: string;
+  owner_msp: string;
+  /** Whether the root on the receipt still matches what the ledger holds now. */
+  root_matches: boolean;
+}
+
 export interface RecordDetail {
   record: LedgerRecord;
   receipts: Receipt[];
@@ -841,6 +851,8 @@ export const api = {
     post(`/api/grants/${encodeURIComponent(grantId)}/revoke?reason=${encodeURIComponent(reason)}`),
 
   receipt: (id: string) => get<PublicReceipt>(`/api/receipts/${encodeURIComponent(id)}`),
+  /** Every verification this caller is a party to — as owner, or as verifier. */
+  verifications: () => get<VerificationRow[]>('/api/receipts'),
   proveRow: (body: {
     grant_id: string; record_id: string; row_index: number;
     field_name: string; receipt_id: string;

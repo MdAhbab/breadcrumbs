@@ -690,6 +690,62 @@ def sign_attestation(
     return {"id": row.id, "status": row.status, "signed_at": row.signed_at}
 
 
+@router.get("/receipts")
+def list_receipts(user: CurrentUser) -> list[dict]:
+    """
+    Every verification this caller is a party to, in one list.
+
+    Receipts were reachable one record at a time and nowhere else, so the
+    question a factory actually asks — has anyone used what I released, and
+    against which document — could only be answered by opening six hundred
+    record pages one after another. The consortium's operations page counted
+    them and named none.
+
+    Scoped by the two organisations a receipt names. A factory sees
+    verifications against its own records; a buyer or auditor sees the ones it
+    performed. Neither is a new disclosure: the verifier already holds the
+    grant, and the owner already owns the document. The disclosed *value* is not
+    here and is not anywhere — that was released to one counterparty under a
+    grant covering one field.
+    """
+    require_capability(user, "read_records")
+    receipts = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_receipts", {}, user.role
+    ) or []
+    records = {
+        r["record_id"]: r
+        for r in ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_records", {}, user.role)
+    }
+
+    out = []
+    for receipt in receipts:
+        record = records.get(receipt["record_id"])
+        if record is None:
+            continue
+        mine = (
+            record["owner_msp"] == user.msp_id
+            or receipt["verifier_msp"] == user.msp_id
+            or user.role == "consortium"
+        )
+        if not mine:
+            continue
+        out.append(
+            {
+                **receipt,
+                "record_type": record["record_type"],
+                "period": record["period"],
+                "site": record["site"],
+                "owner_msp": record["owner_msp"],
+                # Whether the root on the receipt still matches what the ledger
+                # holds. A receipt is evidence about a moment; this says whether
+                # the moment still stands.
+                "root_matches": receipt["computed_root"] == record["merkle_root"],
+            }
+        )
+    out.sort(key=lambda r: r["verified_at"], reverse=True)
+    return out
+
+
 @router.get("/receipts/{receipt_id}")
 def public_receipt(receipt_id: str) -> dict:
     """

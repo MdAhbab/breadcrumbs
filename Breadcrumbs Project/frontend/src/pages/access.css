@@ -130,3 +130,7 @@
   .acc__counts { gap: var(--s4); }
   .areq__head { flex-direction: column; }
 }
+
+/* A receipt whose root no longer matches the ledger is the one row on this
+   table worth stopping at. */
+.acctable__drift { color: var(--madder); }
