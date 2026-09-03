@@ -47,3 +47,57 @@
   margin: 0 0 4px;
   max-width: 44ch;
 }
+
+/* -- the owner's side of the completeness check ---------------------------- */
+/* Deliberately not styled like the verifier's panel. That one delivers a
+   verdict; this one is a register of who holds what, and a factory reading it
+   is doing bookkeeping rather than being judged. */
+.whoholds {
+  padding: 20px 22px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+}
+
+.whoholds__head { color: var(--ink-quiet); margin: 0 0 var(--s3); }
+
+.whoholds__count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  margin: 0 0 var(--s4);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+.whoholds__count .small { color: var(--ink-quiet); }
+
+.whoholds__n {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.whoholds__list { list-style: none; margin: 0; padding: 0; }
+
+.whoholds__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule-faint);
+}
+.whoholds__row:last-child { border-bottom: 0; }
+
+.whoholds__who { font-weight: 500; min-width: 148px; }
+.whoholds__of { font-size: 15px; }
+/* A shortfall is a fact about a disclosure, not a fault. Ochre, not madder. */
+.whoholds__row.is-short .whoholds__of { color: var(--brass-ink); }
+.whoholds__gap { color: var(--ink-quiet); }
+
+.whoholds__note {
+  color: var(--ink-quiet);
+  max-width: 62ch;
+  margin: var(--s4) 0 0;
+}

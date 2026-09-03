@@ -6,8 +6,11 @@ import { PeriodSealCard } from '../components/PeriodSealCard';
 import { SealActions } from '../components/SealActions';
 import { Empty, Result } from '../components/states';
 import { PageHead } from '../components/ui';
-import { api, recordLabel, type LedgerRecord, type PeriodSeal } from '../lib/api';
-import { period as periodName } from '../lib/format';
+import {
+  api, recordLabel, shortMsp,
+  type Grant, type LedgerRecord, type PeriodSeal,
+} from '../lib/api';
+import { commas, period as periodName } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './periods.css';
@@ -30,7 +33,8 @@ export default function Periods() {
   const { role } = useSession();
   const verifier = role?.id === 'buyer' || role?.id === 'auditor';
   const world = useApi(
-    () => Promise.all([api.seals(), api.records()]) as Promise<[PeriodSeal[], LedgerRecord[]]>,
+    () => Promise.all([api.seals(), api.records(), api.grants()]) as
+      Promise<[PeriodSeal[], LedgerRecord[], Grant[]]>,
     [],
   );
   const [picked, setPicked] = useState<string | null>(null);
@@ -58,7 +62,7 @@ export default function Periods() {
             : 'Nothing has been sealed yet. Sealing a period fixes which records it holds.',
         }}
       >
-        {([seals, records]) => {
+        {([seals, records, grants]) => {
           const inBucket = (bucket: string) =>
             records.filter((r) => r.bucket === bucket).map((r) => r.record_id).sort();
 
@@ -100,12 +104,34 @@ export default function Periods() {
                   )}
                 </div>
 
-                <CompletenessChecker
-                  key={current.bucket}
-                  seal={current}
-                  sealedIds={inBucket(current.bucket)}
-                  disclosedIds={inBucket(current.bucket)}
-                />
+                {/* The completeness check is a verifier's instrument, and only a
+                    verifier's. Its two sets are "what the period holds" and
+                    "what I was given", and for the owner of the records those
+                    are the same set by construction — so run against a factory
+                    it could only ever print "Complete", in second-person copy
+                    written for somebody who had been given something.
+
+                    Which put a green "Complete" on the factory's screen for the
+                    exact period where the buyer's screen says a record was
+                    withheld. Both numbers were right and the pair read as a
+                    contradiction, because the factory's was answering a
+                    question nobody had asked. The owner's question is who holds
+                    this period, and that is the answer the buyer's shortfall
+                    comes out of. */}
+                {verifier ? (
+                  <CompletenessChecker
+                    key={current.bucket}
+                    seal={current}
+                    sealedIds={inBucket(current.bucket)}
+                    disclosedIds={inBucket(current.bucket)}
+                  />
+                ) : (
+                  <WhoHolds
+                    seal={current}
+                    held={inBucket(current.bucket)}
+                    grants={grants}
+                  />
+                )}
               </section>
 
               {role?.id === 'factory' && (
@@ -149,6 +175,86 @@ export default function Periods() {
           );
         }}
       </Result>
+    </div>
+  );
+}
+
+/**
+ * The owner's side of the completeness check.
+ *
+ * A buyer recomputes the root over what it was given and compares it to the
+ * count the factory sealed before the disclosure was made. This is the other
+ * end of that arithmetic: how much of this period each counterparty actually
+ * holds. Where a buyer is short, the number is here, with its name against it.
+ *
+ * Nothing new is fetched. A factory's `/api/grants` is every grant it has
+ * issued, and the page already knows which records the period holds.
+ */
+function WhoHolds({
+  seal, held, grants,
+}: {
+  seal: PeriodSeal;
+  held: string[];
+  grants: Grant[];
+}) {
+  const inPeriod = new Set(held);
+  const live = new Map<string, number>();
+  const ended = new Map<string, number>();
+  for (const g of grants) {
+    if (!inPeriod.has(g.record_id)) continue;
+    const tally = g.status === 'active' ? live : ended;
+    tally.set(g.requester_msp, (tally.get(g.requester_msp) ?? 0) + 1);
+  }
+  const holders = [...new Set([...live.keys(), ...ended.keys()])].sort();
+
+  return (
+    <div className="whoholds">
+      <p className="stamp-type whoholds__head">Who holds this period</p>
+      <p className="whoholds__count">
+        <span className="whoholds__n">{commas(seal.record_count)}</span>
+        <span className="small">
+          sealed into {recordLabel(seal.record_type)}, {periodName(seal.period)} ·{' '}
+          {seal.site} · version {seal.version}
+        </span>
+      </p>
+
+      {holders.length === 0 ? (
+        <p className="small whoholds__note">
+          No counterparty holds a grant against anything in this period. It is sealed
+          and undisclosed, which is a complete answer — the seal exists so that a
+          disclosure can be checked against it later, not because one has to be made.
+        </p>
+      ) : (
+        <ul className="whoholds__list">
+          {holders.map((msp) => {
+            const n = live.get(msp) ?? 0;
+            const short = seal.record_count - n;
+            const revoked = ended.get(msp) ?? 0;
+            return (
+              <li key={msp} className={`whoholds__row ${short > 0 ? 'is-short' : ''}`}>
+                <span className="whoholds__who">{shortMsp(msp)}</span>
+                <span className="mono whoholds__of">
+                  {commas(n)} of {commas(seal.record_count)}
+                </span>
+                <span className="small whoholds__gap">
+                  {short > 0
+                    ? `${commas(short)} never disclosed to them`
+                    : 'holds the whole period'}
+                  {revoked > 0 && ` · ${commas(revoked)} revoked`}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="small whoholds__note">
+        A buyer checking this period recomputes the root over what it was given and
+        compares it to the count above, which you fixed before you disclosed anything.
+        Where it is short, the two roots differ and the shortfall is arithmetic rather
+        than an accusation. That is the same fact as this screen, seen from the other
+        end.
+      </p>
     </div>
   );
 }
