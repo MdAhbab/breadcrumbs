@@ -1,12 +1,12 @@
 import { ArrowLeft, Check, X } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { Failed, Result } from '../components/states';
 import { Disclosure, Field, HashChip, LedgerRow, Seal } from '../components/ui';
 import {
-  ApiError, api, recordLabel, shortMsp,
-  type Grant, type PublicReceipt, type RowProof,
+  ApiError, api, orderGrants, recordLabel, shortMsp,
+  type AccessRequest, type Grant, type PublicReceipt, type RowProof,
 } from '../lib/api';
 import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
@@ -193,7 +193,21 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
     () => (signedIn ? api.grants() : Promise.resolve([] as Grant[])),
     [signedIn],
   );
-  const [picked, setPicked] = useState('');
+  // The requests this caller made, used only to order the list below. A role
+  // that may not read them — the consortium can reach this screen — simply
+  // gets no ordering hint rather than a failed page, so the catch is the
+  // behaviour and not a swallowed error.
+  const asked = useApi(
+    () => (signedIn
+      ? api.requests().catch(() => [] as AccessRequest[])
+      : Promise.resolve([] as AccessRequest[])),
+    [signedIn],
+  );
+  // Arriving from a granted request row, which is the path that makes the
+  // whole request → grant → proof sequence one click rather than a search
+  // through everything the buyer holds.
+  const [params] = useSearchParams();
+  const [picked, setPicked] = useState(() => params.get('grant') ?? '');
   const [row, setRow] = useState(0);
   const [field, setField] = useState('');
   const [proof, setProof] = useState<RowProof | null>(null);
@@ -201,7 +215,16 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
   const [busy, setBusy] = useState(false);
   const back = useWayBack();
 
-  const live = (grants.data ?? []).filter((g) => g.status === 'active');
+  // The ledger hands these back in key order, so a grant issued in answer to a
+  // request made minutes ago sorted below 259 seeded ones and fell outside the
+  // sixty this dropdown used to show — the buyer could watch the factory grant
+  // its request and then have no way to prove anything with it. Every live
+  // grant is listed now, and `orderGrants` puts the ones answering this
+  // caller's own requests at the top.
+  const live = orderGrants(
+    (grants.data ?? []).filter((g) => g.status === 'active'),
+    asked.data ?? [],
+  );
   const grant = live.find((g) => g.grant_id === picked) ?? live[0];
 
   const run = async () => {
@@ -263,14 +286,18 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                   </p>
                 ) : (
                   <>
-                    <Field label="Grant" id="grant">
+                    <Field
+                      label="Grant"
+                      id="grant"
+                      hint={`${live.length} live grant${live.length === 1 ? '' : 's'}, newest first.`}
+                    >
                       <select
                         id="grant"
                         className="input"
                         value={grant?.grant_id ?? ''}
                         onChange={(e) => { setPicked(e.target.value); setProof(null); }}
                       >
-                        {live.slice(0, 60).map((g) => (
+                        {live.map((g) => (
                           <option key={g.grant_id} value={g.grant_id}>
                             {g.record_id} · {g.field_name} · {g.purpose_code}
                           </option>

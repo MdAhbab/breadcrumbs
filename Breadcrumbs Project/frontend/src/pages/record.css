@@ -78,3 +78,9 @@
   padding-top: var(--s5);
   border-top: 1px solid var(--thread-20);
 }
+
+/* Revoking asks first. The reason is written to the ledger and shown to the
+   organisation whose access it ends, so it gets room to be typed. */
+.grant__ask { display: flex; flex-direction: column; gap: 6px; margin-top: var(--s3); }
+.grant__asknote { color: var(--ink-quiet); }
+.grant__askrow { display: flex; gap: var(--s2); flex-wrap: wrap; }

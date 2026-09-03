@@ -24,7 +24,7 @@ from model.consortium import DOCUMENT_CHANNEL, MODEL_CHANNEL, ORGS
 from .. import corpus
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
-from ..db import Attestation, BuyerRequest, get_session
+from ..db import Attestation, BuyerRequest, get_session, notify
 from ..scoping import scoped_records
 
 router = APIRouter(tags=["workspace"])
@@ -288,6 +288,18 @@ def _now() -> str:
     return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _grants_by_id(user) -> dict[str, dict]:
+    """Every grant this caller can see, keyed by identifier."""
+    if user.role in ("buyer", "auditor"):
+        args = {"requester_msp": user.msp_id}
+    elif user.role == "factory":
+        args = {"owner_msp": user.msp_id}
+    else:
+        args = {}
+    grants = ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_grants", args, user.role)
+    return {g["grant_id"]: g for g in grants or []}
+
+
 @router.get("/requests")
 def list_requests(user: CurrentUser, db: Session = Depends(get_session)) -> list[dict]:
     """
@@ -297,6 +309,14 @@ def list_requests(user: CurrentUser, db: Session = Depends(get_session)) -> list
     lives off-chain on purpose: an unanswered question is not a fact about the
     world and does not belong in an append-only record. Only the answer does,
     and the answer is a grant.
+
+    Which is exactly why `status` alone was not enough. It is a stored copy of a
+    decision, and the grant that decision produced lives on the ledger, where it
+    can be revoked through an endpoint that has never heard of this row. So a
+    request whose access had been withdrawn went on reporting "granted" to the
+    buyer it had been withdrawn from. The stored status stays what the factory
+    decided; `grant_status` is read off the chain every time, because the chain
+    is the authority on whether the access is still live.
     """
     require_capability(user, "read_requests")
     query = db.query(BuyerRequest)
@@ -307,16 +327,25 @@ def list_requests(user: CurrentUser, db: Session = Depends(get_session)) -> list
         if user.role == "factory"
         else query
     )
-    return [
-        {
-            "id": r.id, "requester_msp": r.requester_msp, "supplier_msp": r.supplier_msp,
-            "record_type": r.record_type, "period": r.period,
-            "item_reference": r.item_reference, "purpose_code": r.purpose_code,
-            "field_name": r.field_name, "expires_at": r.expires_at,
-            "status": r.status, "grant_id": r.grant_id, "requested_at": r.requested_at,
-        }
-        for r in query.order_by(BuyerRequest.requested_at.desc()).all()
-    ]
+    rows = query.order_by(BuyerRequest.requested_at.desc()).all()
+    grants = _grants_by_id(user) if any(r.grant_id for r in rows) else {}
+    out = []
+    for r in rows:
+        grant = grants.get(r.grant_id) if r.grant_id else None
+        out.append(
+            {
+                "id": r.id, "requester_msp": r.requester_msp, "supplier_msp": r.supplier_msp,
+                "record_type": r.record_type, "period": r.period,
+                "item_reference": r.item_reference, "purpose_code": r.purpose_code,
+                "field_name": r.field_name, "expires_at": r.expires_at,
+                "status": r.status, "grant_id": r.grant_id, "requested_at": r.requested_at,
+                "decline_reason": r.decline_reason,
+                "grant_status": grant["status"] if grant else None,
+                "grant_record_id": grant["record_id"] if grant else None,
+                "grant_revoked_reason": grant.get("revoked_reason") if grant else None,
+            }
+        )
+    return out
 
 
 @router.post("/requests", status_code=status.HTTP_201_CREATED)
@@ -333,6 +362,13 @@ def make_request(
         expires_at=body.expires_at, status="pending", requested_at=_now(),
     )
     db.add(row)
+    notify(
+        db,
+        body.supplier_msp,
+        "access_request",
+        f"{user.org} asked for {body.field_name} from "
+        f"{body.record_type.replace('_', ' ')}, {body.period} — {body.purpose_code}",
+    )
     db.commit()
     return {"id": row.id, "status": row.status}
 
@@ -349,6 +385,17 @@ def answer_request(
     — "payroll, May, that site" — and a grant is specific. The contract still
     decides whether this caller may grant against that record; nothing is
     pre-authorised by the request existing.
+
+    A request can be answered more than once, and that is the whole point of the
+    version suffix below. Revocation is permanent and stays on the chain with
+    its reason; what a factory needs after revoking in error is not an undo but
+    the ability to grant the access *again*, visibly, as a new grant. Deriving
+    the identifier from the request alone made that impossible — the second
+    grant collided with the first and the contract refused it — so a single
+    misclick ended a buyer's request for good.
+
+    What is still refused is granting on top of a live grant. That is not a
+    recovery, it is a duplicate, and the message says which.
     """
     require_capability(user, "write_grants")
     row = db.get(BuyerRequest, request_id)
@@ -358,8 +405,33 @@ def answer_request(
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "this request was not addressed to you"
         )
-    if row.status != "pending":
-        raise HTTPException(status.HTTP_409_CONFLICT, f"already {row.status}")
+
+    issued = _grants_by_id(user)
+    live = issued.get(row.grant_id) if row.grant_id else None
+    if live is not None and live["status"] == "active":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "GRANT_IS_LIVE",
+                "message": (
+                    f"{row.grant_id} is still active. Revoke it before issuing "
+                    "access again, so there is never more than one live grant "
+                    "answering the same request."
+                ),
+            },
+        )
+    if row.status == "declined" and live is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "REQUEST_DECLINED",
+                "message": (
+                    "This request was declined. Reconsider it first — that puts it "
+                    "back in front of you as a decision rather than answering one "
+                    "you have already refused."
+                ),
+            },
+        )
     if not body.record_id:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -367,7 +439,12 @@ def answer_request(
             "names a document",
         )
 
-    grant_id = f"g-{row.id}"
+    # One grant per attempt, numbered. The first keeps the plain identifier so
+    # nothing that already refers to it has to change.
+    stem = f"g-{row.id}"
+    previous = [k for k in issued if k == stem or k.startswith(f"{stem}-r")]
+    grant_id = stem if not previous else f"{stem}-r{len(previous) + 1}"
+
     try:
         ledger.invoke(
             DOCUMENT_CHANNEL, "doccustody", "grant_access",
@@ -384,10 +461,21 @@ def answer_request(
             status.HTTP_400_BAD_REQUEST, {"code": exc.code, "message": exc.message}
         ) from exc
 
+    reissued = bool(previous)
     row.status = "granted"
     row.grant_id = grant_id
+    row.decline_reason = None
+    notify(
+        db,
+        row.requester_msp,
+        "access_granted",
+        f"{user.org} {'re-issued' if reissued else 'granted'} access to "
+        f"{row.field_name} on {body.record_id} until {row.expires_at[:10]}",
+    )
     db.commit()
-    return {"id": row.id, "status": row.status, "grant_id": grant_id}
+    return {
+        "id": row.id, "status": row.status, "grant_id": grant_id, "reissued": reissued,
+    }
 
 
 @router.post("/requests/{request_id}/decline")
@@ -395,6 +483,13 @@ def decline_request(
     request_id: str, body: Decision, user: CurrentUser,
     db: Session = Depends(get_session),
 ) -> dict:
+    """
+    Refuse a request, and say why.
+
+    The reason used to be accepted, parsed and dropped, so the buyer learned
+    that it had been refused and nothing else. A refusal a counterparty cannot
+    understand is one it will simply send again.
+    """
     require_capability(user, "write_grants")
     row = db.get(BuyerRequest, request_id)
     if row is None:
@@ -403,7 +498,79 @@ def decline_request(
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "this request was not addressed to you"
         )
+    # A request cannot be refused while the grant answering it is still live.
+    # Nothing stopped that before, and it produced a row saying "declined" over
+    # access the buyer could still use — the same disagreement between the store
+    # and the chain that `list_requests` exists to prevent, in the other
+    # direction. Ending access is revocation, and revocation is on the ledger.
+    live = _grants_by_id(user).get(row.grant_id) if row.grant_id else None
+    if live is not None and live["status"] == "active":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "GRANT_IS_LIVE",
+                "message": (
+                    f"{row.grant_id} answers this request and is still active. "
+                    "Revoke the grant — declining the request would not end the "
+                    "access it already produced."
+                ),
+            },
+        )
     row.status = "declined"
+    row.decline_reason = (body.reason or "").strip() or None
+    notify(
+        db,
+        row.requester_msp,
+        "access_declined",
+        f"{user.org} declined your request for {row.field_name}, {row.period}"
+        + (f" — {row.decline_reason}" if row.decline_reason else ""),
+    )
+    db.commit()
+    return {"id": row.id, "status": row.status, "reason": row.decline_reason}
+
+
+@router.post("/requests/{request_id}/reconsider")
+def reconsider_request(
+    request_id: str, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    Put a declined request back in front of the factory as an open decision.
+
+    A decline was terminal: the status went to "declined" and every other
+    handler requires "pending", so one misclick ended a buyer's request with no
+    recourse at either end. This is the way back, and it is deliberately not on
+    the ledger. The module's own rule applies — an unanswered question is not a
+    fact about the world, and a question that has been re-opened is still an
+    unanswered question. What the ledger records is grants, and no grant is
+    written or erased here.
+    """
+    require_capability(user, "write_grants")
+    row = db.get(BuyerRequest, request_id)
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no request {request_id}")
+    if row.supplier_msp != user.msp_id:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "this request was not addressed to you"
+        )
+    if row.status != "declined":
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "NOT_DECLINED",
+                "message": (
+                    f"This request is {row.status}. Only a declined request can be "
+                    "reconsidered."
+                ),
+            },
+        )
+    row.status = "pending"
+    row.decline_reason = None
+    notify(
+        db,
+        row.requester_msp,
+        "access_request",
+        f"{user.org} reopened your request for {row.field_name}, {row.period}",
+    )
     db.commit()
     return {"id": row.id, "status": row.status}
 

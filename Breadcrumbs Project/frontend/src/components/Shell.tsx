@@ -22,6 +22,10 @@ const NAV: Record<RoleId, { to: string; label: string; icon: typeof LayoutGrid }
     { to: '/factory/dashboard', label: 'Loom floor', icon: LayoutGrid },
     { to: '/factory/upload', label: 'Seal a record', icon: UploadIcon },
     { to: '/factory/records', label: 'Bolts', icon: FileStack },
+    // The factory is one half of every disclosure this product makes, and
+    // until this existed its only control for that was a panel at the foot
+    // of the shift log.
+    { to: '/factory/access', label: 'Access', icon: KeyRound },
     { to: '/periods', label: 'Closed periods', icon: CalendarCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],

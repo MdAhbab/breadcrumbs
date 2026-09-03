@@ -31,7 +31,13 @@ export default function RecordDetail() {
 
   return (
     <div className="rec">
-      <Link to={role?.id === 'factory' ? '/factory/records' : '/buyer/portal'} className="rec__back">
+      {/* The factory has a record list to go back to; everybody else goes to
+          their own workspace. Sending an auditor or a regulator to the buyer's
+          portal is the same bug as the one on /verify, one page over. */}
+      <Link
+        to={role?.id === 'factory' ? '/factory/records' : role?.landing ?? '/'}
+        className="rec__back"
+      >
         <ArrowLeft size={14} /> Back
       </Link>
 
@@ -194,6 +200,16 @@ export default function RecordDetail() {
   );
 }
 
+/**
+ * One grant, and the one irreversible thing this page can do to it.
+ *
+ * Revoking used to be a single unguarded click that wrote the fixed string
+ * "Revoked by the record owner from the bolt view" — which records the screen
+ * the button was on rather than why access was ended. That string goes onto the
+ * ledger permanently, under the identity that pressed it, and is shown to the
+ * organisation whose access it ends. So it asks, and it asks before rather than
+ * after.
+ */
 function GrantRow({
   grant, canRevoke, onChange,
 }: {
@@ -202,13 +218,17 @@ function GrantRow({
   onChange: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [reason, setReason] = useState('');
   const [failure, setFailure] = useState<ApiError | null>(null);
 
   const revoke = async () => {
     setBusy(true);
     setFailure(null);
     try {
-      await api.revoke(grant.grant_id, 'Revoked by the record owner from the bolt view');
+      await api.revoke(grant.grant_id, reason.trim());
+      setAsking(false);
+      setReason('');
       onChange();
     } catch (err) {
       setFailure(err instanceof ApiError ? err : new ApiError(0, 'the revocation failed'));
@@ -237,16 +257,46 @@ function GrantRow({
       </p>
       {grant.revoked_reason && <p className="small grant__meta">{grant.revoked_reason}</p>}
       {failure && <Failed error={failure} />}
-      {canRevoke && (
+      {canRevoke && (asking ? (
+        <div className="grant__ask">
+          <input
+            className="input"
+            placeholder="Why is this being revoked?"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            autoFocus
+          />
+          <p className="small grant__asknote">
+            Permanent, and written to the ledger with your identity. Access can be
+            granted again afterwards, as a new grant.
+          </p>
+          <div className="grant__askrow">
+            <button
+              type="button"
+              className="btn btn--danger btn--sm"
+              onClick={() => void revoke()}
+              disabled={busy || reason.trim().length < 4}
+            >
+              {busy ? 'Revoking…' : 'Revoke, permanently'}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => { setAsking(false); setReason(''); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
         <button
           type="button"
           className="btn btn--danger btn--sm grant__revoke"
-          onClick={() => void revoke()}
-          disabled={busy}
+          onClick={() => setAsking(true)}
         >
-          {busy ? 'Revoking…' : 'Revoke'}
+          Revoke
         </button>
-      )}
+      ))}
     </li>
   );
 }

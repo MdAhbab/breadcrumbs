@@ -91,6 +91,10 @@ class BuyerRequest(Base):
     status = Column(String, nullable=False, default="pending")
     grant_id = Column(String, nullable=True)
     requested_at = Column(String, nullable=False)
+    # Why it was declined, in the factory's own words. The endpoint used to
+    # accept a reason, parse it and drop it, so a buyer was told a request had
+    # been refused and never told why.
+    decline_reason = Column(String, nullable=True)
 
 
 class Attestation(Base):
@@ -143,6 +147,35 @@ class Notification(Base):
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    """
+    Bring an existing SQLite file up to the current model.
+
+    `create_all` creates missing *tables* and never touches a table that already
+    exists, so a column added to a model after somebody has run the app leaves
+    them with a database the code cannot query — on a laptop being used to
+    demonstrate the product, at the worst possible moment. Every table here is
+    emptied and rebuilt by the seed on each boot, so this is only ever adding a
+    column to something with no rows worth keeping.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    with engine.begin() as connection:
+        for table in Base.metadata.sorted_tables:
+            if not inspector.has_table(table.name):
+                continue
+            present = {c["name"] for c in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in present:
+                    continue
+                kind = column.type.compile(engine.dialect)
+                connection.execute(
+                    text(f"ALTER TABLE {table.name} ADD COLUMN {column.name} {kind}")
+                )
 
 
 def get_session() -> Iterator[Session]:
@@ -155,3 +188,31 @@ def get_session() -> Iterator[Session]:
 
 def as_dict(row: Any) -> dict[str, Any]:
     return {c.name: getattr(row, c.name) for c in row.__table__.columns}
+
+
+def notify(session: Session, audience_msp: str, kind: str, body: str) -> Notification:
+    """
+    Tell one organisation that something happened to it.
+
+    Off-chain on purpose, and deliberately thin: a notification is a pointer at
+    somewhere else in the product, never the record of the thing itself. The
+    thing itself is the grant, the revocation or the request, and those live
+    where they belong.
+
+    The seed ships four of these, so the bell in the sidebar existed and was
+    only ever showing history. A request made through the running app wrote
+    none, which meant the one event in this system that requires a human being
+    to do something was the one event nobody was told about.
+    """
+    import datetime as dt
+
+    row = Notification(
+        id=f"n-{session.query(Notification).count() + 1:03d}",
+        audience_msp=audience_msp,
+        kind=kind,
+        body=body,
+        created_at=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        read=False,
+    )
+    session.add(row)
+    return row

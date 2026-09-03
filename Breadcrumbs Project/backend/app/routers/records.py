@@ -22,7 +22,7 @@ from model.merkle import MerkleTree, verify_disclosure
 
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
-from ..db import StoredDocument, get_session
+from ..db import StoredDocument, get_session, notify
 
 router = APIRouter(tags=["records"])
 
@@ -100,9 +100,27 @@ def list_records(user: CurrentUser) -> list[dict]:
 
 @router.get("/records/{record_id}")
 def get_record(record_id: str, user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    """
+    One record, if this caller is entitled to it.
+
+    Scoped through `scoped_records` rather than by fetching the record and
+    hoping, because this endpoint was the one hole in an otherwise complete
+    rule. `/api/records` filters the listing, `/screen` refuses a document you
+    may not read, `/witness-requirement` and `/verify` both 404 and each has a
+    test named after the rule — and this one served any record on the channel to
+    any signed-in buyer that knew an identifier. The record page is exactly
+    where someone would try a URL by hand.
+
+    A record outside scope is a 404, not a 403, and that is the same choice the
+    sibling endpoints make: "you may not see this record" and "there is no such
+    record" have to be indistinguishable, or the refusal itself confirms the
+    document exists.
+    """
     require_capability(user, "read_records")
-    record = ledger.query(
-        DOCUMENT_CHANNEL, "doccustody", "get_record", {"record_id": record_id}, user.role
+    from ..scoping import scoped_records
+
+    record = next(
+        (r for r in scoped_records(user) if r["record_id"] == record_id), None
     )
     if record is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {record_id}")
@@ -245,16 +263,56 @@ def grant_access(body: GrantRequest, user: CurrentUser) -> dict:
 
 
 @router.post("/grants/{grant_id}/revoke")
-def revoke_access(grant_id: str, reason: str, user: CurrentUser) -> dict:
+def revoke_access(
+    grant_id: str, reason: str, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    End a grant, permanently, with the reason on the chain.
+
+    The reason is required and is not decoration: it is written into the grant,
+    it is shown to the organisation whose access it ends, and it cannot be
+    edited afterwards. The interface used to send a fixed string naming the
+    screen the button was on, which records where it was done rather than why.
+
+    Revocation is not reversible, by design — see the contract. Access can be
+    granted again, and that is a new grant with its own identifier, visible as
+    a new grant rather than as the old one quietly coming back.
+    """
     require_capability(user, "write_grants")
+    if not reason.strip():
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            {
+                "code": "NO_REASON",
+                "message": (
+                    "Say why. The reason goes on the ledger with your identity and "
+                    "is shown to the organisation whose access this ends."
+                ),
+            },
+        )
+    grants = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_grants", {"owner_msp": user.msp_id}, user.role
+    )
+    grant = next((g for g in grants if g["grant_id"] == grant_id), None)
     try:
-        return ledger.invoke(
+        result = ledger.invoke(
             DOCUMENT_CHANNEL, "doccustody", "revoke_access",
-            {"grant_id": grant_id, "reason": reason, "timestamp": now()},
+            {"grant_id": grant_id, "reason": reason.strip(), "timestamp": now()},
             role=user.role, timestamp=now(),
         )
     except ledger.LedgerError as exc:
         raise _fail(exc) from exc
+
+    if grant is not None:
+        notify(
+            db,
+            grant["requester_msp"],
+            "grant_revoked",
+            f"{user.org} withdrew your access to {grant['field_name']} on "
+            f"{grant['record_id']} — {reason.strip()}",
+        )
+        db.commit()
+    return result
 
 
 @router.post("/verify")

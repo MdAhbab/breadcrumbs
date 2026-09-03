@@ -60,13 +60,18 @@ export default function LoomFloor() {
                     {pending.length > 0 && ` · ${pending.length} request awaiting you`}
                   </p>
                 </div>
+                {/* Both were figures with nothing behind them: a dashboard
+                    counting revoked grants on a page that could not revoke one,
+                    and no screen anywhere that listed either. */}
                 <div className="lf__counts">
                   <Count
+                    to="/factory/access"
                     n={pending.length}
                     label="awaiting your response"
                     tone={pending.length ? 'warn' : 'calm'}
                   />
                   <Count
+                    to="/factory/access"
                     n={revoked.length}
                     label="grants you have revoked"
                     tone={revoked.length ? 'warn' : 'calm'}
@@ -214,7 +219,12 @@ function Inbox({
 
   return (
     <div className="shiftlog__requests">
-      <p className="stamp-type">Awaiting you</p>
+      <div className="shiftlog__head">
+        <p className="stamp-type">Awaiting you</p>
+        <Link to="/factory/access" className="shiftlog__all">
+          access <ArrowUpRight size={12} />
+        </Link>
+      </div>
       {failure && <Failed error={failure} />}
       {requests.length === 0 ? (
         <p className="small shiftlog__none">Nothing waiting.</p>
@@ -261,14 +271,12 @@ function Inbox({
                 >
                   {busy === r.id ? 'Writing…' : 'Grant one field'}
                 </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  disabled={busy === r.id}
-                  onClick={() => act(r.id, () => api.declineRequest(r.id))}
-                >
-                  Decline
-                </button>
+                {/* Declining asks for a reason, and a reason wants more room
+                    than a sidebar column has. The buyer is told why, so this is
+                    not a refusal that can be fired off by accident. */}
+                <Link to="/factory/access" className="btn btn--ghost btn--sm">
+                  Decline…
+                </Link>
               </div>
             </div>
           );
@@ -278,11 +286,13 @@ function Inbox({
   );
 }
 
-function Count({ n, label, tone }: { n: number; label: string; tone: 'warn' | 'calm' }) {
+function Count({
+  n, label, tone, to,
+}: { n: number; label: string; tone: 'warn' | 'calm'; to: string }) {
   return (
-    <div className={`count count--${tone}`}>
+    <Link to={to} className={`count count--${tone}`}>
       <span className="count__n">{n}</span>
       <span className="small count__l">{label}</span>
-    </div>
+    </Link>
   );
 }

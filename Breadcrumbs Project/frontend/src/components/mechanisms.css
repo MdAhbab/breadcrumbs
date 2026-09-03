@@ -486,6 +486,31 @@
 .sealact__row:last-child { border-bottom: 0; }
 
 .sealact__reopen { display: flex; flex-direction: column; gap: 8px; }
+
+/* A reopened period is mid-revision, and the row says so rather than sitting in
+   the list looking like the closed ones. */
+.sealact__reo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.sealact__reo:last-child { border-bottom: 0; }
+
+.sealact__adds { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.sealact__adds legend { color: var(--ink-quiet); padding: 0; margin-bottom: 4px; }
+
+.sealact__add {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 8px;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--r-sm);
+}
+.sealact__add input { margin: 0; }
 .sealact__actions { display: flex; gap: 8px; }
 
 .sealact__warn {

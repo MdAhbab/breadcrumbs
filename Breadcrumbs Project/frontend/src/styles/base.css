@@ -110,6 +110,32 @@ a {
   text-transform: uppercase;
 }
 
+/* Tertiary type: a timestamp beside a fact, a block number beside a sentence.
+   Used twenty-five times across the application and defined in three
+   page-scoped table rules, so everywhere else it did nothing at all and the
+   quiet half of a line was set at the same weight as the loud half.
+
+   It resolves against its ground the same way `--brass-type` does, below: the
+   light value is unreadable on indigo, and the dark islands take the lifted
+   one. */
+.dim {
+  color: var(--dim-type, var(--thread-type));
+}
+
+/* Present to a screen reader, absent to everything else. For a table column
+   whose header would be noise on screen and is required off it. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Numbers that stack must line up. */
 table,
 .tabular,
@@ -262,6 +288,8 @@ button:disabled {
 .weave-track {
   --btn-off-bg: rgba(244, 241, 232, 0.09);
   --btn-off-fg: rgba(244, 241, 232, 0.58);
+  /* And so does quiet type: #6f6a5e is 3.3:1 on indigo-deep. */
+  --dim-type: var(--thread-lit);
 }
 
 /* -- horizontal scrollers announce themselves ----------------------------- */

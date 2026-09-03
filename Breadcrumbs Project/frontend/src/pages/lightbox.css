@@ -62,5 +62,26 @@
 .reqrow__field { color: var(--brass-type); font-size: 12px; }
 .reqrow__meta { color: var(--ink-quiet); }
 .reqrow__reason { color: var(--madder); }
+/* The document the grant is against. Quieter than the field name: it is what
+   distinguishes two otherwise identical grants, not what you read first. */
+.reqrow__doc { color: var(--ink-quiet); font-size: 11px; opacity: 0.75; }
+
+/* The step after "granted", said on the row that says it. Without this the
+   buyer had to find one grant among two hundred and fifty-nine to act on the
+   answer it had just been given. */
+.reqrow__prove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--brass-type);
+  text-decoration: none;
+  border-bottom: 1px solid var(--brass-30);
+}
+.reqrow__prove:hover { border-bottom-color: var(--brass-type); }
 
 .lbx__side-note { color: var(--ink-quiet); margin-top: var(--s4); }

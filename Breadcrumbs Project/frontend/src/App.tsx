@@ -11,6 +11,7 @@ import Login from './pages/Login';
 // The landing page and the sign-in are the two ways in, so they ship with the
 // shell. Everything behind the door is fetched when it is first opened, which
 // is what gives the loading state a job and keeps the entry bundle small.
+const Access = lazy(() => import('./pages/Access'));
 const Anchor = lazy(() => import('./pages/Anchor'));
 const AuditorBench = lazy(() => import('./pages/AuditorBench'));
 const Chamber = lazy(() => import('./pages/Chamber'));
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="/factory/upload" element={<Upload />} />
           <Route path="/factory/records" element={<Records />} />
           <Route path="/factory/records/:id" element={<RecordDetail />} />
+          <Route path="/factory/access" element={<Access />} />
           <Route path="/buyer/portal" element={<Lightbox />} />
           <Route path="/auditor/workspace" element={<AuditorBench />} />
           <Route path="/governance" element={<Chamber />} />

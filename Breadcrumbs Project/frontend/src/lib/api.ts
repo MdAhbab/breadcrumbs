@@ -675,9 +675,20 @@ export interface AccessRequest {
   purpose_code: string;
   field_name: string;
   expires_at: string;
+  /** The factory's decision. What became of the grant it wrote is below. */
   status: 'pending' | 'granted' | 'declined';
   grant_id: string | null;
   requested_at: string;
+  decline_reason: string | null;
+  /*
+   * Read off the ledger on every request rather than stored beside `status`.
+   * A grant is revoked through an endpoint that has never heard of this row,
+   * so a stored copy went stale the moment access was withdrawn — and the
+   * screen that went stale was the buyer's, about its own access.
+   */
+  grant_status: Grant['status'] | null;
+  grant_record_id: string | null;
+  grant_revoked_reason: string | null;
 }
 
 export interface Incident {
@@ -891,12 +902,17 @@ export const api = {
     expires_at: string;
   }) => post<{ id: string; status: string }>('/api/requests', body),
   answerRequest: (id: string, recordId: string) =>
-    post<{ id: string; status: string; grant_id: string }>(
+    post<{ id: string; status: string; grant_id: string; reissued: boolean }>(
       `/api/requests/${encodeURIComponent(id)}/grant`, { record_id: recordId },
     ),
   declineRequest: (id: string, reason?: string) =>
-    post<{ id: string; status: string }>(
+    post<{ id: string; status: string; reason: string | null }>(
       `/api/requests/${encodeURIComponent(id)}/decline`, { reason },
+    ),
+  /** Put a declined request back in front of the factory. Off-chain, like the request. */
+  reconsiderRequest: (id: string) =>
+    post<{ id: string; status: string }>(
+      `/api/requests/${encodeURIComponent(id)}/reconsider`,
     ),
 
   sla: () => get<Sla>('/api/ops/sla'),
@@ -947,6 +963,34 @@ export const taskLabel = (t: string): string =>
 
 export const recordLabel = (t: string): string =>
   RECORD_LABEL[t] ?? t.replace(/_/g, ' ');
+
+/**
+ * The order a holder should read its own grants in.
+ *
+ * Not simply newest first, and the reason is worth stating because "sort by
+ * date" is the obvious fix and it does not work here. The demo world runs on
+ * the corpus's timeline, which reaches into 2027: 202 of the buyer's 259 seeded
+ * grants carry a `granted_at` later than the actual date, so a grant written
+ * this minute still sorts below them. A list truncated to eight would go on
+ * hiding the one grant the holder is waiting for.
+ *
+ * What does hold, whatever the clock says, is that a grant answering a request
+ * this organisation made is the one it is looking for. Those come first, in the
+ * order the requests were made; everything else follows, newest first.
+ */
+export function orderGrants(grants: Grant[], requests: AccessRequest[]): Grant[] {
+  const asked = new Map<string, number>();
+  requests.forEach((r, index) => {
+    if (r.grant_id) asked.set(r.grant_id, index);
+  });
+  return [...grants].sort((a, b) => {
+    const [ra, rb] = [asked.get(a.grant_id), asked.get(b.grant_id)];
+    if (ra !== undefined && rb !== undefined) return ra - rb;
+    if (ra !== undefined) return -1;
+    if (rb !== undefined) return 1;
+    return b.granted_at.localeCompare(a.granted_at);
+  });
+}
 
 /** "ApexTextileMSP" → "Apex Textile" when the directory has not loaded yet. */
 export const shortMsp = (msp: string): string =>

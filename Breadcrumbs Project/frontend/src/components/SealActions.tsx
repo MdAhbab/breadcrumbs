@@ -1,13 +1,14 @@
 import { AlertTriangle, Lock, Unlock } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { ApiError, api, recordLabel, type LedgerRecord, type PeriodSeal } from '../lib/api';
-import { commas, period as periodName } from '../lib/format';
+import { commas, longDate, period as periodName } from '../lib/format';
 import { Failed } from './states';
 import './mechanisms.css';
 
 /**
- * Closing a period, and reopening one.
+ * Closing a period, reopening one, and closing it again.
  *
  * The interface could show seals without ever making one, and it did. But a
  * seal is the mechanism this whole product is about, and a screen that can only
@@ -18,6 +19,13 @@ import './mechanisms.css';
  * refuses to answer with the old figure — it reports the period as mid-revision
  * instead. That honest state was reachable in the contract and unreachable from
  * the product.
+ *
+ * And then it was a trap. A reopened bucket counted as sealed for the
+ * open-periods filter, so it was never offered a close button; `amendSeal` was
+ * defined in the API client and called from nowhere; and this component
+ * rendered a banner saying N periods were reopened and not yet re-sealed while
+ * offering no way to re-seal one. The chaincode's own docstring names that
+ * failure: the error message described a door that was not there.
  */
 export function SealActions({
   records,
@@ -32,12 +40,17 @@ export function SealActions({
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [reason, setReason] = useState('');
   const [reopening, setReopening] = useState<string | null>(null);
+  const [amending, setAmending] = useState<string | null>(null);
+  const [amendReason, setAmendReason] = useState('');
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
 
-  // Buckets the ledger holds records for but has never closed.
-  const sealed = new Set(seals.map((s) => s.bucket));
+  // Buckets the ledger holds records for but has never closed. A reopened
+  // bucket is not one of these — it has a seal, it is mid-revision, and it
+  // belongs in the section below with the amendment control.
+  const known = new Set(seals.map((s) => s.bucket));
   const open = new Map<string, LedgerRecord[]>();
   for (const record of records) {
-    if (sealed.has(record.bucket)) continue;
+    if (known.has(record.bucket)) continue;
     const held = open.get(record.bucket) ?? [];
     held.push(record);
     open.set(record.bucket, held);
@@ -49,7 +62,9 @@ export function SealActions({
     try {
       await run();
       setReopening(null);
+      setAmending(null);
       setReason('');
+      setAmendReason('');
       onChange();
     } catch (err) {
       setFailure(err instanceof ApiError ? err : new ApiError(0, 'that did not work'));
@@ -72,6 +87,22 @@ export function SealActions({
 
   const reopened = seals.filter((s) => s.status === 'reopened');
 
+  /**
+   * The records an amendment would be adding.
+   *
+   * A seal carries a count and a root, never a list, so the membership it was
+   * closed with cannot be read back off it. What can be read is when it was
+   * reopened — and the record an amendment exists for is by definition one
+   * committed after that. Anything else in the bucket was already inside the
+   * seal, and naming it as "added" would put a false claim on the chain.
+   */
+  const lateIn = (s: PeriodSeal): LedgerRecord[] => {
+    const since = s.reopenings?.[s.reopenings.length - 1]?.reopened_at ?? s.sealed_at;
+    return records
+      .filter((r) => r.bucket === s.bucket && r.committed_at >= since)
+      .sort((a, b) => a.record_id.localeCompare(b.record_id));
+  };
+
   return (
     <div className="sealact">
       {failure && <Failed error={failure} />}
@@ -85,6 +116,131 @@ export function SealActions({
             membership as mid-revision rather than serving the old count.
           </p>
         </div>
+      )}
+
+      {/* -- reopened, waiting to be closed again --------------------------- */}
+      {reopened.length > 0 && (
+        <>
+          <p className="stamp-type sealact__head">Reopened, waiting to be re-sealed</p>
+          <ul className="sealact__list">
+            {reopened.map((s) => {
+              const late = lateIn(s);
+              const chosen = picked[s.bucket] ?? late.map((r) => r.record_id);
+              const last = s.reopenings?.[s.reopenings.length - 1];
+              const [, , , per] = s.bucket.split('|');
+              return (
+                <li key={s.bucket} className="sealact__reo">
+                  <div>
+                    <p className="sealact__what">
+                      {recordLabel(s.record_type)} · {s.site} · {periodName(s.period)}
+                    </p>
+                    <p className="small sealact__meta">
+                      Sealed at {commas(s.record_count)} record
+                      {s.record_count === 1 ? '' : 's'}, version {s.version}. Reopened
+                      {last && <> on {longDate(last.reopened_at)}</>}
+                      {last?.reason && <> — {last.reason}</>}. The ledger now holds{' '}
+                      {commas(records.filter((r) => r.bucket === s.bucket).length)} for this
+                      period.
+                    </p>
+                  </div>
+
+                  {late.length === 0 ? (
+                    <p className="small sealact__meta">
+                      Nothing has been committed to this period since it was reopened, and
+                      an amendment must add at least one record — naming one that was
+                      already inside the seal would be a false claim on the chain. Commit
+                      the late record first, then re-seal.{' '}
+                      <Link
+                        to={
+                          '/factory/upload?type=' + encodeURIComponent(s.record_type)
+                          + '&period=' + encodeURIComponent(per)
+                          + '&site=' + encodeURIComponent(s.site)
+                        }
+                      >
+                        Seal a record
+                      </Link>
+                      .
+                    </p>
+                  ) : amending === s.bucket ? (
+                    <div className="sealact__reopen">
+                      <fieldset className="sealact__adds">
+                        <legend className="stamp-type">
+                          Records committed since the reopening
+                        </legend>
+                        {late.map((r) => (
+                          <label key={r.record_id} className="sealact__add">
+                            <input
+                              type="checkbox"
+                              checked={chosen.includes(r.record_id)}
+                              onChange={(e) =>
+                                setPicked({
+                                  ...picked,
+                                  [s.bucket]: e.target.checked
+                                    ? [...chosen, r.record_id]
+                                    : chosen.filter((id) => id !== r.record_id),
+                                })
+                              }
+                            />
+                            <span className="mono">{r.record_id}</span>
+                            <span className="small sealact__meta">
+                              {commas(r.row_count)} rows · committed {longDate(r.committed_at)}
+                            </span>
+                          </label>
+                        ))}
+                      </fieldset>
+                      <input
+                        className="input"
+                        placeholder="Why was this record late?"
+                        value={amendReason}
+                        onChange={(e) => setAmendReason(e.target.value)}
+                      />
+                      <div className="sealact__actions">
+                        <button
+                          type="button"
+                          className="btn btn--primary btn--sm"
+                          disabled={
+                            amendReason.trim().length < 8
+                            || chosen.length === 0
+                            || busy === s.bucket
+                          }
+                          onClick={() =>
+                            void act(s.bucket, () =>
+                              api.amendSeal(s.bucket, chosen, amendReason.trim()),
+                            )
+                          }
+                        >
+                          <Lock size={13} />
+                          {busy === s.bucket ? 'Amending…' : 'Amend and re-seal'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => { setAmending(null); setAmendReason(''); }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <p className="small sealact__meta">
+                        The seal it has now stays in its own history with its own count and
+                        root; this writes the next version over it. A period that has been
+                        amended four times says so to anyone who looks, and that visibility
+                        is the point rather than a side effect.
+                      </p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn--primary btn--sm"
+                      onClick={() => { setAmending(s.bucket); setAmendReason(''); }}
+                    >
+                      <Lock size={13} /> Amend and re-seal
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       <p className="stamp-type sealact__head">Open periods</p>
@@ -174,6 +330,10 @@ export function SealActions({
               Write a reason. The contract requires one and it stays on the seal.
             </p>
           )}
+          <p className="small sealact__meta">
+            Nothing else changes yet. Reopening records the intent; the period is closed
+            again by committing the late record and amending, both of which stay visible.
+          </p>
         </div>
       )}
     </div>

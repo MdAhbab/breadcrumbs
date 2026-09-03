@@ -1,6 +1,6 @@
 import { AlertTriangle, Check, FileUp, ShieldAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { Failed } from '../components/states';
 import { Field, HashChip, Seal } from '../components/ui';
@@ -41,9 +41,18 @@ interface Parsed {
  */
 export default function Upload() {
   const { role } = useSession();
-  const [recordType, setRecordType] = useState('chemical_inventory');
-  const [period, setPeriod] = useState('2027-03');
-  const [site, setSite] = useState('Gazipur');
+  // A reopened period sends you here to commit the record it was reopened for,
+  // and arriving at a blank form to retype a bucket you have just been looking
+  // at is how a three-step mechanism becomes a chore. The defaults stand when
+  // nothing is passed.
+  const [params] = useSearchParams();
+  const [recordType, setRecordType] = useState(
+    () => (params.get('type') && params.get('type')! in RECORD_LABEL
+      ? params.get('type')!
+      : 'chemical_inventory'),
+  );
+  const [period, setPeriod] = useState(() => params.get('period') ?? '2027-03');
+  const [site, setSite] = useState(() => params.get('site') ?? 'Gazipur');
   const [recordId, setRecordId] = useState('');
   const [schema, setSchema] = useState('v1.0.0');
   const [file, setFile] = useState<Parsed | null>(null);

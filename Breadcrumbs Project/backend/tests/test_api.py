@@ -144,6 +144,176 @@ def test_a_factory_sees_only_its_own_records(client):
     assert {r["owner_msp"] for r in records} == {"ApexTextileMSP"}
 
 
+def test_a_buyer_cannot_read_a_record_it_holds_no_grant_against(client):
+    """
+    Regression test, and the hole this rule had for a while.
+
+    The listing was scoped, `/screen` was scoped, `/witness-requirement` and
+    `/verify` were both scoped and each had a test named after the rule — and
+    `GET /api/records/{id}` served any record on the channel to any signed-in
+    caller that knew an identifier. A URL typed by hand is exactly how somebody
+    would find that.
+
+    404 rather than 403 on purpose: "you may not see this record" and "there is
+    no such record" have to be indistinguishable, or the refusal confirms the
+    document exists.
+    """
+    buyer = auth(client, "buyer")
+    granted = {r["record_id"] for r in client.get("/api/records", headers=buyer).json()}
+    everything = client.get("/api/records", headers=auth(client, "factory")).json()
+    outside = next(r["record_id"] for r in everything if r["record_id"] not in granted)
+
+    assert client.get(f"/api/records/{outside}", headers=buyer).status_code == 404
+    # And the ones it does hold are still readable.
+    held = next(iter(granted))
+    assert client.get(f"/api/records/{held}", headers=buyer).status_code == 200
+
+
+# -- the request a buyer makes, and the factory's side of it --------------
+def test_a_request_carries_the_live_state_of_the_grant_that_answered_it(client):
+    """
+    A grant is revoked through an endpoint that has never heard of the request
+    row, so a stored status went stale the moment access was withdrawn — and the
+    screen it went stale on was the buyer's, about its own access. `grant_status`
+    is read off the chain on every call.
+    """
+    buyer, factory = auth(client, "buyer"), auth(client, "factory")
+    made = client.post(
+        "/api/requests", headers=buyer,
+        json={
+            "supplier_msp": "ApexTextileMSP", "record_type": "chemical_inventory",
+            "period": "2026-07", "purpose_code": "REACH-COMPLIANCE",
+            "field_name": "cas_number", "expires_at": "2028-12-31T00:00:00Z",
+        },
+    )
+    assert made.status_code == 201
+    request_id = made.json()["id"]
+
+    def row() -> dict:
+        return next(
+            r for r in client.get("/api/requests", headers=buyer).json()
+            if r["id"] == request_id
+        )
+
+    assert row()["status"] == "pending"
+    assert row()["grant_status"] is None
+
+    record = next(
+        r for r in client.get("/api/records", headers=factory).json()
+        if r["record_type"] == "chemical_inventory" and r["period"] == "2026-07"
+    )
+    answered = client.post(
+        f"/api/requests/{request_id}/grant", headers=factory,
+        json={"record_id": record["record_id"]},
+    )
+    assert answered.status_code == 200
+    grant_id = answered.json()["grant_id"]
+    assert answered.json()["reissued"] is False
+    assert row()["grant_status"] == "active"
+
+    # A second grant on a live one is a duplicate, not a recovery.
+    again = client.post(
+        f"/api/requests/{request_id}/grant", headers=factory,
+        json={"record_id": record["record_id"]},
+    )
+    assert again.status_code == 409
+    assert again.json()["detail"]["code"] == "GRANT_IS_LIVE"
+
+    revoked = client.post(
+        f"/api/grants/{grant_id}/revoke?reason=audit+window+closed", headers=factory
+    )
+    assert revoked.status_code == 200
+    assert row()["status"] == "granted"
+    assert row()["grant_status"] == "revoked"
+    assert row()["grant_revoked_reason"] == "audit window closed"
+
+    # And now access can be issued again — as a new grant, not as the old one
+    # coming back. The revoked one stays exactly where it is.
+    reissued = client.post(
+        f"/api/requests/{request_id}/grant", headers=factory,
+        json={"record_id": record["record_id"]},
+    )
+    assert reissued.status_code == 200
+    assert reissued.json()["reissued"] is True
+    assert reissued.json()["grant_id"] != grant_id
+    grants = {g["grant_id"]: g for g in client.get("/api/grants", headers=factory).json()}
+    assert grants[grant_id]["status"] == "revoked"
+    assert grants[reissued.json()["grant_id"]]["status"] == "active"
+
+
+def test_a_declined_request_can_be_reconsidered(client):
+    """A decline used to be terminal, so one misclick ended a buyer's request."""
+    buyer, factory = auth(client, "buyer"), auth(client, "factory")
+    request_id = client.post(
+        "/api/requests", headers=buyer,
+        json={
+            "supplier_msp": "ApexTextileMSP", "record_type": "safety_inspection",
+            "period": "2026-05", "purpose_code": "ETH-SAFETY",
+            "field_name": "finding_code", "expires_at": "2028-12-31T00:00:00Z",
+        },
+    ).json()["id"]
+
+    declined = client.post(
+        f"/api/requests/{request_id}/decline", headers=factory,
+        json={"reason": "this period is still open"},
+    )
+    assert declined.status_code == 200
+    assert declined.json()["reason"] == "this period is still open"
+
+    def row() -> dict:
+        return next(
+            r for r in client.get("/api/requests", headers=buyer).json()
+            if r["id"] == request_id
+        )
+
+    assert row()["status"] == "declined"
+    assert row()["decline_reason"] == "this period is still open"
+
+    # Granting a declined request tells you to reopen it rather than silently
+    # answering a decision that was already made.
+    refused = client.post(
+        f"/api/requests/{request_id}/grant", headers=factory, json={"record_id": "doc-any"}
+    )
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["code"] == "REQUEST_DECLINED"
+
+    assert client.post(f"/api/requests/{request_id}/reconsider", headers=factory).status_code == 200
+    assert row()["status"] == "pending"
+    assert row()["decline_reason"] is None
+
+
+def test_a_revocation_must_say_why(client):
+    """The reason goes on the ledger and is shown to the party it cuts off."""
+    factory = auth(client, "factory")
+    live = next(
+        g for g in client.get("/api/grants", headers=factory).json()
+        if g["status"] == "active"
+    )
+    blank = client.post(f"/api/grants/{live['grant_id']}/revoke?reason=+", headers=factory)
+    assert blank.status_code == 400
+    assert blank.json()["detail"]["code"] == "NO_REASON"
+
+
+def test_the_factory_is_told_when_a_buyer_asks(client):
+    """
+    The seed ships a notification for this and nothing wrote one at runtime, so
+    the single event in this system that needs a person to act was the one event
+    nobody was told about.
+    """
+    before = len(client.get("/api/notifications", headers=auth(client, "factory")).json())
+    client.post(
+        "/api/requests", headers=auth(client, "buyer"),
+        json={
+            "supplier_msp": "ApexTextileMSP", "record_type": "payroll_register",
+            "period": "2027-02", "purpose_code": "ETH-WAGE-VERIFY",
+            "field_name": "net_pay_bdt", "expires_at": "2028-12-31T00:00:00Z",
+        },
+    )
+    after = client.get("/api/notifications", headers=auth(client, "factory")).json()
+    assert len(after) == before + 1
+    assert any(n["kind"] == "access_request" and "net_pay_bdt" in n["body"] for n in after)
+
+
 # -- verification ---------------------------------------------------------
 def test_verifying_one_row_proves_it_without_revealing_the_rest(client, payroll_grant):
     import math

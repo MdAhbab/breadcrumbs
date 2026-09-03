@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Failed, Result } from '../components/states';
 import { Field, Seal } from '../components/ui';
 import {
-  ApiError, RECORD_LABEL, api, recordLabel, shortMsp,
+  ApiError, RECORD_LABEL, api, orderGrants, recordLabel, shortMsp,
   type AccessRequest, type Grant, type LedgerRecord, type Org,
 } from '../lib/api';
 import { longDate, period } from '../lib/format';
@@ -39,7 +39,23 @@ export default function Lightbox() {
   return (
     <div className="lbx">
       <Result query={world} pendingLabel="Reading what you hold">
-        {([orgs, grants, requests, records]) => (
+        {([orgs, grants, requests, records]) => {
+          // Grants carry a record_id and nothing else about the document. The
+          // rows need its type and period to be readable, and the page has
+          // already fetched every record, so resolve them here rather than
+          // asking the API a second time.
+          const byId = new Map(records.map((r) => [r.record_id, r]));
+          // Ordered before it is truncated.
+          //
+          // `list_grants` returns the chaincode's key order, so this buyer's 259
+          // seeded grants arrive as g-0003 … g-0313 and a grant answering a
+          // request it made this morning — g-br-002 — sorts last. Showing the
+          // first eight of that meant the one grant the buyer was waiting for
+          // was the one it could not see, and the demo dead-ended at the step
+          // that matters most. `orderGrants` says why a date sort does not fix
+          // it either.
+          const newest = orderGrants(grants, requests);
+          return (
           <>
             <Ask
               factories={orgs.filter((o) => o.kind === 'factory')}
@@ -57,27 +73,55 @@ export default function Lightbox() {
                 </p>
               ) : (
                 <ul className="reqlist">
-                  {requests.map((r) => (
-                    <li key={r.id}>
-                      <div className="reqrow">
-                        <span className="reqrow__top">
-                          <span className="reqrow__org">{shortMsp(r.supplier_msp)}</span>
-                          <Seal
-                            tone={
-                              r.status === 'granted' ? 'sealed'
-                                : r.status === 'pending' ? 'pending' : 'broken'
-                            }
-                          >
-                            {r.status}
-                          </Seal>
-                        </span>
-                        <span className="mono reqrow__field">{r.field_name}</span>
-                        <span className="small reqrow__meta">
-                          {recordLabel(r.record_type)} · {period(r.period)} · {r.purpose_code}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
+                  {requests.map((r) => {
+                    // What the factory decided, and what became of it. These are
+                    // two different facts and the row used to show only the
+                    // first: a grant revoked an hour ago still read "granted"
+                    // here, which is the one screen where that is worst.
+                    const withdrawn = r.status === 'granted' && r.grant_status === 'revoked';
+                    const state = withdrawn ? 'withdrawn' : r.status;
+                    return (
+                      <li key={r.id}>
+                        <div className="reqrow">
+                          <span className="reqrow__top">
+                            <span className="reqrow__org">{shortMsp(r.supplier_msp)}</span>
+                            <Seal
+                              tone={
+                                withdrawn ? 'broken'
+                                  : r.status === 'granted' ? 'sealed'
+                                    : r.status === 'pending' ? 'pending' : 'inert'
+                              }
+                            >
+                              {state}
+                            </Seal>
+                          </span>
+                          <span className="mono reqrow__field">{r.field_name}</span>
+                          <span className="small reqrow__meta">
+                            {recordLabel(r.record_type)} · {period(r.period)} · {r.purpose_code}
+                          </span>
+                          {r.grant_record_id && (
+                            <span className="mono reqrow__doc">{r.grant_record_id}</span>
+                          )}
+                          {r.grant_status === 'active' && r.grant_id && (
+                            <Link
+                              to={`/verify?grant=${encodeURIComponent(r.grant_id)}`}
+                              className="reqrow__prove"
+                            >
+                              Prove this value <ArrowRight size={12} />
+                            </Link>
+                          )}
+                          {r.decline_reason && (
+                            <span className="small reqrow__reason">{r.decline_reason}</span>
+                          )}
+                          {withdrawn && r.grant_revoked_reason && (
+                            <span className="small reqrow__reason">
+                              {r.grant_revoked_reason}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 
@@ -86,7 +130,7 @@ export default function Lightbox() {
                 <p className="small lbx__side-note">No grant is live against you.</p>
               ) : (
                 <ul className="reqlist">
-                  {grants.slice(0, 8).map((g) => (
+                  {newest.slice(0, 8).map((g) => (
                     <li key={g.grant_id}>
                       <Link
                         to={`/factory/records/${encodeURIComponent(g.record_id)}`}
@@ -105,8 +149,12 @@ export default function Lightbox() {
                         </span>
                         <span className="mono reqrow__field">{g.field_name}</span>
                         <span className="small reqrow__meta">
-                          {g.purpose_code} · until {longDate(g.expires_at)}
+                          {byId.get(g.record_id)
+                            ? `${recordLabel(byId.get(g.record_id)!.record_type)} · ${period(byId.get(g.record_id)!.period)}`
+                            : g.record_id}{' '}
+                          · {g.purpose_code} · until {longDate(g.expires_at)}
                         </span>
+                        <span className="mono reqrow__doc">{g.record_id}</span>
                         {g.revoked_reason && (
                           <span className="small reqrow__reason">{g.revoked_reason}</span>
                         )}
@@ -117,8 +165,8 @@ export default function Lightbox() {
               )}
               {grants.length > 8 && (
                 <p className="small lbx__side-note">
-                  Showing 8 of {grants.length}. The rest are on{' '}
-                  <Link to="/factory/records">your records</Link>.
+                  The 8 most recent of {grants.length}. Every live grant is listed on{' '}
+                  <Link to="/verify">verify a record</Link>.
                 </p>
               )}
 
@@ -128,7 +176,8 @@ export default function Lightbox() {
               </p>
             </aside>
           </>
-        )}
+          );
+        }}
       </Result>
     </div>
   );

@@ -30,6 +30,21 @@
   --thread-35: rgba(142, 136, 121, 0.35);
   --thread-20: rgba(142, 136, 121, 0.2);
 
+  /* -- surfaces and hairlines -------------------------------------------
+   * Named by role rather than by colour, because that is how the stylesheets
+   * ask for them: a panel wants "the raised paper", not "calico". Six
+   * stylesheets were already asking — `var(--rule)` appears sixteen times
+   * across records, registry, upload, states, chainstatus and mechanisms —
+   * and none of the three was ever declared. An undefined custom property
+   * makes the whole declaration invalid, so those borders and panel fills
+   * were not faint, they were absent: the Bolts filter bar, the detector
+   * panel, the upload preview and every loading, empty and refusal state
+   * rendered as unframed text on the page ground.
+   */
+  --rule: var(--thread-35);
+  --rule-faint: var(--thread-20);
+  --paper-2: var(--calico);
+
   /* -- accent: exactly one per screen carries weight --------------------- */
   --brass: #b8934a;
   --brass-bright: #d4ae63;

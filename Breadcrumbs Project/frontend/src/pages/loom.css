@@ -16,7 +16,19 @@
 
 .lf__counts { display: flex; gap: var(--s6); }
 
-.count { display: flex; flex-direction: column; gap: 2px; }
+/* A link now, not a label: each of these counts something the access desk
+   lists, and a number with nowhere to go was half of what made that screen
+   necessary. */
+.count {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--m-fast);
+}
+.count:hover { border-bottom-color: var(--brass-30); }
 .count__n {
   font-family: var(--font-display);
   font-variation-settings: 'SOFT' 0, 'WONK' 1;

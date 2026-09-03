@@ -1,0 +1,132 @@
+/*
+ * Who may read a thread — the factory's access desk.
+ *
+ * Three sections in one column, in the order the work happens: what is waiting,
+ * what was decided, what is live. Requests are cards because each one is a
+ * decision with its own form; grants are a table because there are three
+ * hundred of them and the job there is finding one.
+ */
+
+.acc { max-width: 1180px; }
+
+.acc__counts { display: flex; gap: var(--s5); }
+
+.atally { display: flex; flex-direction: column; gap: 2px; min-width: 84px; }
+.atally__n {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.atally__l { color: var(--ink-quiet); }
+.atally--warn .atally__n { color: var(--brass-ink); }
+
+.acc__section { margin-top: var(--s7); }
+.acc__h2 {
+  font-size: 20px;
+  margin: 0 0 var(--s2);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+.acc__lede { color: var(--ink-60); max-width: 62ch; margin: var(--s3) 0 var(--s5); }
+
+.acc__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s4); }
+
+/* -- one request, one decision -------------------------------------------- */
+.areq {
+  padding: var(--s5);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--brass-30);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+}
+/* Answered ones are history, not work: they keep the frame and lose the edge. */
+.areq--answered { border-left: 1px solid var(--rule); background: transparent; }
+
+.areq__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s4);
+}
+.areq__who { font-size: 15px; font-weight: 500; margin: 0; }
+.areq__what { color: var(--ink-60); margin: 4px 0 0; }
+.areq__when { color: var(--thread-type); margin: 4px 0 0; }
+.areq__reasontext { color: var(--madder); margin: 6px 0 0; max-width: 60ch; }
+.areq__none { color: var(--ink-quiet); margin: var(--s4) 0 0; max-width: 60ch; }
+
+.areq__pick { display: flex; flex-direction: column; gap: 5px; margin-top: var(--s4); }
+.areq__pick .stamp-type { color: var(--ink-quiet); }
+.areq__pick .input { max-width: 460px; }
+.areq__pickmeta { color: var(--thread-type); }
+
+.areq__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+.areq__note { color: var(--thread-type); max-width: 54ch; margin: 0; }
+.areq__actions .areq__note { flex-basis: 100%; }
+
+.areq__reason { margin-top: var(--s4); display: flex; flex-direction: column; gap: var(--s3); }
+.areq__reason .input { max-width: 460px; }
+
+/* -- every grant issued --------------------------------------------------- */
+.acc__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+}
+
+.acc__pick,
+.acc__search { display: flex; flex-direction: column; gap: 5px; min-width: 158px; }
+.acc__pick .stamp-type,
+.acc__search .stamp-type { color: var(--ink-quiet); }
+.acc__search { flex: 1; min-width: 220px; }
+
+.acc__count { color: var(--ink-quiet); margin: 0 0 var(--s3); }
+
+.acctable { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+
+.acctable th,
+.acctable td {
+  text-align: left;
+  padding: 10px 14px 10px 0;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.acctable thead th {
+  font: inherit;
+  font-size: 0.6875rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+}
+
+.acctable tbody tr { border-bottom: 1px solid var(--rule-faint); }
+.acctable tbody th { font-weight: 400; }
+/* A revoked grant is still a fact, and still has to be readable — it recedes
+   rather than disappearing. */
+.acctable tbody tr.is-ended { opacity: 0.62; }
+
+.acctable__sub { display: block; margin-top: 2px; white-space: nowrap; }
+.acctable__act { white-space: normal; min-width: 96px; }
+
+.acctable__revoke { display: flex; flex-direction: column; gap: 6px; min-width: 230px; }
+
+.acc__more { margin-top: 18px; }
+
+@media (max-width: 720px) {
+  .acc__counts { gap: var(--s4); }
+  .areq__head { flex-direction: column; }
+}
