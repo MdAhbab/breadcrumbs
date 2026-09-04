@@ -134,3 +134,52 @@
 /* A receipt whose root no longer matches the ledger is the one row on this
    table worth stopping at. */
 .acctable__drift { color: var(--madder); }
+
+/* -- several columns asked for at once -------------------------------------
+ * Listed rather than collapsed into a count, because the factory is deciding
+ * about each one and needs to see what it is deciding about. Refusing one of
+ * them individually lives on its own row for the same reason.
+ */
+.areq__cols {
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  margin: var(--s3) 0 0;
+  padding: var(--s3);
+  border-left: 2px solid var(--brass-30);
+  background: var(--brass-wash);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+.areq__col {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.areq__colrefuse {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink-quiet);
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+
+.areq__colrefuse:hover:not(:disabled) { color: var(--madder); border-bottom-color: var(--madder-30); }
+.areq__colrefuse:disabled { opacity: 0.4; cursor: default; }
+
+/* What went through and what did not, when a batch was partly refused. */
+.areq__partial {
+  margin-top: var(--s3);
+  padding: var(--s3);
+  border-left: 2px solid var(--ochre);
+  background: var(--ochre-wash);
+  color: var(--ink);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}

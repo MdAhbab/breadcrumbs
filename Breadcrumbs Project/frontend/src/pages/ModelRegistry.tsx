@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { Disclosure, HashChip, Seal } from '../components/ui';
 import {
   api, taskLabel,
@@ -43,10 +44,11 @@ export default function ModelRegistry() {
   return (
     <div className="reg">
       <header className="reg__head">
-        <p className="stamp-type reg__eyebrow">Model channel · lineage</p>
-        <h1>Every version, promoted and refused.</h1>
+        <p className="stamp-type reg__eyebrow">Model history</p>
+        <h1>Every version, approved and refused.</h1>
         <p className="lead reg__lede">
-          Each candidate was judged against benchmarks sealed before its round opened.
+          Each update was tested against a set of problems fixed and published before
+          that round opened, so nobody could pick the tests after seeing the result.
           The refusals are the interesting half of this list.
         </p>
       </header>
@@ -56,8 +58,8 @@ export default function ModelRegistry() {
         pendingLabel="Reading the model channel"
         isEmpty={([registry]) => registry.length === 0}
         empty={{
-          title: 'No candidate has been to the gate',
-          detail: 'The model channel holds benchmarks but no decisions yet.',
+          title: 'No update has been tested yet',
+          detail: 'The tests are published, but nothing has been put to them.',
         }}
       >
         {([registry, current, rounds, benchmarks, bank, highWater, deployed]) => (
@@ -112,9 +114,9 @@ export default function ModelRegistry() {
                         <span className="small ver__meta">
                           parent <span className="mono">{m.parent_id}</span> ·{' '}
                           round <span className="mono">{m.round_id}</span> ·{' '}
-                          {m.endorsers.length} endorsing organisations
+                          {m.endorsers.length} organisations signed off
                         </span>
-                        <HashChip value={m.memory_bank_hash} />
+                        <Tech><HashChip value={m.memory_bank_hash} /></Tech>
                         <Link to={`/model/gate/${m.model_id}`} className="ver__link">
                           the decision →
                         </Link>
@@ -169,7 +171,7 @@ function Deployed({
 
   const m = status.measured;
   const pc = (v: number | null | undefined) =>
-    v === null || v === undefined ? '—' : `${(v * 100).toFixed(1)}%`;
+    v === null || v === undefined ? 'n/a' : `${(v * 100).toFixed(1)}%`;
 
   return (
     <section className="deployed">
@@ -258,17 +260,17 @@ function LearningPlane({
 
       <div className="plane__grid">
         <div className="plane__col">
-          <p className="stamp-type plane__head">Benchmarks, sealed before training</p>
+          <p className="stamp-type plane__head">The tests, fixed before any training began</p>
           <ul className="plane__list">
             {benchmarks.map((b) => (
               <li key={b.task_id} className="plane__row">
                 <span className="plane__what">{taskLabel(b.task_id)}</span>
                 <span className="small dim">
-                  {commas(b.size)} held-out rows · committed {longDate(b.committed_at)}
+                  {commas(b.size)} rows held back · fixed on {longDate(b.committed_at)}
                 </span>
-                <HashChip value={b.benchmark_hash} />
+                <Tech><HashChip value={b.benchmark_hash} /></Tech>
                 <Seal tone={b.revealed ? 'inert' : 'sealed'}>
-                  {b.revealed ? 'revealed' : 'sealed'}
+                  {b.revealed ? 'revealed' : 'still sealed'}
                 </Seal>
               </li>
             ))}
@@ -301,7 +303,7 @@ function LearningPlane({
 
       <div className="plane__col plane__col--wide">
         <p className="stamp-type plane__head">
-          High-water marks — what the cumulative bound is measured against
+          Best score ever reached, which is what the slow-erosion limit is measured against
         </p>
         <ul className="plane__list">
           {Object.entries(highWater.marks).map(([task, mark]) => (
@@ -309,7 +311,7 @@ function LearningPlane({
               <span className="plane__what">{taskLabel(task)}</span>
               {mark === null ? (
                 <span className="small dim plane__nobase">
-                  no baseline yet — nothing promoted on this task
+                  no baseline yet, nothing approved on this task
                 </span>
               ) : (
                 <span className="mono">{bp(mark)}%</span>
@@ -321,7 +323,7 @@ function LearningPlane({
         <p className="small plane__note">
           The gate bounds loss twice: against the model in force this round, and against
           the best a task has ever reached. The second exists because the first is not a
-          bound at all across many rounds — a candidate giving up slightly less than the
+          limit at all across many rounds. An update giving up slightly less than the
           per-round limit every time would be promoted every time, and the model would
           erode with no single decision ever being wrong.
         </p>
@@ -334,13 +336,13 @@ function LearningPlane({
           {bank.anchored_hashes.map((h) => (
             <li key={h.round_id} className="plane__row plane__row--tight">
               <span className="mono">{h.round_id}</span>
-              <HashChip value={h.memory_bank_hash} />
+              <Tech><HashChip value={h.memory_bank_hash} /></Tech>
             </li>
           ))}
         </ul>
         <p className="small plane__note">
-          Each round's memory-bank hash is on the ledger, so what was shared in a round
-          is identifiable after the fact rather than taken on trust.
+          A fingerprint of what was shared in each round is on the ledger, so what
+          actually changed hands can be checked afterwards rather than taken on trust.
         </p>
       </Disclosure>
     </section>

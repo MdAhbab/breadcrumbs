@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { Failed } from '../components/states';
+import { Tech } from '../components/Tech';
 import { Field, HashChip, Seal } from '../components/ui';
 import { ApiError, RECORD_LABEL, api, type WitnessRequirement } from '../lib/api';
 import { commas } from '../lib/format';
@@ -10,11 +11,11 @@ import { useSession } from '../lib/session';
 import './upload.css';
 
 const STEPS = [
-  { label: 'Normalise', note: 'Column names and types are checked against the schema. This happens here, in your browser.' },
-  { label: 'Salt & hash each thread', note: 'Every row gets its own random salt, then a hash. Low-entropy rows cannot be guessed.' },
-  { label: 'Weave the tree', note: 'Hashes combine in pairs, and again, until the file is one root.' },
-  { label: 'Store off the chain', note: 'The rows stay in the factory’s own store. The API never serves a document body.' },
-  { label: 'Seal to the ledger', note: 'Only the root, the type, the period and the site are committed.' },
+  { label: 'Check the columns', note: 'The column names and types are checked against the expected shape. This happens here, in your browser.' },
+  { label: 'Fingerprint each row', note: 'Every row gets its own random number mixed in before it is fingerprinted, so a short or predictable row still cannot be guessed at.' },
+  { label: 'Combine into one', note: 'The row fingerprints are combined in pairs, and again, until the whole file is a single number.' },
+  { label: 'Keep the file here', note: 'The rows stay in your own storage. The ledger never receives them.' },
+  { label: 'Publish the fingerprint', note: 'Only that single number, plus the kind of record, the month and the site, goes to the ledger.' },
 ];
 
 interface Parsed {
@@ -25,7 +26,7 @@ interface Parsed {
 }
 
 /**
- * Sealing a record.
+ * Publishing a record.
  *
  * The commit sequence is drawn rather than spinner-ed, because each step is a
  * thing the user should understand happened — particularly the two that explain
@@ -128,32 +129,34 @@ export default function Upload() {
   if (phase === 'sealed' && receipt) {
     return (
       <div className="up up--done">
-        <Seal tone="sealed">Sealed</Seal>
+        <Seal tone="sealed">Published</Seal>
         <h1 className="up__donehead">The record is on the ledger.</h1>
         <p className="lead up__donebody">
-          {commas(receipt.row_count)} threads were hashed and woven into a single root.
-          The file itself did not move.
+          {commas(receipt.row_count)} rows were fingerprinted and combined into one
+          number. The file itself never left your machine.
         </p>
         <div className="up__receipt">
           <div className="up__rrow">
-            <span className="stamp-type">Commitment</span>
+            <span className="stamp-type">Record</span>
             <span className="mono">{receipt.record_id}</span>
           </div>
-          <div className="up__rrow">
-            <span className="stamp-type">Root</span>
-            <HashChip value={receipt.merkle_root} />
-          </div>
-          <div className="up__rrow">
-            <span className="stamp-type">Block</span>
-            <span className="mono">#{commas(receipt.block)}</span>
-          </div>
+          <Tech>
+            <div className="up__rrow">
+              <span className="stamp-type">Root</span>
+              <HashChip value={receipt.merkle_root} />
+            </div>
+            <div className="up__rrow">
+              <span className="stamp-type">Block</span>
+              <span className="mono">#{commas(receipt.block)}</span>
+            </div>
+          </Tech>
         </div>
         <div className="up__doneactions">
           <Link
             to={`/factory/records/${encodeURIComponent(receipt.record_id)}`}
             className="btn btn--primary btn--md"
           >
-            View the bolt
+            Open the record
           </Link>
           <button
             type="button"
@@ -162,7 +165,7 @@ export default function Upload() {
               setPhase('idle'); setStep(-1); setFile(null); setReceipt(null); setRecordId('');
             }}
           >
-            Seal another
+            Publish another
           </button>
         </div>
       </div>
@@ -173,10 +176,10 @@ export default function Upload() {
     <div className="up">
       <header className="up__head">
         <p className="stamp-type up__eyebrow">{role?.org}</p>
-        <h1>Seal a record</h1>
+        <h1>Publish a record</h1>
         <p className="lead up__lede">
-          A finalised export. Once sealed, its contents can be proved one thread at a
-          time — and cannot be quietly changed.
+          A finished export. Once it is published, any single figure in it can be proved
+          on its own, and none of it can be quietly changed later.
         </p>
       </header>
 
@@ -240,7 +243,7 @@ export default function Upload() {
                   The witness rule is in force under round {witness.round_id} and this
                   record was drawn into the sample. The counter-signature is made with the
                   witnessing organisation&rsquo;s own key, so it cannot be produced from
-                  this browser — sealing here will be refused by the contract, and that
+                  this browser. Publishing here will be refused by the contract, and that
                   refusal is the mechanism working. Choose a record type outside the
                   sample to seal one end to end.
                 </p>

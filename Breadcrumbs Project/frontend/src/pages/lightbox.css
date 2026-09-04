@@ -85,3 +85,89 @@
 .reqrow__prove:hover { border-bottom-color: var(--brass-type); }
 
 .lbx__side-note { color: var(--ink-quiet); margin-top: var(--s4); }
+
+/* Saying what cannot be asked for teaches the boundary; leaving those columns
+   silently out of the list teaches nothing. */
+.lbx__blocked {
+  color: var(--ink-quiet);
+  padding: var(--s3);
+  border-left: 2px solid var(--thread-35);
+  background: var(--thread-20);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+/* -- one list, four stages -------------------------------------------------
+ * Requests and the access they turn into are the same story at two moments, so
+ * they are one list. The stage is carried by a word in every case; the coloured
+ * edge only repeats what the word already says.
+ */
+.reqrow--open { border-left: 2px solid var(--verdigris); padding-left: var(--s3); }
+.reqrow--waiting { border-left: 2px solid var(--ochre); padding-left: var(--s3); }
+.reqrow--refused { border-left: 2px solid var(--thread-35); padding-left: var(--s3); }
+.reqrow--ended { border-left: 2px solid var(--madder-30); padding-left: var(--s3); }
+
+.reqrow--refused .reqrow__org,
+.reqrow--ended .reqrow__org { color: var(--ink-quiet); }
+
+/* The field is the thing the buyer actually asked for, so it reads as a name
+   now rather than as a column identifier. */
+.reqrow__field { font-weight: 500; }
+
+.lbx__morebtn { width: 100%; margin-top: var(--s3); }
+
+/* -- picking several columns ----------------------------------------------
+ * A grant still covers exactly one column. This is only about asking for
+ * several of them in one action, so the control says "these are separate
+ * permissions" rather than letting the tick boxes imply one wide one.
+ */
+.picker {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s2) var(--s4);
+  margin-top: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+}
+
+.picker__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 0;
+}
+
+.picker__item input { accent-color: var(--brass); flex: none; }
+.picker__item:hover { color: var(--brass-ink); }
+
+.picker__count { margin-top: var(--s2); color: var(--brass-ink); }
+
+.reqrow__acts { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+
+/* Holding one column of a register is exactly when you find out you need the
+   next one, so the way to ask for it lives on the row that prompted it. */
+.reqrow__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-quiet);
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+
+.reqrow__more:hover { color: var(--brass-ink); border-bottom-color: var(--brass-30); }
+.reqrow__more:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }

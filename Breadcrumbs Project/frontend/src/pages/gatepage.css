@@ -276,7 +276,12 @@
 .endorser__foot { margin: 6px 0 0; }
 
 /* The decision index reuses the per-task table; its reason column is prose. */
-.gptable__reason { white-space: normal; max-width: 46ch; }
+.gptable__reason { white-space: normal; text-align: left; }
+
+/* A max-width on a table cell is advisory at best, so the constraint goes on a
+   block inside it. Without this the reason column stretches the table until the
+   sentence that explains the refusal is the part scrolled off the screen. */
+.gptable__reason span { display: block; max-width: 46ch; }
 
 /* A task with no promoted history behind it. Not a zero, and it must not read
    as one: there is nothing to have drifted from yet. */

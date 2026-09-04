@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Failed, Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { Field, Seal } from '../components/ui';
 import { ApiError, api, recordLabel, shortMsp, type AuditQueue, type QueueItem } from '../lib/api';
 import { commas, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
+import { useFieldLabel } from '../lib/useFieldLabel';
 import './bench.css';
 
 // Deliberately allows undefined: an entry only exists once this session has
@@ -16,23 +18,24 @@ import './bench.css';
 type Running = Record<string, 'checking' | 'passed' | 'failed' | undefined>;
 
 /**
- * The Bench — the auditor's workspace.
+ * The auditor's workspace.
  *
  * Batch work, in sequence, ending in a signature a professional puts their name
- * to. So the layout is a laboratory bench: a specimen rail across the top where
- * work visibly moves left to right, a dense working surface below, and a signing
- * block along the right in a heavier material than the rest of the page.
+ * to. So the layout follows that: the queue across the top where work visibly
+ * moves left to right, the full table below it, and the signing block along the
+ * right in a heavier material than the rest of the page.
  *
- * "Run" runs. Each specimen is a real Merkle disclosure proved against the root
- * on the chain, and each success writes a verification receipt the factory can
- * see. The previous version moved the states around on a timer and forced one
- * specimen to fail so the screen had a red row in it — which meant the one
- * control on this page that claimed to do work did none, and the failure it
- * showed was decoration.
+ * "Run" runs. Each check is a real disclosure proved against the fingerprint on
+ * the chain, and each success writes a receipt the factory can see. The
+ * previous version moved the states around on a timer and forced one row to
+ * fail so the screen had some red in it — which meant the one control on this
+ * page that claimed to do work did none, and the failure it showed was
+ * decoration.
  */
 export default function AuditorBench() {
   const { role } = useSession();
   const queue = useApi(() => api.auditQueue(), []);
+  const labelOf = useFieldLabel();
   const [live, setLive] = useState<Running>({});
   const [running, setRunning] = useState(false);
   const [failure, setFailure] = useState<ApiError | null>(null);
@@ -83,14 +86,18 @@ export default function AuditorBench() {
               <header className="bench__head">
                 <div>
                   <p className="stamp-type bench__eyebrow">
-                    {role?.org} · batch of {commas(items.length)}
+                    {role?.org} · {commas(items.length)} to check
                   </p>
-                  <h1>The bench</h1>
+                  <h1>Checks to run</h1>
+                  <p className="lead bench__lede">
+                    Each one re-derives a figure's fingerprint and compares it to what the
+                    factory published. A pass leaves a receipt the factory can see.
+                  </p>
                 </div>
                 <div className="bench__tally">
                   <Tally n={passed} label="passed" tone="ok" />
                   <Tally n={failed} label="failed" tone="bad" />
-                  <Tally n={queued.length} label="queued" tone="wait" />
+                  <Tally n={queued.length} label="not yet run" tone="wait" />
                 </div>
               </header>
 
@@ -98,7 +105,7 @@ export default function AuditorBench() {
 
               <section className="rail-strip">
                 <div className="rail-strip__head">
-                  <p className="stamp-type">Specimen rail</p>
+                  <p className="stamp-type">The queue</p>
                   <div className="rail-strip__actions">
                     <button
                       type="button"
@@ -106,7 +113,7 @@ export default function AuditorBench() {
                       onClick={() => { setLive({}); queue.reload(); }}
                       disabled={running}
                     >
-                      <RotateCcw size={13} /> Refresh from the chain
+                      <RotateCcw size={13} /> Reload from the ledger
                     </button>
                     <button
                       type="button"
@@ -115,7 +122,7 @@ export default function AuditorBench() {
                       disabled={!queued.length || running}
                     >
                       <Play size={13} />
-                      {running ? 'Proving…' : `Run ${queued.length} queued`}
+                      {running ? 'Checking…' : `Run all ${queued.length}`}
                     </button>
                   </div>
                 </div>
@@ -126,7 +133,7 @@ export default function AuditorBench() {
                       <span className="spec__body">
                         <span className="spec__factory">{shortMsp(it.owner_msp)}</span>
                         <span className="small spec__type">{recordLabel(it.record_type)}</span>
-                        <span className="mono spec__id">{it.record_id}</span>
+                        <Tech><span className="mono spec__id">{it.record_id}</span></Tech>
                       </span>
                       <span className="spec__state stamp-type">{stateOf(it)}</span>
                     </li>
@@ -134,8 +141,8 @@ export default function AuditorBench() {
                 </ol>
                 {items.length > 40 && (
                   <p className="small dim">
-                    Rail shows the first 40 of {commas(items.length)}; the table below has
-                    them all and Run covers the whole batch.
+                    Showing the first 40 of {commas(items.length)}. The table below has all
+                    of them, and Run covers the whole set.
                   </p>
                 )}
               </section>
@@ -146,11 +153,11 @@ export default function AuditorBench() {
                     <table className="benchtable">
                       <thead>
                         <tr>
-                          <th scope="col">Owner</th>
+                          <th scope="col">Factory</th>
                           <th scope="col">Record</th>
-                          <th scope="col">Period</th>
-                          <th scope="col">Field</th>
-                          <th scope="col">Commitment</th>
+                          <th scope="col">Month</th>
+                          <th scope="col">Which figure</th>
+                          <Tech><th scope="col">Record id</th></Tech>
                           <th scope="col">Result</th>
                         </tr>
                       </thead>
@@ -162,12 +169,14 @@ export default function AuditorBench() {
                               <th scope="row">{shortMsp(it.owner_msp)}</th>
                               <td>{recordLabel(it.record_type)}</td>
                               <td className="mono">{period(it.period)}</td>
-                              <td className="mono">{it.field_name}</td>
-                              <td className="mono dim">
-                                <Link to={`/factory/records/${encodeURIComponent(it.record_id)}`}>
-                                  {it.record_id}
-                                </Link>
-                              </td>
+                              <td>{labelOf(it.record_type, it.field_name)}</td>
+                              <Tech>
+                                <td className="mono dim">
+                                  <Link to={`/factory/records/${encodeURIComponent(it.record_id)}`}>
+                                    {it.record_id}
+                                  </Link>
+                                </td>
+                              </Tech>
                               <td>
                                 <Seal
                                   tone={
@@ -232,7 +241,7 @@ function Signing({
       setSigned(true);
       onSigned();
     } catch (err) {
-      setFailure(err instanceof ApiError ? err : new ApiError(0, 'the attestation failed'));
+      setFailure(err instanceof ApiError ? err : new ApiError(0, 'signing off failed'));
     } finally {
       setBusy(false);
     }
@@ -247,7 +256,7 @@ function Signing({
           <div className="wax__seal" aria-hidden="true"><PenLine size={22} /></div>
           <h3 className="wax__head">Signed and submitted.</h3>
           <p className="small wax__body">
-            Your attestation is recorded against your certificate and the receipts it
+            What you sign is recorded against your certificate, and against the checks it
             rests on are on the ledger. It cannot be quietly amended later.
           </p>
           <button
@@ -292,11 +301,11 @@ function Signing({
             disabled={busy || !allRun || statement.trim().length < 12}
             onClick={() => void submit()}
           >
-            <PenLine size={15} /> {busy ? 'Signing…' : 'Sign & submit'}
+            <PenLine size={15} /> {busy ? 'Signing…' : 'Sign off'}
           </button>
           <p className="small signing__why">
             {!allRun
-              ? `${queued} specimen${queued === 1 ? '' : 's'} still to run. The API refuses an attestation over records with no receipt on the chain.`
+              ? `${queued} check${queued === 1 ? '' : 's'} still to run. You cannot sign off on a record that has not been checked. The API refuses it.`
               : statement.trim().length < 12
                 ? 'Write your findings before signing.'
                 : 'This will be recorded against your certificate.'}

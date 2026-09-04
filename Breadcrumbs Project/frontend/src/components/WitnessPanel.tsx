@@ -1,7 +1,8 @@
 import { ShieldCheck, ShieldOff, ShieldQuestion } from 'lucide-react';
 
-import { CHECK_CODES, type WitnessRequirement } from '../lib/api';
+import { CHECK_CODES, shortMsp, type WitnessRequirement } from '../lib/api';
 import { dateTime } from '../lib/format';
+import { Tech } from './Tech';
 import { Seal } from './ui';
 import './mechanisms.css';
 
@@ -88,13 +89,15 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
         <div>
           <p className="wit__title">
             {outstanding.length
-              ? `${req.attestations.length} of ${req.witnesses.length} assigned witnesses signed`
-              : `Counter-signed by ${req.witnesses.length} assigned witnesses`}
+              ? `${req.attestations.length} of ${req.witnesses.length} chosen checkers signed this`
+              : `Counter-signed by ${req.witnesses.length} independent ${
+                req.witnesses.length === 1 ? 'checker' : 'checkers'}`}
           </p>
           <p className="small wit__sub">
-            Assigned by round {req.round_id} from a pool of {req.pool_size}. The
-            factory did not choose them, and could not: the seed came from a
-            commit–reveal round no member controls.
+            Picked at random from {req.pool_size}. The factory did not choose who
+            checks its own records, and could not have: the draw was set up so that no
+            single member controls the outcome.
+            <Tech> Round {req.round_id}.</Tech>
           </p>
         </div>
       </header>
@@ -106,18 +109,18 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
           return (
             <li key={msp} className={`wit__row ${att ? '' : 'is-missing'}`}>
               <div className="wit__who">
-                <span className="wit__msp mono">{msp}</span>
+                <span className="wit__msp">{shortMsp(msp)}</span>
                 {att ? (
                   <span className="small wit__when">{dateTime(att.attested_at)}</span>
                 ) : (
-                  <span className="small wit__when">no attestation on the ledger</span>
+                  <span className="small wit__when">nothing signed on the ledger</span>
                 )}
               </div>
 
               {att && code ? (
                 <div className="wit__claim">
                   <span className="wit__code">{code.label}</span>
-                  <span className="wit__weight" aria-label={`evidentiary weight ${code.weight} of 4`}>
+                  <span className="wit__weight" aria-label={`how strong this evidence is: ${code.weight} of 4`}>
                     {[1, 2, 3, 4].map((n) => (
                       <span key={n} className={n <= code.weight ? 'is-on' : ''} />
                     ))}
@@ -134,9 +137,9 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
 
       {outstanding.length > 0 && (
         <p className="small wit__warn">
-          {outstanding.join(', ')} was assigned and did not attest. The record is
-          still committed — the ledger does not refuse it — but it carries less
-          evidence than the rule asks for.
+          {outstanding.join(', ')} was asked to counter-sign this and did not. The
+          record is still published, and the ledger does not refuse it, but it carries
+          less evidence behind it than the rule asks for.
         </p>
       )}
     </section>

@@ -1,11 +1,12 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import { ArrowRight, Check, Minus } from 'lucide-react';
+import { Check, Minus } from 'lucide-react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { GateSimulator } from '../components/GateSimulator';
+import { StartWalkthrough } from '../components/TourBar';
 import { Seal, Stamp } from '../components/ui';
 import { api } from '../lib/api';
 import { useApi } from '../lib/useApi';
@@ -171,21 +172,26 @@ export default function Landing() {
                 Reveal nothing else.
               </h1>
               <p className="lead hero__lede">
-                A permissioned ledger that makes a factory&rsquo;s own records provable —
-                without publishing them, and without trusting whoever runs the server.
+                A shared ledger that lets a factory prove its own records are real,
+                without publishing them, and without anyone having to trust whoever runs
+                the server.
               </p>
+              {/* The walkthrough is first, and it is the primary button. A
+                  visitor who has not seen the product cannot pick one of five
+                  roles, and "see a verification" drops them at the end of a
+                  story whose beginning they have not been told. */}
               <div className="hero__actions">
-                <Link to="/verify/vr-001" className="btn btn--primary btn--lg">
-                  See a verification <ArrowRight size={16} />
-                </Link>
+                <StartWalkthrough className="btn btn--primary btn--lg">
+                  Show me how it works
+                </StartWalkthrough>
                 <Link to="/login" className="btn btn--onDark btn--lg">
-                  Enter the portal
+                  Sign in
                 </Link>
               </div>
               <div className="hero__stamp">
                 <Stamp kind="specified" dark />
                 <span className="small">
-                  Prototype — Blockchain Olympiad 2026 finals
+                  Prototype for the Blockchain Olympiad 2026 finals
                 </span>
               </div>
             </div>
@@ -199,11 +205,11 @@ export default function Landing() {
         <section className="beat beat--copy">
           <div className="shell">
             <div className="beat-copy">
-              <p className="stamp-type beat__num">01 — The weave</p>
+              <p className="stamp-type beat__num">01 · Making the fingerprint</p>
               <h2>A payroll register has 1,847 rows.</h2>
               <p className="lead">
-                Each row is hashed with its own salt. Pairs combine, and combine again,
-                until the whole file is one number — a root, sixty-four characters long.
+                Each row gets its own random number mixed in, then a fingerprint. Pairs
+                combine, and combine again, until the whole file is one number.
               </p>
               <p className="lead beat__muted">
                 Only that number goes on the ledger. The file never does.
@@ -216,12 +222,12 @@ export default function Landing() {
         <section className="beat beat--copy beat--right">
           <div className="shell">
             <div className="beat-copy">
-              <p className="stamp-type beat__num">02 — Pull one thread</p>
-              <h2>One thread. Eleven hashes.</h2>
+              <p className="stamp-type beat__num">02 · Proving one row</p>
+              <h2>One row. Eleven numbers.</h2>
               <p className="lead">
-                To prove one worker&rsquo;s pay, the factory reveals that row, its salt,
-                and the eleven sibling hashes on its path to the root. A buyer recomputes
-                the root and compares.
+                To prove one worker&rsquo;s pay, the factory sends that row and eleven
+                numbers from the tree above it. The buyer redoes the arithmetic and sees
+                whether it lands on the same result the factory published.
               </p>
               <p className="lead beat__accent">
                 The buyer learned one number. The other 1,846 rows never left the building.
@@ -239,13 +245,13 @@ export default function Landing() {
         <div className="shell">
           <div className="section-head" data-rise>
             <div>
-              <p className="stamp-type section-head__eyebrow">03 — The Continuity Gate</p>
+              <p className="stamp-type section-head__eyebrow">03 · Checking the shared model</p>
               <h2 className="on-dark">A model that improves can still be getting worse.</h2>
               <p className="lead on-dark-muted">
                 A new detector is better at this month&rsquo;s problem and quietly worse at
-                last year&rsquo;s. Forgetting does not make an update look bad — on the data
-                a review committee is looking at, it looks excellent. So the rule moves
-                into a contract that looks backwards.
+                last year&rsquo;s. Forgetting does not make an update look bad. On the data a
+                review committee is looking at, it looks excellent. So the rule moves into
+                a contract that checks the older problems too.
               </p>
             </div>
           </div>
@@ -258,7 +264,7 @@ export default function Landing() {
         <div className="shell">
           <div className="section-head" data-rise>
             <div>
-              <p className="stamp-type section-head__eyebrow">04 — Where we sit</p>
+              <p className="stamp-type section-head__eyebrow">04 · Where we sit</p>
               <h2>We lose most of these columns.</h2>
               <p className="lead section-head__lede">
                 Notarisation already makes documents tamper-evident. LiFeChain already puts
@@ -319,11 +325,11 @@ export default function Landing() {
         <div className="shell unwind-copy">
           <div className="section-head" data-rise>
             <div>
-              <p className="stamp-type section-head__eyebrow">05 — Disclosure</p>
+              <p className="stamp-type section-head__eyebrow">05 · What we cannot do</p>
               <h2 className="on-dark">What we cannot do yet.</h2>
               <p className="lead on-dark-muted">
-                One tier of the store for each thing still holding us. The wrap loosens as
-                you read — and does not come off, because these are not solved.
+                One tier for each thing still holding us back. The wrap loosens as you
+                read, and never comes off, because none of these are solved.
               </p>
             </div>
           </div>
@@ -366,9 +372,9 @@ export default function Landing() {
             Reveal nothing else.
           </h2>
           <div className="close__actions">
-            <Link to="/verify/vr-001" className="btn btn--primary btn--lg">
-              Verify a record
-            </Link>
+            <StartWalkthrough className="btn btn--primary btn--lg">
+              Show me how it works
+            </StartWalkthrough>
             <Link to="/login" className="btn btn--onDark btn--lg">
               Sign in
             </Link>
@@ -499,11 +505,11 @@ function DecisionLoom() {
       <div className="shell">
         <div className="section-head" data-rise>
           <div>
-            <p className="stamp-type section-head__eyebrow">02b — Why a blockchain</p>
+            <p className="stamp-type section-head__eyebrow">02b · Why a blockchain</p>
             <h2>Turn one off and the answer changes.</h2>
             <p className="lead section-head__lede">
               Three conditions decide whether a distributed ledger is justified at all.
-              All three hold in this industry — which is the only reason we claim it.
+              All three are true in this industry, which is the only reason we claim it.
             </p>
           </div>
         </div>

@@ -140,20 +140,18 @@ def test_the_completeness_check_fails_by_exactly_the_withheld_count(client, corp
     Arithmetic, and it has to be the right arithmetic: the shortfall the ledger
     reports must equal the number of documents the trace says were kept back.
 
-    The question is asked as whichever counterparty actually holds grants in the
-    bucket. Safety registers are disclosed to the auditor and the rest to the
-    buyer, so asking as the buyer everywhere would test the scoping rule instead
-    of the completeness rule — and would pass for the wrong reason.
+    Asked as the buyer, because the buyer is the party that can be withheld
+    from. An auditor now sees every document on the channel by default, so
+    nothing is ever missing from its view and a completeness check run as the
+    auditor would pass trivially — which is asserted separately below, since it
+    is the point of that rule rather than a gap in this one.
     """
     event = corpus_available.event("withholding")
     site = corpus_available.SITE_LABEL[event["site"]]
     withheld = set(event["parameters"]["withheld_doc_ids"])
 
     factory_records = client.get("/api/records", headers=auth(client, "factory")).json()
-    viewers = {
-        role: client.get("/api/records", headers=auth(client, role)).json()
-        for role in ("buyer", "auditor")
-    }
+    buyer_records = client.get("/api/records", headers=auth(client, "buyer")).json()
     buckets = {
         r["bucket"] for r in factory_records
         if r["site"] == site and r["period"] == event["period"]
@@ -164,16 +162,12 @@ def test_the_completeness_check_fails_by_exactly_the_withheld_count(client, corp
     checked = 0
     for bucket in sorted(buckets):
         owner, site_name, record_type, period = bucket.split("|")
-        holder = next(
-            (
-                role for role, records in viewers.items()
-                if any(r["bucket"] == bucket for r in records)
-            ),
-            None,
-        )
-        assert holder, f"nobody holds a grant in {bucket}; the seed disclosed nothing"
-
-        disclosed = [r["record_id"] for r in viewers[holder] if r["bucket"] == bucket]
+        disclosed = [r["record_id"] for r in buyer_records if r["bucket"] == bucket]
+        if not disclosed:
+            # Nothing was disclosed to the buyer in this bucket, so there is no
+            # short disclosure to measure. Skipped rather than asserted away.
+            continue
+        holder = "buyer"
         body = client.post(
             "/api/completeness",
             json={
@@ -190,7 +184,46 @@ def test_the_completeness_check_fails_by_exactly_the_withheld_count(client, corp
         assert body["sealed_root"] != body["computed_root"]
         checked += 1
 
-    assert checked >= 2, "the attack spans several register types; check more than one"
+    assert checked >= 1, "the buyer holds nothing the withholding attack touched"
+
+
+def test_an_auditor_is_never_short_because_nothing_is_withheld_from_it(
+    client, corpus_available
+):
+    """
+    The other half of the rule changed above.
+
+    An auditor sees every document on the channel, so a completeness check run
+    as the auditor is complete by construction. That is worth asserting rather
+    than assuming: if this ever fails, either the auditor's access has been
+    narrowed again or the completeness arithmetic has drifted.
+    """
+    event = corpus_available.event("withholding")
+    site = corpus_available.SITE_LABEL[event["site"]]
+    withheld = set(event["parameters"]["withheld_doc_ids"])
+
+    factory_records = client.get("/api/records", headers=auth(client, "factory")).json()
+    auditor_records = client.get("/api/records", headers=auth(client, "auditor")).json()
+    bucket = sorted(
+        r["bucket"] for r in factory_records
+        if r["site"] == site and r["period"] == event["period"]
+        and r["record_id"] in withheld
+    )[0]
+
+    owner, site_name, record_type, period = bucket.split("|")
+    disclosed = [r["record_id"] for r in auditor_records if r["bucket"] == bucket]
+    assert disclosed, "the auditor sees every record, so this cannot be empty"
+
+    body = client.post(
+        "/api/completeness",
+        json={
+            "owner_msp": owner, "site": site_name, "record_type": record_type,
+            "period": period, "disclosed_record_ids": disclosed,
+        },
+        headers=auth(client, "auditor"),
+    ).json()
+    assert body["complete"] is True, body
+    assert body["sealed_count"] == body["disclosed_count"]
 
 
 def test_the_lazy_witness_claimed_only_the_weakest_check(client, corpus_available):

@@ -234,6 +234,42 @@ export interface RecordDetail {
   rows_held_off_chain: number;
 }
 
+/**
+ * A redacted look at a document body.
+ *
+ * Every column is described whether or not its cells are readable, because the
+ * shape of what is being withheld is the part worth showing. A cell the viewer
+ * may not read is absent from `rows` — it is never sent and then hidden.
+ */
+export interface PreviewColumn {
+  name: string;
+  label: string;
+  kind: 'identity' | 'open' | 'sensitive';
+  visible: boolean;
+  reason: string;
+}
+
+/** One column a buyer may ask a factory for, in words it can read. */
+export interface RequestableField {
+  name: string;
+  label: string;
+  kind: 'identity' | 'open' | 'sensitive';
+  requestable: boolean;
+}
+
+export interface RecordPreview {
+  record_id: string;
+  record_type: string;
+  access: 'owner' | 'auditor' | 'granted' | 'none';
+  granted_fields: string[];
+  columns: PreviewColumn[];
+  rows: Record<string, unknown>[];
+  total_rows: number;
+  shown_rows: number;
+  readable_columns: number;
+  total_columns: number;
+}
+
 export interface Grant {
   grant_id: string;
   record_id: string;
@@ -423,6 +459,9 @@ export interface VerificationCheck {
   label: string;
   ok: boolean;
   detail: string;
+  /** The same check said in words somebody outside cryptography can act on. */
+  plain_label: string;
+  plain_detail: string;
   /** Only the accumulator witness can be forged by a trapdoor holder. */
   forgeable_by_trapdoor: boolean;
 }
@@ -436,6 +475,7 @@ export interface Verification {
   reason: string;
   witness: Record<string, unknown> | null;
   note: string;
+  plain_note: string;
 }
 
 export interface Absence {
@@ -698,6 +738,8 @@ export interface AccessRequest {
   grant_id: string | null;
   requested_at: string;
   decline_reason: string | null;
+  /** Set when this was asked for alongside others, in one action. */
+  batch_id?: string | null;
   /*
    * Read off the ledger on every request rather than stored beside `status`.
    * A grant is revoked through an endpoint that has never heard of this row,
@@ -832,6 +874,9 @@ export const api = {
 
   records: () => get<LedgerRecord[]>('/api/records'),
   record: (id: string) => get<RecordDetail>(`/api/records/${encodeURIComponent(id)}`),
+  recordFields: () => get<Record<string, RequestableField[]>>('/api/record-fields'),
+  recordPreview: (id: string, limit = 8) =>
+    get<RecordPreview>(`/api/records/${encodeURIComponent(id)}/preview?limit=${limit}`),
   commitRecord: (body: {
     record_id: string; record_type: string; period: string; site: string;
     schema_version: string; rows: Record<string, unknown>[];
@@ -919,15 +964,34 @@ export const api = {
     ),
 
   requests: () => get<AccessRequest[]>('/api/requests'),
+  /**
+   * Ask a factory for one or more columns.
+   *
+   * `field_names` is a list because a buyer checking whether a wage is right
+   * needs the basic, the overtime and the deductions to make sense of the net,
+   * and sending three separate requests for that was a limit of the form rather
+   * than of the rule underneath. Each column still becomes its own permission.
+   */
   ask: (body: {
     supplier_msp: string; record_type: string; period: string;
-    purpose_code: string; field_name: string; item_reference?: string | null;
+    purpose_code: string; field_names: string[]; item_reference?: string | null;
     expires_at: string;
-  }) => post<{ id: string; status: string }>('/api/requests', body),
+  }) => post<{
+    ids: string[]; id: string; batch_id: string | null; status: string;
+    skipped: string[]; live_already: string[];
+  }>('/api/requests', body),
   answerRequest: (id: string, recordId: string) =>
     post<{ id: string; status: string; grant_id: string; reissued: boolean }>(
       `/api/requests/${encodeURIComponent(id)}/grant`, { record_id: recordId },
     ),
+  /** Answer several requests against one record, in one action. */
+  answerBatch: (ids: string[], recordId: string) =>
+    post<{
+      record_id: string;
+      granted: { request_id: string; grant_id: string }[];
+      failed: { request_id: string; message: string }[];
+      summary: string;
+    }>('/api/requests/grant-batch', { request_ids: ids, record_id: recordId }),
   declineRequest: (id: string, reason?: string) =>
     post<{ id: string; status: string; reason: string | null }>(
       `/api/requests/${encodeURIComponent(id)}/decline`, { reason },
@@ -1016,5 +1080,56 @@ export function orderGrants(grants: Grant[], requests: AccessRequest[]): Grant[]
 }
 
 /** "ApexTextileMSP" → "Apex Textile" when the directory has not loaded yet. */
+/**
+ * Why somebody asked for something, in words rather than in a code.
+ *
+ * The codes are real: they go on the ledger and the contract compares them, so
+ * they cannot be renamed. But `ETH-WAGE-VERIFY` printed on a buyer's own screen
+ * is a string that person has to be taught, in a product whose whole complaint
+ * about the industry is that nobody can read the evidence.
+ */
+export const PURPOSE_LABEL: Record<string, string> = {
+  'ETH-WAGE-VERIFY': 'Checking wages are paid properly',
+  'MACH-SAFETY-CHECK': 'Checking machines are safe',
+  'REACH-COMPLIANCE': 'Checking chemicals are within the rules',
+};
+
+export const purposeLabel = (code: string): string =>
+  PURPOSE_LABEL[code] ?? code.replace(/-/g, ' ').toLowerCase();
+
+/**
+ * What a chaincode function actually did.
+ *
+ * The ledger page is the one screen where somebody who has never used the
+ * product might still want to look, and `publish_beacon` tells them nothing.
+ * The same table exists on the API for the activity feed; this one covers the
+ * ledger's own transaction rows, which are read straight off the blocks.
+ */
+export const FUNCTION_LABEL: Record<string, string> = {
+  commit_record: 'published a record',
+  supersede_record: 'corrected a record',
+  seal_period: 'closed a month',
+  reopen_seal: 'reopened a closed month',
+  amend_seal: 'corrected a closed month',
+  grant_access: 'gave access to one column',
+  revoke_access: 'took access back',
+  record_verification: 'checked a value',
+  open_seed_round: 'started picking who checks records',
+  commit_seed_share: 'put in a share of the random draw',
+  reveal_seed_share: 'revealed a share of the random draw',
+  install_group: 'set up the tamper check',
+  advance_epoch: 'updated the tamper check',
+  publish_beacon: 'published a proof that time had passed',
+  commit_benchmark: 'fixed the tests for a training round',
+  open_round: 'opened a training round',
+  evaluate_gate: 'put a model update to the test',
+  attest_record: 'counter-signed a record',
+  submit_proposal: 'opened a proposal',
+  endorse_proposal: 'agreed to a proposal',
+};
+
+export const functionLabel = (fn: string): string =>
+  FUNCTION_LABEL[fn] ?? fn.replace(/_/g, ' ');
+
 export const shortMsp = (msp: string): string =>
   msp.replace(/MSP$/, '').replace(/([a-z])([A-Z])/g, '$1 $2');

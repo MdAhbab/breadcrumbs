@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Loading } from './components/Loading';
 import { RouteTransition } from './components/RouteTransition';
 import { Shell } from './components/Shell';
+import { TourBar } from './components/TourBar';
 import { useSession } from './lib/session';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -85,6 +86,9 @@ export default function App() {
     <>
       <ScrollReset />
       {pathname === '/' ? routes : <RouteTransition>{routes}</RouteTransition>}
+      {/* Outside the transition stage: the walkthrough is the one thing that
+          must survive a route change without being animated out with it. */}
+      <TourBar />
     </>
   );
 }

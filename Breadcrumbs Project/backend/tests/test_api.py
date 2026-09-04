@@ -463,17 +463,19 @@ def test_the_factory_is_told_when_a_buyer_asks(client):
     nobody was told about.
     """
     before = len(client.get("/api/notifications", headers=auth(client, "factory")).json())
+    # A column no earlier test in this module has left pending: asking twice for
+    # the same outstanding thing is refused, and that is its own test below.
     client.post(
         "/api/requests", headers=auth(client, "buyer"),
         json={
             "supplier_msp": "ApexTextileMSP", "record_type": "payroll_register",
             "period": "2027-02", "purpose_code": "ETH-WAGE-VERIFY",
-            "field_name": "net_pay_bdt", "expires_at": "2028-12-31T00:00:00Z",
+            "field_name": "days_worked", "expires_at": "2028-12-31T00:00:00Z",
         },
     )
     after = client.get("/api/notifications", headers=auth(client, "factory")).json()
     assert len(after) == before + 1
-    assert any(n["kind"] == "access_request" and "net_pay_bdt" in n["body"] for n in after)
+    assert any(n["kind"] == "access_request" and "days_worked" in n["body"] for n in after)
 
 
 # -- verification ---------------------------------------------------------

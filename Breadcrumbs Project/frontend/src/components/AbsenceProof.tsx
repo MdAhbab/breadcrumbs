@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { ApiError, api, type Absence } from '../lib/api';
 import { Failed } from './states';
+import { Tech } from './Tech';
 import { Seal } from './ui';
 import './mechanisms.css';
 
@@ -82,13 +83,13 @@ export function AbsenceProof() {
             <div>
               <p className="absence__verdict">
                 {result.never_committed
-                  ? 'Never committed to this ledger.'
-                  : 'This reference is on the ledger.'}
+                  ? 'This was never put on the ledger.'
+                  : 'This is on the ledger.'}
               </p>
               <p className="small">
                 {result.never_committed
-                  ? 'Proved, not merely unfound. The accumulator carries a witness that this element is absent from the set.'
-                  : 'The lookup found a record, so no absence proof applies — and the Bezout check correctly refuses to produce one.'}
+                  ? 'Proved to be absent, not just not found. There is a certificate that it sits outside the set. That is the difference between "we could not find it" and something you can check for yourself.'
+                  : 'It exists, so there is nothing to prove absent, and the check correctly refuses to produce a certificate saying otherwise.'}
               </p>
             </div>
           </header>
@@ -101,19 +102,21 @@ export function AbsenceProof() {
               </Seal>
             </div>
             <div className="absence__r">
-              <span className="stamp-type">Non-membership proof</span>
+              <span className="stamp-type">Proof it is not there</span>
               <Seal tone={result.proof_ok ? 'sealed' : 'broken'}>
                 {result.provable
                   ? result.proof_ok ? 'verifies' : 'does not hold'
                   : 'not applicable'}
               </Seal>
             </div>
-            <div className="absence__r">
-              <span className="stamp-type">Checked at</span>
-              <span className="mono">
-                {result.epoch === null ? 'no epoch' : `epoch ${result.epoch}`}
-              </span>
-            </div>
+            <Tech>
+              <div className="absence__r">
+                <span className="stamp-type">Checked at</span>
+                <span className="mono">
+                  {result.epoch === null ? 'no epoch' : `epoch ${result.epoch}`}
+                </span>
+              </div>
+            </Tech>
           </div>
 
           {result.reason && <p className="small absence__reason">{result.reason}</p>}

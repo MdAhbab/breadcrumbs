@@ -152,3 +152,7 @@
 
 .signing__past ul { list-style: none; margin: 8px 0 0; padding: 0; }
 .signing__past li { padding: 3px 0; }
+
+/* A one-line answer to "what am I looking at?", which the heading alone was
+   never going to give. */
+.bench__lede { margin-top: 6px; max-width: 62ch; color: var(--ink-quiet); }

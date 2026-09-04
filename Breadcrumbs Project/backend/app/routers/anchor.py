@@ -304,11 +304,21 @@ def verify_record(record_id: str, body: VerifyRequest, user: CurrentUser) -> dic
         {
             "id": "ledger",
             "label": "The ledger holds this record, with this root",
+            # Every check carries a second wording. The technical one is what an
+            # engineer needs and the only one this endpoint used to send, which
+            # meant a buyer reading a record page was shown three sentences
+            # about accumulators and asked to conclude something from them.
+            "plain_label": "The ledger has this record, and it matches",
             "ok": ledger_ok,
             "detail": (
                 f"committed in {record['bucket']} by {record['owner_msp']}"
                 if ledger_ok
                 else "the root on the ledger is not the root being claimed"
+            ),
+            "plain_detail": (
+                f"Published by {record['owner_msp'].replace('MSP', '')} and unchanged since"
+                if ledger_ok
+                else "The fingerprint on the ledger is not the one being claimed"
             ),
             "forgeable_by_trapdoor": False,
         }
@@ -330,8 +340,13 @@ def verify_record(record_id: str, body: VerifyRequest, user: CurrentUser) -> dic
         {
             "id": "witness",
             "label": "The accumulator witness verifies",
+            "plain_label": "It is covered by the network's tamper check",
             "ok": witness_ok,
             "detail": witness_why or f"verified against epoch {state['epoch']}",
+            "plain_detail": (
+                witness_why
+                or "The single number that covers the whole ledger accounts for this record"
+            ),
             # Stated on the wire so the interface cannot forget to say it.
             "forgeable_by_trapdoor": True,
         }
@@ -349,11 +364,17 @@ def verify_record(record_id: str, body: VerifyRequest, user: CurrentUser) -> dic
         {
             "id": "index",
             "label": "The element is in the anchored index",
+            "plain_label": "It was actually added, on a date, in the open",
             "ok": index_ok,
             "detail": (
                 f"admitted by epoch {anchored['epoch']}"
                 if index_ok
                 else "no epoch ever admitted this element; the witness was not issued by one"
+            ),
+            "plain_detail": (
+                "There is a public entry recording when this was added"
+                if index_ok
+                else "Nothing on the ledger records this ever being added"
             ),
             "forgeable_by_trapdoor": False,
         }
@@ -400,6 +421,11 @@ def verify_record(record_id: str, body: VerifyRequest, user: CurrentUser) -> dic
                 "The modulus came from a trusted-dealer ceremony, so whoever holds its "
                 "factorisation could forge check 2. Checks 1 and 3 are what make that "
                 "forgery fail anyway, which is why all three are shown."
+            ),
+            "plain_note": (
+                "Check 2 is the only one someone with the original setup secret could "
+                "fake. Checks 1 and 3 would still catch them, which is why all three "
+                "are run instead of one combined score."
             ),
         }
     )

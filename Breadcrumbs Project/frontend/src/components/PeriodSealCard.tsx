@@ -2,6 +2,7 @@ import { FileStack, History } from 'lucide-react';
 
 import type { PeriodSeal } from '../lib/api';
 import { longDate } from '../lib/format';
+import { Tech } from './Tech';
 import { HashChip, Seal } from './ui';
 import './mechanisms.css';
 
@@ -39,7 +40,7 @@ export function PeriodSealCard({ seal }: { seal: PeriodSeal }) {
         <div className="pseal__fig">
           <FileStack size={15} />
           <span className="pseal__n">{seal.record_count}</span>
-          <span className="small">records fixed by this seal</span>
+          <span className="small">records this month is fixed at</span>
         </div>
         <div className="pseal__fig">
           <History size={15} />
@@ -48,18 +49,20 @@ export function PeriodSealCard({ seal }: { seal: PeriodSeal }) {
         </div>
       </div>
 
+      <Tech>
+        <div className="pseal__row">
+          <span className="stamp-type">Records root</span>
+          <HashChip value={seal.records_root} />
+        </div>
+      </Tech>
       <div className="pseal__row">
-        <span className="stamp-type">Records root</span>
-        <HashChip value={seal.records_root} />
-      </div>
-      <div className="pseal__row">
-        <span className="stamp-type">Sealed</span>
+        <span className="stamp-type">Closed</span>
         <span className="small">{longDate(seal.sealed_at)} by {seal.sealed_by}</span>
       </div>
 
       {amended > 0 && (
         <div className="pseal__history">
-          <p className="stamp-type pseal__histhead">Amendment history</p>
+          <p className="stamp-type pseal__histhead">Corrections since</p>
           <ol className="amends">
             {seal.amendments.map((a) => (
               <li key={a.version} className="amend">
@@ -73,15 +76,16 @@ export function PeriodSealCard({ seal }: { seal: PeriodSeal }) {
                   <div className="amend__was">
                     <span className="stamp-type">was</span>
                     <span className="mono">{a.previous_count} records</span>
-                    <HashChip value={a.previous_root} />
+                    <Tech><HashChip value={a.previous_root} /></Tech>
                   </div>
                 </div>
               </li>
             ))}
           </ol>
           <p className="small pseal__note">
-            An amendment is not an edit. The superseded count and root stay here
-            permanently, which is what makes a high amendment rate visible.
+            A correction is not an edit. What the month said before stays here
+            permanently. That is what makes a factory correcting itself over and over
+            impossible to hide.
           </p>
         </div>
       )}

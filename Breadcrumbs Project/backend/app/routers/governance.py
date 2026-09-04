@@ -2,16 +2,23 @@
 
 from __future__ import annotations
 
+import datetime as dt
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from model.consortium import DOCUMENT_CHANNEL, ORGS
+from model.consortium import DOCUMENT_CHANNEL, MODEL_CHANNEL
 
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
 from ..db import Incident, Notification, Proposal, as_dict, get_session
 
 router = APIRouter(tags=["governance"])
+
+
+def _now() -> str:
+    """A real timestamp, in the format the chaincode compares against."""
+    return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @router.get("/governance/proposals")
@@ -22,8 +29,48 @@ def proposals(user: CurrentUser, db: Session = Depends(get_session)) -> list[dic
         d = as_dict(p)
         d["endorsement_count"] = len(p.endorsers)
         d["threshold_reached"] = len(p.endorsers) >= p.required
+        d["effect"] = _effect(p)
         out.append(d)
     return out
+
+
+def _execute(p: Proposal, user: CurrentUser) -> dict | None:
+    """
+    Carry out a motion that has reached its threshold.
+
+    This is the half that was missing. Endorsing used to flip a string in a SQL
+    row to "approved" and stop, so the governance screen could carry a motion to
+    admit a factory, show it as passed, and leave that factory absent from the
+    register, absent from the network map and absent from the ledger. The one
+    screen in the product about collective decisions was the one screen where a
+    decision changed nothing.
+
+    A motion executes exactly once. `executed_tx` is the guard: a second
+    endorsement, or a restart mid-flight, must not admit the same organisation
+    twice, and the chaincode would refuse the duplicate anyway.
+
+    A policy change has no subject and nothing to execute. That is honest rather
+    than incomplete: this prototype does not model charter text on-chain, and
+    inventing a transaction for it would be the same fiction being removed here.
+    """
+    if p.executed_tx or not p.subject:
+        return None
+
+    subject = dict(p.subject)
+    if p.kind == "new_member":
+        return ledger.invoke(
+            MODEL_CHANNEL, "membership", "admit_member",
+            {**subject, "proposal_id": p.id, "endorsers": list(p.endorsers),
+             "timestamp": _now()},
+            user.role, endorsers=ledger.gate_endorsers(), timestamp=_now(),
+        )
+    if p.kind == "suspension":
+        return ledger.invoke(
+            MODEL_CHANNEL, "membership", "set_status",
+            {**subject, "proposal_id": p.id, "timestamp": _now()},
+            user.role, endorsers=ledger.gate_endorsers(), timestamp=_now(),
+        )
+    return None
 
 
 @router.post("/governance/proposals/{proposal_id}/endorse")
@@ -39,23 +86,76 @@ def endorse(proposal_id: str, user: CurrentUser, db: Session = Depends(get_sessi
     # Endorsements count organisations, never individual signatures — the same
     # rule the endorsement policy engine applies on-chain.
     p.endorsers = [*p.endorsers, user.msp_id]
+
+    executed = None
     if len(p.endorsers) >= p.required:
         p.status = "approved"
+        try:
+            executed = _execute(p, user)
+        except ledger.LedgerError as exc:
+            # The tally is a fact and it stands; what failed is carrying the
+            # motion out. Saying so is better than a green motion and a register
+            # that quietly disagrees with it.
+            db.commit()
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                {"code": exc.code, "message": f"the motion carried but could not be "
+                                              f"executed: {exc.message}"},
+            ) from exc
+        if executed:
+            p.executed_tx = executed["tx_id"]
+
     db.commit()
     return {
         "proposal_id": proposal_id,
         "endorsements": len(p.endorsers),
         "required": p.required,
         "status": p.status,
+        "executed_tx": p.executed_tx,
+        "effect": _effect(p),
     }
+
+
+def _effect(p: Proposal) -> str | None:
+    """What carrying this motion did, in one sentence, or why it did nothing."""
+    if not p.subject:
+        return (
+            "A policy change is recorded here and is not enforced on-chain by this "
+            "prototype." if p.status == "approved" else None
+        )
+    if p.status != "approved":
+        return None
+    if not p.executed_tx:
+        return "Carried, but not yet written to the ledger."
+    if p.kind == "new_member":
+        return f"{p.subject.get('name', p.subject['msp_id'])} is now on the register."
+    if p.kind == "suspension":
+        return f"{p.subject['msp_id']} is now {p.subject.get('status', 'suspended')}."
+    return None
 
 
 @router.get("/governance/members")
 def members(user: CurrentUser) -> list[dict]:
+    """
+    The register, read off the ledger rather than off a constant.
+
+    It used to be a list literal, which meant an admitted member could never
+    appear here no matter what the consortium decided.
+    """
     require_capability(user, "read_governance")
+    rows = ledger.query(MODEL_CHANNEL, "membership", "list_members", {}, user.role)
     return [
-        {"org": name, "msp_id": msp_id, "role": kind, "country": country, "status": "active"}
-        for msp_id, name, kind, country in ORGS
+        {
+            "org": r["name"],
+            "msp_id": r["msp_id"],
+            "role": r["kind"],
+            "country": r["country"],
+            "status": r["status"],
+            "founding": r["founding"],
+            "admitted_at": r["admitted_at"],
+            "proposal_id": r["proposal_id"],
+        }
+        for r in rows
     ]
 
 
@@ -147,6 +247,7 @@ def regulator_overview(user: CurrentUser, db: Session = Depends(get_session)) ->
     """
     require_capability(user, "read_governance")
     proposals_all = db.query(Proposal).all()
+    register = ledger.query(MODEL_CHANNEL, "membership", "list_members", {}, user.role)
     return {
         "read_only_notice": (
             "Read-only observer access. Aggregate governance statistics and events "
@@ -154,8 +255,13 @@ def regulator_overview(user: CurrentUser, db: Session = Depends(get_session)) ->
             "lawful-basis access grant."
         ),
         "kpis": {
-            "active_factories": sum(1 for o in ORGS if o[2] == "factory"),
-            "total_organisations": len(ORGS),
+            # Counted off the register, so admitting or suspending a member
+            # moves these figures. They used to be a length of a constant, which
+            # meant the observatory reported the same numbers for ever.
+            "active_factories": sum(
+                1 for m in register if m["kind"] == "factory" and m["status"] == "active"
+            ),
+            "total_organisations": sum(1 for m in register if m["status"] == "active"),
             "open_proposals": sum(1 for p in proposals_all if p.status == "pending"),
             "schema_versions_in_use": 4,
         },

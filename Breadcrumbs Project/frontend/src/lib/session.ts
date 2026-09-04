@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
+import { resetFieldLabels } from './useFieldLabel';
 import {
   api,
   clearCredentials,
@@ -35,17 +36,23 @@ export interface Session {
   person: string;
   summary: string;
   landing: string;
-  /** The layout grammar this role's dashboard uses. Interface copy. */
-  instrument: string;
+  /** What this role's home screen is called, in the words it is called by. */
+  workspace: string;
 }
 
-/** The name each role's workspace goes by. Presentation, not data. */
-export const INSTRUMENT: Record<RoleId, string> = {
-  factory: 'The Loom Floor',
-  buyer: 'The Lightbox',
-  auditor: 'The Bench',
-  consortium: 'The Chamber',
-  regulator: 'The Observatory',
+/**
+ * The name each role's home screen goes by.
+ *
+ * These used to be invented ones — the Loom Floor, the Lightbox, the Bench, the
+ * Chamber, the Observatory — which meant the navigation could not be read
+ * without first being taught. A name is now a description of the job.
+ */
+export const WORKSPACE: Record<RoleId, string> = {
+  factory: 'your records',
+  buyer: 'your requests',
+  auditor: 'your checks',
+  consortium: 'governance',
+  regulator: 'the overview',
 };
 
 const listeners = new Set<() => void>();
@@ -66,6 +73,9 @@ let current: Session | null = readProfile();
 
 function set(next: Session | null) {
   current = next;
+  // The column table is scoped to whoever asked for it, so it cannot outlive
+  // the session that fetched it.
+  resetFieldLabels();
   try {
     if (next) localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
     else localStorage.removeItem(PROFILE_KEY);
@@ -95,9 +105,23 @@ export async function signIn(role: RoleOption): Promise<string> {
     person: token.person,
     summary: role.summary,
     landing: token.landing,
-    instrument: INSTRUMENT[token.role],
+    workspace: WORKSPACE[token.role],
   });
   return token.landing;
+}
+
+/**
+ * Sign in knowing only the role id.
+ *
+ * The guided tour moves between five people in nine steps, and asking it to
+ * carry a full `RoleOption` for each would mean holding a second copy of the
+ * role table in the client. It fetches the API's.
+ */
+export async function signInAs(id: RoleId): Promise<string> {
+  const options = await api.roles();
+  const option = options.find((o) => o.role === id);
+  if (!option) throw new Error(`no such role: ${id}`);
+  return signIn(option);
 }
 
 export function signOut(): void {

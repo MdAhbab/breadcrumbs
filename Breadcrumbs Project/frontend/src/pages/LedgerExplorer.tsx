@@ -2,8 +2,10 @@ import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 import { Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { HashChip, LedgerRow, Seal } from '../components/ui';
-import { api, type Block, type Channel } from '../lib/api';
+import { api, functionLabel, shortMsp, type Block, type Channel } from '../lib/api';
+import { useDetail } from '../lib/detail';
 import { commas, dateTime } from '../lib/format';
 import { useApi } from '../lib/useApi';
 import './ledger.css';
@@ -23,6 +25,7 @@ const WINDOW = 60;
  * careful with: this panel used to print "Chain verified" unconditionally.
  */
 export default function LedgerExplorer() {
+  const { technical } = useDetail();
   const [channel, setChannel] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -45,17 +48,17 @@ export default function LedgerExplorer() {
                   {integrity.channels.length} channels ·{' '}
                   {commas(integrity.channels.reduce((a, c) => a + c.height, 0))} blocks
                 </p>
-                <h1>The bolt</h1>
+                <h1>Ledger</h1>
                 <p className="lead led__lede">
-                  Every block since the genesis of these channels, in order. Scrub along
-                  the selvedge to inspect one.
+                  Everything ever written, in the order it was written, since the network
+                  started. Drag along the strip to open one entry.
                 </p>
               </div>
               <div className={`led__integrity ${integrity.ok ? '' : 'is-bad'}`}>
                 {integrity.ok ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                 <div>
                   <p className="led__int-head">
-                    {integrity.ok ? 'Chain verified' : 'Integrity check FAILED'}
+                    {integrity.ok ? 'Nothing has been altered' : 'Something has been altered'}
                   </p>
                   <p className="small led__int-body">
                     {integrity.ok
@@ -139,64 +142,83 @@ export default function LedgerExplorer() {
                     </div>
 
                     <p className="small led__legend">
-                      <span className="key key--docs" /> document channel
-                      <span className="key key--model" /> model channel
-                      <span className="key key--broken" /> contains an invalidated transaction
+                      <span className="key key--docs" /> about a document
+                      <span className="key key--model" /> about the shared model
+                      <span className="key key--broken" /> holds something that was refused
                     </p>
 
                     {block && (
                       <section className="blockcard">
                         <div className="blockcard__head">
-                          <h2 className="mono blockcard__n">block #{commas(block.number)}</h2>
+                          <h2 className="mono blockcard__n">entry #{commas(block.number)}</h2>
                           <Seal tone={block.transactions.every((t) => t.valid) ? 'sealed' : 'broken'}>
-                            {block.transactions.every((t) => t.valid) ? 'all valid' : 'contains invalid'}
+                            {block.transactions.every((t) => t.valid) ? 'all accepted' : 'holds a refusal'}
                           </Seal>
                         </div>
 
                         <div className="blockcard__grid">
                           <div>
-                            <LedgerRow label="Channel"><span className="mono">{current}</span></LedgerRow>
-                            <LedgerRow label="Timestamp">{dateTime(block.timestamp)}</LedgerRow>
-                            <LedgerRow label="Proposer"><span className="mono">{block.proposer}</span></LedgerRow>
-                            <LedgerRow label="Block hash"><HashChip value={block.block_hash} /></LedgerRow>
-                            <LedgerRow label="Previous"><HashChip value={block.previous_hash} /></LedgerRow>
-                            <LedgerRow label="Data hash"><HashChip value={block.data_hash} /></LedgerRow>
+                            <LedgerRow label="Written at">{dateTime(block.timestamp)}</LedgerRow>
+                            <LedgerRow label="Written by">
+                              {technical
+                                ? <span className="mono">{block.proposer}</span>
+                                : 'the network'}
+                            </LedgerRow>
+                            <Tech>
+                              <LedgerRow label="Channel"><span className="mono">{current}</span></LedgerRow>
+                              <LedgerRow label="Block hash"><HashChip value={block.block_hash} /></LedgerRow>
+                              <LedgerRow label="Previous"><HashChip value={block.previous_hash} /></LedgerRow>
+                              <LedgerRow label="Data hash"><HashChip value={block.data_hash} /></LedgerRow>
+                            </Tech>
                           </div>
 
                           <div>
                             <p className="stamp-type blockcard__label">
-                              Transactions ({block.transaction_count})
+                              What was written ({block.transaction_count})
                             </p>
                             {block.transactions.length === 0 && (
                               <p className="small dim">
-                                A configuration block. It carries the channel definition
-                                rather than a transaction.
+                                A setup entry. It carries the network&rsquo;s own configuration
+                                rather than anybody&rsquo;s action.
                               </p>
                             )}
                             {block.transactions.map((t) => (
                               <div key={t.tx_id} className={`tx ${t.valid ? '' : 'is-bad'}`}>
                                 <div className="tx__top">
-                                  <span className="mono tx__cc">{t.chaincode}</span>
-                                  <span className="tx__fn">{t.function.replace(/_/g, ' ')}</span>
+                                  <Tech><span className="mono tx__cc">{t.chaincode}</span></Tech>
+                                  <span className="tx__fn">
+                                    {technical ? t.function.replace(/_/g, ' ') : functionLabel(t.function)}
+                                  </span>
                                   <span className={`tx__code stamp-type ${t.valid ? 'ok' : 'bad'}`}>
                                     {t.validation}
                                   </span>
                                 </div>
                                 <p className="small tx__sub">
-                                  submitted by <span className="mono">{t.submitter}</span>
+                                  by{' '}
+                                  {technical
+                                    ? <span className="mono">{t.submitter}</span>
+                                    : shortMsp(t.submitter.split('::')[0])}
                                 </p>
-                                <p className="small tx__end">endorsed by {t.endorsers.join(', ')}</p>
-                                <HashChip value={t.tx_id} />
-                                {t.writes.length > 0 && (
-                                  <p className="small tx__end">
-                                    wrote <span className="mono">{t.writes.slice(0, 3).join(', ')}</span>
-                                    {t.writes.length > 3 && ` +${t.writes.length - 3} more`}
-                                  </p>
-                                )}
+                                <p className="small tx__end">
+                                  agreed by{' '}
+                                  {technical
+                                    ? t.endorsers.join(', ')
+                                    : t.endorsers.map(shortMsp).join(', ')}
+                                </p>
+                                <Tech>
+                                  <HashChip value={t.tx_id} />
+                                  {t.writes.length > 0 && (
+                                    <p className="small tx__end">
+                                      wrote <span className="mono">{t.writes.slice(0, 3).join(', ')}</span>
+                                      {t.writes.length > 3 && ` +${t.writes.length - 3} more`}
+                                    </p>
+                                  )}
+                                </Tech>
                                 {!t.valid && (
                                   <p className="small tx__why">
-                                    Kept in the block rather than dropped. The ledger records
-                                    what was attempted, not only what succeeded.
+                                    Refused, and kept anyway. The ledger records what was
+                                    attempted, not only what succeeded. An attempt to write
+                                    something invalid cannot be made to disappear.
                                   </p>
                                 )}
                               </div>

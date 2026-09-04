@@ -187,3 +187,11 @@
 
 .notices__row:last-child { border-bottom: 0; }
 .notices__kind { color: var(--ink-quiet); }
+
+/* Plain mode puts a word where the number was. A word wants the body face and
+   a little less weight than a six-digit height needs to carry. */
+.chainstat__height--word {
+  font-family: var(--font-body);
+  font-size: 15px;
+  letter-spacing: 0;
+}

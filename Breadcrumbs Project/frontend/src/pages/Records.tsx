@@ -2,18 +2,20 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Empty, Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { HashChip, Seal } from '../components/ui';
 import { api, recordLabel, type LedgerRecord } from '../lib/api';
 import { commas, longDate, period } from '../lib/format';
+import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './records.css';
 
 const PAGE = 40;
 
 /**
- * Every bolt this caller may see, filterable.
+ * Every record this caller may see, filterable.
  *
- * The dashboard shows the newest dozen; this is the whole cloth. It exists
+ * The overview shows the newest dozen; this is all of them. It exists
  * because the ledger now holds hundreds of documents rather than the five a
  * fixture file could hold, and a dashboard that silently truncates is a
  * dashboard that lies about how much there is.
@@ -23,6 +25,8 @@ const PAGE = 40;
  * because the ledger has one.
  */
 export default function Records() {
+  const { role } = useSession();
+  const auditor = role?.id === 'auditor';
   const records = useApi(() => api.records(), []);
   const [type, setType] = useState('');
   const [site, setSite] = useState('');
@@ -52,11 +56,12 @@ export default function Records() {
             <>
               <header className="recs__head">
                 <div>
-                  <p className="stamp-type recs__eyebrow">Committed records</p>
-                  <h1>Bolts</h1>
+                  <p className="stamp-type recs__eyebrow">Published to the ledger</p>
+                  <h1>{auditor ? 'All documents' : 'Records'}</h1>
                   <p className="lead recs__lede">
-                    {commas(filtered.length)} of {commas(all.length)} records. Each one is a
-                    document held off the chain, with only its root hash committed.
+                    {commas(filtered.length)} of {commas(all.length)}. Each one is a document
+                    that never moved. Only a fingerprint of it is on the ledger.
+                    {auditor && ' As an auditor you can open any of them without asking.'}
                   </p>
                 </div>
               </header>
@@ -66,7 +71,7 @@ export default function Records() {
                 <Pick label="Site" value={site} onChange={setSite} options={facets.sites} />
                 <Pick label="Period" value={per} onChange={setPer} options={facets.periods} render={period} />
                 <label className="recs__search">
-                  <span className="stamp-type">Record id</span>
+                  <span className="stamp-type">Search by name</span>
                   <input
                     className="input"
                     type="search"
@@ -93,9 +98,9 @@ export default function Records() {
                           <th scope="col">Period</th>
                           <th scope="col">Site</th>
                           <th scope="col">Rows</th>
-                          <th scope="col">Witness</th>
-                          <th scope="col">Root</th>
-                          <th scope="col">Committed</th>
+                          <th scope="col">Counter-signed</th>
+                          <Tech><th scope="col">Root</th></Tech>
+                          <th scope="col">Published</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -138,12 +143,12 @@ function Row({ r }: { r: LedgerRecord }) {
       <td className="mono num">{commas(r.row_count)}</td>
       <td>
         {r.witnesses.length > 0 ? (
-          <Seal tone="sealed">counter-signed</Seal>
+          <Seal tone="sealed">yes</Seal>
         ) : (
           <span className="small dim">not sampled</span>
         )}
       </td>
-      <td><HashChip value={r.merkle_root} /></td>
+      <Tech><td><HashChip value={r.merkle_root} /></td></Tech>
       <td className="mono dim">{longDate(r.committed_at)}</td>
     </tr>
   );

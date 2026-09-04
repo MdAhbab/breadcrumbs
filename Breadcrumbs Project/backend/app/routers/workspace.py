@@ -58,13 +58,22 @@ def directory(user: CurrentUser) -> list[dict]:
         for name, channel in network.channels.items()
     }
     on_documents = set(channels.get(DOCUMENT_CHANNEL, []))
+    # The register, not the constant. A member admitted by a motion has to
+    # appear here or the governance screen is describing something that did not
+    # happen. A member admitted but not yet joined to any channel correctly
+    # shows no channels: being in the consortium and being party to a document
+    # are different facts, and this is where that difference becomes visible.
+    register = ledger.query(MODEL_CHANNEL, "membership", "list_members", {}, user.role)
     return [
         {
-            "msp_id": msp_id,
-            "name": name,
-            "kind": kind,
+            "msp_id": (msp_id := entry["msp_id"]),
+            "name": entry["name"],
+            "kind": (kind := entry["kind"]),
             "kind_label": ORG_KIND_LABEL.get(kind, kind),
-            "country": COUNTRY_NAME.get(country, country),
+            "country": COUNTRY_NAME.get(entry["country"], entry["country"]),
+            "status": entry["status"],
+            "founding": entry["founding"],
+            "admitted_by_proposal": entry["proposal_id"],
             "channels": sorted(c for c, members in channels.items() if msp_id in members),
             "is_you": msp_id == user.msp_id,
             # Whether this organisation can be a party to a document at all.
@@ -75,7 +84,7 @@ def directory(user: CurrentUser) -> list[dict]:
             # disclose to, neither of which can see a document.
             "on_document_channel": msp_id in on_documents,
         }
-        for msp_id, name, kind, country in ORGS
+        for entry in register
     ]
 
 
@@ -119,24 +128,27 @@ def require_document_member(msp_id: str, what: str) -> None:
 # The interface used to hold this vocabulary; it belongs next to the log it
 # describes, so a new contract function shows up as an unlabelled event here
 # rather than being silently dropped by a frontend switch statement.
+# What each chaincode function did, said in words somebody who does not work on
+# this system would use. The feed is the first thing a factory manager reads
+# every morning, and it used to report that they had "folded an epoch".
 FUNCTION_KIND: dict[str, tuple[str, str]] = {
-    "commit_record": ("seal", "committed"),
-    "supersede_record": ("seal", "superseded"),
-    "seal_period": ("seal", "sealed a period"),
-    "reopen_seal": ("revoke", "reopened a sealed period"),
-    "amend_seal": ("seal", "amended a seal"),
-    "grant_access": ("grant", "granted access"),
-    "revoke_access": ("revoke", "revoked access"),
-    "record_verification": ("verify", "verified a disclosure"),
-    "open_seed_round": ("request", "opened a witness seed round"),
-    "commit_seed_share": ("request", "committed a seed share"),
-    "reveal_seed_share": ("request", "revealed a seed share"),
-    "install_group": ("seal", "installed accumulator parameters"),
-    "advance_epoch": ("seal", "folded an epoch"),
-    "publish_beacon": ("seal", "published a delay proof"),
-    "commit_benchmark": ("request", "sealed a benchmark"),
+    "commit_record": ("seal", "published a record"),
+    "supersede_record": ("seal", "corrected a record"),
+    "seal_period": ("seal", "closed a month"),
+    "reopen_seal": ("revoke", "reopened a closed month"),
+    "amend_seal": ("seal", "corrected a closed month"),
+    "grant_access": ("grant", "gave access to something"),
+    "revoke_access": ("revoke", "took access back"),
+    "record_verification": ("verify", "checked a value"),
+    "open_seed_round": ("request", "started picking who checks records"),
+    "commit_seed_share": ("request", "put in its share of the random draw"),
+    "reveal_seed_share": ("request", "revealed its share of the random draw"),
+    "install_group": ("seal", "set up the tamper check"),
+    "advance_epoch": ("seal", "updated the tamper check"),
+    "publish_beacon": ("seal", "published a proof that time had passed"),
+    "commit_benchmark": ("request", "fixed the tests for a training round"),
     "open_round": ("request", "opened a training round"),
-    "evaluate_gate": ("verify", "ran the Continuity Gate"),
+    "evaluate_gate": ("verify", "put a model update to the test"),
 }
 
 
@@ -327,15 +339,36 @@ COMPARISON = {
 # the request that becomes a grant
 # --------------------------------------------------------------------------
 class NewRequest(BaseModel):
-    """What a buyer asks for. One field, one purpose, one period."""
+    """
+    What a buyer asks for: one or more columns, one purpose, one period.
+
+    A grant covers exactly one column and that does not change; what changes is
+    that asking for four of them is one action rather than four. A buyer
+    checking a factory's wages needs the basic, the overtime and the deductions
+    to make any sense of the net, and sending three separate requests for that
+    was a limit of the form rather than of the rule underneath it.
+
+    `field_name` is still accepted so anything that already calls this keeps
+    working; it is folded into `field_names` below.
+    """
 
     supplier_msp: str
     record_type: str
     period: str
     purpose_code: str = Field(min_length=3)
-    field_name: str = Field(min_length=1)
+    field_name: str | None = None
+    field_names: list[str] = Field(default_factory=list)
     item_reference: str | None = None
     expires_at: str
+
+    def columns(self) -> list[str]:
+        """The columns asked for, de-duplicated, in the order given."""
+        out: list[str] = []
+        for name in [*self.field_names, *( [self.field_name] if self.field_name else [] )]:
+            cleaned = name.strip()
+            if cleaned and cleaned not in out:
+                out.append(cleaned)
+        return out
 
 
 class Decision(BaseModel):
@@ -343,8 +376,20 @@ class Decision(BaseModel):
     reason: str | None = None
 
 
+class BatchDecision(BaseModel):
+    """Answer several requests against one record, in one action."""
+
+    request_ids: list[str] = Field(min_length=1)
+    record_id: str
+
+
 def _now() -> str:
     return dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _grants_for(user) -> list[dict]:
+    """Every grant this caller can see, as a list."""
+    return list(_grants_by_id(user).values())
 
 
 def _grants_by_id(user) -> dict[str, dict]:
@@ -402,6 +447,7 @@ def list_requests(user: CurrentUser, db: Session = Depends(get_session)) -> list
                 "grant_status": grant["status"] if grant else None,
                 "grant_record_id": grant["record_id"] if grant else None,
                 "grant_revoked_reason": grant.get("revoked_reason") if grant else None,
+                "batch_id": r.batch_id,
             }
         )
     return out
@@ -413,24 +459,77 @@ def make_request(
 ) -> dict:
     require_capability(user, "write_requests")
     require_document_member(body.supplier_msp, "be asked for a document")
+
+    columns = body.columns()
+    if not columns:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "name at least one column to ask for"
+        )
+
+    # Asking again for something already live is the one case worth refusing
+    # here rather than letting through: the factory would see a request it has
+    # already answered, and the buyer would have two rows for one permission.
+    live = {
+        g["field_name"]
+        for g in _grants_for(user)
+        if g["status"] == "active" and g["owner_msp"] == body.supplier_msp
+    }
+    pending = {
+        r.field_name
+        for r in db.query(BuyerRequest).filter(
+            BuyerRequest.requester_msp == user.msp_id,
+            BuyerRequest.supplier_msp == body.supplier_msp,
+            BuyerRequest.record_type == body.record_type,
+            BuyerRequest.period == body.period,
+            BuyerRequest.status == "pending",
+        )
+    }
+    wanted = [c for c in columns if c not in pending]
+    already = [c for c in columns if c in pending]
+    if not wanted:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "ALREADY_ASKED",
+                "message": (
+                    "You have already asked this factory for "
+                    + ", ".join(already)
+                    + " for this month, and it has not answered yet."
+                ),
+            },
+        )
+
     count = db.query(BuyerRequest).count()
-    row = BuyerRequest(
-        id=f"br-{count + 1:03d}", requester_msp=user.msp_id,
-        supplier_msp=body.supplier_msp, record_type=body.record_type,
-        period=body.period, item_reference=body.item_reference,
-        purpose_code=body.purpose_code, field_name=body.field_name,
-        expires_at=body.expires_at, status="pending", requested_at=_now(),
-    )
-    db.add(row)
+    batch_id = f"bt-{count + 1:03d}" if len(wanted) > 1 else None
+    rows = []
+    for i, field_name in enumerate(wanted):
+        row = BuyerRequest(
+            id=f"br-{count + 1 + i:03d}", requester_msp=user.msp_id,
+            supplier_msp=body.supplier_msp, record_type=body.record_type,
+            period=body.period, item_reference=body.item_reference,
+            purpose_code=body.purpose_code, field_name=field_name,
+            expires_at=body.expires_at, status="pending", requested_at=_now(),
+            batch_id=batch_id,
+        )
+        db.add(row)
+        rows.append(row)
+
     notify(
         db,
         body.supplier_msp,
         "access_request",
-        f"{user.org} asked for {body.field_name} from "
-        f"{body.record_type.replace('_', ' ')}, {body.period} — {body.purpose_code}",
+        f"{user.org} asked for {', '.join(wanted)} from "
+        f"{body.record_type.replace('_', ' ')}, {body.period} ({body.purpose_code})",
     )
     db.commit()
-    return {"id": row.id, "status": row.status}
+    return {
+        "ids": [r.id for r in rows],
+        "id": rows[0].id,
+        "batch_id": batch_id,
+        "status": "pending",
+        "skipped": already,
+        "live_already": sorted(live & set(columns)),
+    }
 
 
 @router.post("/requests/{request_id}/grant")
@@ -535,6 +634,52 @@ def answer_request(
     db.commit()
     return {
         "id": row.id, "status": row.status, "grant_id": grant_id, "reissued": reissued,
+    }
+
+
+@router.post("/requests/grant-batch")
+def answer_batch(
+    body: BatchDecision, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    Answer several requests against one record, in one action.
+
+    A buyer can now ask for four columns of a payroll register in one go, so the
+    factory needs to be able to answer that the same way. Each column still
+    becomes its own grant, because one grant covering four columns is not a
+    thing this contract can express and should not become one: the narrowness is
+    the guarantee.
+
+    Deliberately not atomic. If the third of four is refused by the contract,
+    the first two are real grants that the buyer can use, and pretending
+    otherwise by rolling them back would throw away access the factory meant to
+    give. The response says exactly which ones went through and why the others
+    did not.
+    """
+    require_capability(user, "write_grants")
+
+    granted, failed = [], []
+    for request_id in body.request_ids:
+        try:
+            result = answer_request(request_id, Decision(record_id=body.record_id), user, db)
+            granted.append({"request_id": request_id, "grant_id": result["grant_id"]})
+        except HTTPException as exc:
+            detail = exc.detail
+            failed.append(
+                {
+                    "request_id": request_id,
+                    "message": detail["message"] if isinstance(detail, dict) else str(detail),
+                }
+            )
+
+    return {
+        "record_id": body.record_id,
+        "granted": granted,
+        "failed": failed,
+        "summary": (
+            f"{len(granted)} of {len(body.request_ids)} released"
+            + (f", {len(failed)} refused" if failed else "")
+        ),
     }
 
 

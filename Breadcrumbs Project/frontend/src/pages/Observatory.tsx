@@ -47,12 +47,12 @@ export default function Observatory() {
         </div>
       </div>
 
-      <Result query={world} pendingLabel="Reading what you are permitted">
+      <Result query={world} pendingLabel="Reading what you may see">
         {([overview, sla]) => (
           <>
             <header className="obs__head">
               <p className="stamp-type obs__eyebrow">Dept. of Labour, Bangladesh</p>
-              <h1>Observatory</h1>
+              <h1>Overview</h1>
             </header>
 
             <section className="obs__section">
@@ -60,11 +60,11 @@ export default function Observatory() {
               <div className="figures">
                 <Figure n={overview.kpis.active_factories} label="active factories" />
                 <Figure n={overview.kpis.total_organisations} label="organisations in the consortium" />
-                <Figure n={overview.kpis.open_proposals} label="motions open" />
-                <Figure n={commas(sla.kpis.total_verifications)} label="verifications recorded" />
+                <Figure n={overview.kpis.open_proposals} label="proposals open" />
+                <Figure n={commas(sla.kpis.total_verifications)} label="checks recorded" />
                 <Figure
                   n={overview.chain.reduce((a, c) => a + c.height, 0)}
-                  label="blocks across all channels"
+                  label="entries on the ledger"
                 />
                 <Figure
                   n={overview.chain.every((c) => c.integrity_ok) ? 'passing' : 'FAILING'}
@@ -79,7 +79,7 @@ export default function Observatory() {
             <section className="obs__section">
               <p className="stamp-type obs__label">Governance events</p>
               {overview.governance_events.length === 0 ? (
-                <p className="small obs__explain">No motions have been opened.</p>
+                <p className="small obs__explain">No proposals have been opened.</p>
               ) : (
                 <ol className="events">
                   {overview.governance_events.map((e, i) => (
@@ -136,7 +136,7 @@ export default function Observatory() {
               </p>
               <p className="small obs__explain">
                 These views exist and hold data. Your role does not carry the capability
-                to read them, and the server refuses the request — not merely the
+                to read them, and the server refuses the request, not merely the
                 interface. Each panel below made the call.
               </p>
 
@@ -160,7 +160,7 @@ export default function Observatory() {
 
               <div className="obs__request">
                 <p className="small">
-                  A lawful-basis grant is itself a motion of the consortium chamber,
+                  Giving a regulator lawful-basis access is itself a proposal the members vote on,
                   recorded on the ledger like any other. Requesting one leaves a trail;
                   so does approving it.
                 </p>
@@ -216,7 +216,7 @@ function Refused({
         {result === 'open' && (
           <p className="small">
             The server returned {rows} row{rows === 1 ? '' : 's'}. The capability table
-            no longer refuses this role — the boundary this panel describes is gone.
+            no longer refuses this role, and the boundary this panel describes is gone.
           </p>
         )}
       </div>

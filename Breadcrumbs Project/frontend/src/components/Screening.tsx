@@ -6,7 +6,7 @@ import { Failed } from './states';
 import './mechanisms.css';
 
 const pct = (v: number | null | undefined) =>
-  v === null || v === undefined ? '—' : `${(v * 100).toFixed(1)}%`;
+  v === null || v === undefined ? 'n/a' : `${(v * 100).toFixed(1)}%`;
 
 /**
  * What the detector thinks of this record.
@@ -106,14 +106,14 @@ export function Screening({ recordId }: { recordId: string }) {
             <Rate label="catches" value={pct(result.measured?.detection)} />
             <Rate label="flags clean documents" value={pct(result.measured?.false_positive)} />
             <Rate label="balanced accuracy" value={pct(result.measured?.balanced_accuracy)} />
-            <Rate label="over seeds" value={String(result.measured?.seeds ?? '—')} />
+            <Rate label="over seeds" value={String(result.measured?.seeds ?? 'n/a')} />
           </div>
 
           {result.blind_to && (
             <p className="small screen__blind">
               <TriangleAlert size={12} />
               <span>
-                It is at chance on <span className="mono">{result.blind_to.kind}</span> —{' '}
+                It is no better than guessing on <span className="mono">{result.blind_to.kind}</span>.{' '}
                 {pct(result.blind_to.detection)} detection. {result.blind_to.why}
               </span>
             </p>

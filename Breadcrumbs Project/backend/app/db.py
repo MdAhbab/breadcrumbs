@@ -59,7 +59,15 @@ class StoredDocument(Base):
 
 
 class Proposal(Base):
-    """Governance proposals. The endorsement tally itself is on-chain."""
+    """
+    A governance proposal, and what it does to the ledger if it carries.
+
+    `subject` is what makes a motion more than a note. An admission motion names
+    the organisation it admits and a suspension names the member it suspends, so
+    that reaching the threshold can be executed rather than merely displayed.
+    Without it, three members could endorse "admit Delta Knitwear", the motion
+    would go green, and Delta Knitwear would exist nowhere.
+    """
 
     __tablename__ = "proposals"
 
@@ -72,6 +80,12 @@ class Proposal(Base):
     endorsers = Column(JSON, nullable=False, default=list)
     opened_at = Column(String, nullable=False)
     closes_at = Column(String, nullable=False)
+    # {"msp_id", "name", "kind", "country"} for an admission;
+    # {"msp_id", "status", "reason"} for a suspension; null for a policy change.
+    subject = Column(JSON, nullable=True)
+    # Set once the motion has been carried out on the ledger, so a restart or a
+    # second endorsement cannot execute it twice.
+    executed_tx = Column(String, nullable=True)
 
 
 class BuyerRequest(Base):
@@ -95,6 +109,10 @@ class BuyerRequest(Base):
     # accept a reason, parse it and drop it, so a buyer was told a request had
     # been refused and never told why.
     decline_reason = Column(String, nullable=True)
+    # Several columns asked for in one go share a batch, so the factory sees
+    # "Primark wants four things from this register" rather than four unrelated
+    # rows it has to notice are related.
+    batch_id = Column(String, nullable=True, index=True)
 
 
 class Attestation(Base):

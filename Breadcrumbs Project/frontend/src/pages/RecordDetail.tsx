@@ -2,24 +2,28 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { DocumentCheck } from '../components/DocumentCheck';
 import { Screening } from '../components/Screening';
 import { Failed, Result } from '../components/states';
 import { ThreeChecks } from '../components/ThreeChecks';
+import { Tech } from '../components/Tech';
 import { Disclosure, HashChip, LedgerRow, Seal } from '../components/ui';
 import { WitnessPanel } from '../components/WitnessPanel';
 import {
-  ApiError, api, recordLabel, shortMsp,
+  ApiError, api, purposeLabel, recordLabel, shortMsp,
   type Grant, type RecordDetail as Detail,
 } from '../lib/api';
 import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
+import { useFieldLabel } from '../lib/useFieldLabel';
 import './record.css';
 
-/** One bolt: its history, who may read a thread of it, and who has. */
+/** One record: what is in it, what has happened to it, and who may read it. */
 export default function RecordDetail() {
   const { id = '' } = useParams();
   const { role } = useSession();
+  const fieldLabel = useFieldLabel();
   const main = useApi(
     () => Promise.all([api.record(id), api.grants()]) as Promise<[Detail, Grant[]]>,
     [id],
@@ -45,6 +49,7 @@ export default function RecordDetail() {
         {([detail, allGrants]) => {
           const b = detail.record;
           const grants = allGrants.filter((g) => g.record_id === b.record_id);
+          const labelOf = (field: string) => fieldLabel(b.record_type, field);
 
           return (
             <>
@@ -57,30 +62,35 @@ export default function RecordDetail() {
                   </p>
                 </div>
                 <Seal tone={b.status === 'committed' ? 'sealed' : 'inert'}>
-                  {b.status === 'committed' ? 'Sealed' : 'Superseded'}
+                  {b.status === 'committed' ? 'Published' : 'Corrected'}
                 </Seal>
               </header>
 
               <div className="rec__figures">
-                <Fig n={commas(b.row_count)} l="threads woven" />
-                <Fig n={commas(detail.rows_held_off_chain)} l="rows held off-chain" />
-                <Fig n={b.schema_version} l="schema" />
-                <Fig n={longDate(b.committed_at)} l="sealed on" />
+                <Fig n={commas(b.row_count)} l="rows in the file" />
+                <Fig n={longDate(b.committed_at)} l="published on" />
+                <Fig n="0" l="rows the ledger can read" />
+                <Tech><Fig n={b.schema_version} l="schema" /></Tech>
               </div>
 
               <div className="rec__body">
                 <section>
-                  <h2 className="rec__h2">History</h2>
+                  {/* Ahead of the history, because "what is this document?" is
+                      the question a reader arrives with, and the page used to
+                      answer every question except that one. */}
+                  <DocumentCheck recordId={b.record_id} />
+
+                  <h2 className="rec__h2 rec__h2--spaced">History</h2>
                   <ol className="tl">
                     <li className="tl__item">
                       <span className="tl__dot" />
                       <div>
-                        <p className="tl__what">Record sealed to the ledger</p>
+                        <p className="tl__what">Published to the ledger</p>
                         <p className="small tl__when">
-                          {dateTime(b.committed_at)} · {commas(b.row_count)} threads ·
-                          committed by {b.committed_by}
+                          {dateTime(b.committed_at)} · {commas(b.row_count)} rows
+                          <Tech> · published by {b.committed_by}</Tech>
                         </p>
-                        <HashChip value={b.merkle_root} />
+                        <Tech><HashChip value={b.merkle_root} /></Tech>
                       </div>
                     </li>
 
@@ -89,13 +99,13 @@ export default function RecordDetail() {
                         <span className={`tl__dot ${g.status === 'revoked' ? 'is-bad' : ''}`} />
                         <div>
                           <p className="tl__what">
-                            {g.status === 'revoked' ? 'Access revoked from' : 'Access granted to'}{' '}
+                            {g.status === 'revoked' ? 'Access withdrawn from' : 'Access given to'}{' '}
                             {shortMsp(g.requester_msp)}
                           </p>
                           <p className="small tl__when">
                             {g.status === 'revoked'
                               ? g.revoked_reason
-                              : `${g.purpose_code} · one field, until ${longDate(g.expires_at)}`}
+                              : `${purposeLabel(g.purpose_code)} · one column, until ${longDate(g.expires_at)}`}
                           </p>
                         </div>
                       </li>
@@ -106,11 +116,12 @@ export default function RecordDetail() {
                         <span className={`tl__dot ${r.result === 'match' ? 'is-ok' : 'is-bad'}`} />
                         <div>
                           <p className="tl__what">
-                            {r.result === 'match' ? 'Verification completed' : 'Verification failed'}
+                            {r.result === 'match' ? 'Checked and matched' : 'Check failed'}
                           </p>
                           <p className="small tl__when">
-                            {dateTime(r.verified_at)} · {shortMsp(r.verifier_msp)} proved{' '}
-                            <span className="mono">{r.field_name}</span> against the root
+                            {dateTime(r.verified_at)} · {shortMsp(r.verifier_msp)} checked{' '}
+                            <strong>{labelOf(r.field_name)}</strong> against the published
+                            fingerprint
                           </p>
                           <Link to={`/verify/${encodeURIComponent(r.receipt_id)}`} className="tl__link">
                             See the receipt
@@ -123,29 +134,29 @@ export default function RecordDetail() {
                       <li className="tl__item">
                         <span className="tl__dot is-bad" />
                         <div>
-                          <p className="tl__what">Superseded by {b.superseded_by}</p>
+                          <p className="tl__what">Corrected by a later version</p>
                           <p className="small tl__when">
-                            The old record is not deleted and its root stays verifiable.
+                            This version is not deleted, and it stays checkable.
                           </p>
                         </div>
                       </li>
                     )}
                   </ol>
 
-                  <h2 className="rec__h2 rec__h2--spaced">Counter-signature</h2>
+                  <h2 className="rec__h2 rec__h2--spaced">Who counter-signed it</h2>
                   <Result query={witness} pendingLabel="Asking who was assigned">
                     {(req) => <WitnessPanel req={req} />}
                   </Result>
 
-                  <h2 className="rec__h2 rec__h2--spaced">Anchored in the accumulator</h2>
-                  <Result query={anchored} pendingLabel="Running the three checks">
+                  <h2 className="rec__h2 rec__h2--spaced">Has it been tampered with?</h2>
+                  <Result query={anchored} pendingLabel="Running the checks">
                     {(result) => <ThreeChecks result={result} />}
                   </Result>
 
                   <h2 className="rec__h2 rec__h2--spaced">What the detector thinks</h2>
                   <p className="small rec__note">
-                    Everything above this line is proof: it can be checked by anyone and it
-                    settles the question. Everything below it is a guess. Keeping them
+                    Everything above this line is proof: anyone can check it, and it
+                    settles the question. Everything below it is a guess. Keeping the two
                     apart is the point of the heading.
                   </p>
                   <Screening recordId={b.record_id} />
@@ -169,10 +180,10 @@ export default function RecordDetail() {
                 </section>
 
                 <aside>
-                  <h2 className="rec__h2">Who may read a thread</h2>
+                  <h2 className="rec__h2">Who can read part of this</h2>
                   {grants.length === 0 ? (
                     <p className="small rec__none">
-                      Nobody yet. This record is sealed but unshared.
+                      Nobody yet. It is published, and shared with no one.
                     </p>
                   ) : (
                     <ul className="grants">
@@ -180,6 +191,7 @@ export default function RecordDetail() {
                         <GrantRow
                           key={g.grant_id}
                           grant={g}
+                          label={labelOf(g.field_name)}
                           canRevoke={role?.id === 'factory' && g.status === 'active'}
                           onChange={main.reload}
                         />
@@ -187,8 +199,8 @@ export default function RecordDetail() {
                     </ul>
                   )}
                   <p className="small rec__note">
-                    A grant covers exactly one field. Anything outside it is refused by
-                    the contract, so a wider request cannot be honoured by mistake.
+                    Access covers exactly one column. Anything wider is refused by the
+                    contract itself, so it cannot be given away by mistake.
                   </p>
                 </aside>
               </div>
@@ -204,16 +216,17 @@ export default function RecordDetail() {
  * One grant, and the one irreversible thing this page can do to it.
  *
  * Revoking used to be a single unguarded click that wrote the fixed string
- * "Revoked by the record owner from the bolt view" — which records the screen
+ * "Revoked by the record owner from the record view" — which records the screen
  * the button was on rather than why access was ended. That string goes onto the
  * ledger permanently, under the identity that pressed it, and is shown to the
  * organisation whose access it ends. So it asks, and it asks before rather than
  * after.
  */
 function GrantRow({
-  grant, canRevoke, onChange,
+  grant, label, canRevoke, onChange,
 }: {
   grant: Grant;
+  label: string;
   canRevoke: boolean;
   onChange: () => void;
 }) {
@@ -251,9 +264,9 @@ function GrantRow({
           {grant.status}
         </Seal>
       </div>
-      <p className="mono grant__field">{grant.field_name}</p>
+      <p className="grant__field">{label}</p>
       <p className="small grant__meta">
-        {grant.purpose_code} · until {longDate(grant.expires_at)}
+        {purposeLabel(grant.purpose_code)} · until {longDate(grant.expires_at)}
       </p>
       {grant.revoked_reason && <p className="small grant__meta">{grant.revoked_reason}</p>}
       {failure && <Failed error={failure} />}
@@ -261,14 +274,14 @@ function GrantRow({
         <div className="grant__ask">
           <input
             className="input"
-            placeholder="Why is this being revoked?"
+            placeholder="Why is this being withdrawn?"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             autoFocus
           />
           <p className="small grant__asknote">
-            Permanent, and written to the ledger with your identity. Access can be
-            granted again afterwards, as a new grant.
+            Permanent, and written to the ledger under your name. You can give access
+            again afterwards; it will be a new, separate permission.
           </p>
           <div className="grant__askrow">
             <button
@@ -277,7 +290,7 @@ function GrantRow({
               onClick={() => void revoke()}
               disabled={busy || reason.trim().length < 4}
             >
-              {busy ? 'Revoking…' : 'Revoke, permanently'}
+              {busy ? 'Withdrawing…' : 'Withdraw, permanently'}
             </button>
             <button
               type="button"
@@ -294,7 +307,7 @@ function GrantRow({
           className="btn btn--danger btn--sm grant__revoke"
           onClick={() => setAsking(true)}
         >
-          Revoke
+          Withdraw access
         </button>
       ))}
     </li>

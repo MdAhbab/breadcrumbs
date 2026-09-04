@@ -2,15 +2,17 @@ import { ArrowLeft, Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
-import { Failed, Result } from '../components/states';
-import { Disclosure, Field, HashChip, LedgerRow, Seal } from '../components/ui';
+import { DocumentCheck } from '../components/DocumentCheck';
+import { Result } from '../components/states';
+import { Disclosure, Field, LedgerRow, Seal } from '../components/ui';
 import {
-  ApiError, api, orderGrants, recordLabel, shortMsp,
-  type AccessRequest, type Grant, type PublicReceipt, type RowProof,
+  api, recordLabel, shortMsp,
+  type Grant, type LedgerRecord, type PublicReceipt,
 } from '../lib/api';
 import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
+import { useFieldLabel } from '../lib/useFieldLabel';
 import './verify.css';
 
 /**
@@ -55,7 +57,7 @@ export default function VerifyResult() {
 function useWayBack(): { to: string; label: string } {
   const { role } = useSession();
   return role
-    ? { to: role.landing, label: role.instrument }
+    ? { to: role.landing, label: role.workspace }
     : { to: '/', label: 'Breadcrumbs' };
 }
 
@@ -63,12 +65,13 @@ function useWayBack(): { to: string; label: string } {
 function FromReceipt({ id }: { id: string }) {
   const query = useApi(() => api.receipt(id), [id]);
   const back = useWayBack();
+  const labelOf = useFieldLabel();
 
   return (
     <div className="lb">
       <header className="lb__bar">
         <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
-        <Link to="/verify" className="lb__toggle small">verify something else</Link>
+        <Link to="/verify" className="lb__toggle small">check something else</Link>
       </header>
 
       <main className="lb__main">
@@ -84,22 +87,22 @@ function FromReceipt({ id }: { id: string }) {
                   <div>
                     <h1 className="verdictbar__head">
                       {ok
-                        ? 'Verified — the record is genuine.'
-                        : 'Proof failed — do not rely on this record.'}
+                        ? 'Checked. This value is real.'
+                        : 'The check failed. Do not rely on this record.'}
                     </h1>
                     <p className="lead verdictbar__body">
                       {ok ? (
                         <>
-                          This disclosure was proved against the root{' '}
-                          {data.record ? shortMsp(data.record.owner_msp) : 'the owner'} sealed
-                          on {data.record ? longDate(data.record.committed_at) : 'the ledger'}.
-                          The record has not changed since.
+                          The value was checked against the fingerprint{' '}
+                          {data.record ? shortMsp(data.record.owner_msp) : 'the owner'} published
+                          on {data.record ? longDate(data.record.committed_at) : 'the ledger'},
+                          and it matches. Nothing has been altered since.
                         </>
                       ) : (
                         <>
-                          The root recorded on this receipt does not match what is committed
-                          on the ledger. Either the record or the receipt has been altered.
-                          Ask for it to be re-issued, and do not treat it as evidence.
+                          The fingerprint on this receipt is not the one on the ledger.
+                          Either the record or the receipt was altered after it was made.
+                          Ask for it to be issued again, and do not treat this as evidence.
                         </>
                       )}
                     </p>
@@ -107,10 +110,12 @@ function FromReceipt({ id }: { id: string }) {
                 </div>
 
                 <section className="specimen">
-                  <p className="stamp-type specimen__field">{data.receipt.field_name}</p>
+                  <p className="stamp-type specimen__field">
+                    {labelOf(data.record?.record_type ?? '', data.receipt.field_name)}
+                  </p>
                   <p className="specimen__value specimen__value--withheld">disclosed privately</p>
                   <div className="specimen__seal">
-                    <Seal tone={ok ? 'sealed' : 'broken'}>{ok ? 'Verified' : 'Proof failed'}</Seal>
+                    <Seal tone={ok ? 'sealed' : 'broken'}>{ok ? 'Genuine' : 'Failed'}</Seal>
                   </div>
                   <p className="specimen__note small">{data.note}</p>
                 </section>
@@ -118,55 +123,55 @@ function FromReceipt({ id }: { id: string }) {
                 <div className="lb__detail">
                   <Disclosure summary="How this was checked" open>
                     <p className="small lb__explain">
-                      The owner disclosed one row, the salt it was hashed with, and the
-                      sibling hashes on that row&rsquo;s path to the root. The verifier
-                      recomputed the root from those alone. This page compares the root
-                      the receipt recorded against the one on the ledger now.
+                      The factory released one row, the random number it was mixed with,
+                      and a handful of numbers from the tree above it. Whoever ran the
+                      check worked the fingerprint out again from only those. This page
+                      compares the answer they got with what is on the ledger now.
                     </p>
 
                     <div className={`proof ${ok ? '' : 'is-bad'}`}>
                       <div className="proof__side">
-                        <p className="stamp-type">Root recorded on the receipt</p>
+                        <p className="stamp-type">Worked out at the time of the check</p>
                         <p className="mono proof__hash">{data.receipt.computed_root}</p>
                       </div>
                       <div className="proof__verdict">
                         <span className={`proof__badge stamp-type ${ok ? 'ok' : 'bad'}`}>
-                          {data.root_matches ? 'match' : 'no match'}
+                          {data.root_matches ? 'identical' : 'different'}
                         </span>
                       </div>
                       <div className="proof__side">
-                        <p className="stamp-type">On the ledger</p>
+                        <p className="stamp-type">On the ledger now</p>
                         <p className="mono proof__hash">{data.on_chain_root ?? 'no such record'}</p>
                       </div>
                     </div>
                   </Disclosure>
 
-                  <Disclosure summary="Verification receipt">
+                  <Disclosure summary="The receipt">
                     <div className="receipt">
                       <LedgerRow label="Receipt">
                         <span className="mono">{data.receipt.receipt_id}</span>
                       </LedgerRow>
-                      <LedgerRow label="Verifier">{shortMsp(data.receipt.verifier_msp)}</LedgerRow>
-                      <LedgerRow label="Field verified">
-                        <span className="mono">{data.receipt.field_name}</span>
+                      <LedgerRow label="Checked by">{shortMsp(data.receipt.verifier_msp)}</LedgerRow>
+                      <LedgerRow label="What was checked">
+                        {labelOf(data.record?.record_type ?? '', data.receipt.field_name)}
                       </LedgerRow>
-                      <LedgerRow label="Verified at">{dateTime(data.receipt.verified_at)}</LedgerRow>
+                      <LedgerRow label="Checked at">{dateTime(data.receipt.verified_at)}</LedgerRow>
                       <LedgerRow label="Result">
                         {data.receipt.result === 'match'
-                          ? 'Match — the record is genuine'
-                          : 'No match — proof failed'}
+                          ? 'They match. The record is real.'
+                          : 'They do not match. The check failed.'}
                       </LedgerRow>
                       {data.record && (
                         <>
                           <LedgerRow label="Record">
                             <span className="mono">{data.record.record_id}</span>
                           </LedgerRow>
-                          <LedgerRow label="Document">
+                          <LedgerRow label="What it is">
                             {recordLabel(data.record.record_type)} · {period(data.record.period)} ·{' '}
                             {data.record.site}
                           </LedgerRow>
                           <LedgerRow label="Rows in the record">
-                            {commas(data.record.row_count)} — one was disclosed
+                            {commas(data.record.row_count)}, of which one was released
                           </LedgerRow>
                         </>
                       )}
@@ -188,64 +193,59 @@ function FromReceipt({ id }: { id: string }) {
 }
 
 /* -- the signed-in path --------------------------------------------------- */
+/**
+ * The signed-in path: a document, and the proof that it is real.
+ *
+ * This screen used to be a form. It asked for a grant, then a row number, then
+ * a column name, and returned one value. That is the shape of the API and not
+ * the shape of anybody's question: nobody arrives wanting row 0 of anything.
+ * A buyer opens what it was given, reads it, and wants to know whether it is
+ * true — so the screen is now the document, with the check on every row of it.
+ */
 function LiveProof({ signedIn }: { signedIn: boolean }) {
+  const back = useWayBack();
+  const [params] = useSearchParams();
+
+  // Everything this account can open. For a buyer that is what it holds
+  // permissions on; for an auditor it is every document on the network.
+  const records = useApi(
+    () => (signedIn ? api.records() : Promise.resolve([] as LedgerRecord[])),
+    [signedIn],
+  );
   const grants = useApi(
     () => (signedIn ? api.grants() : Promise.resolve([] as Grant[])),
     [signedIn],
   );
-  // The requests this caller made, used only to order the list below. A role
-  // that may not read them — the consortium can reach this screen — simply
-  // gets no ordering hint rather than a failed page, so the catch is the
-  // behaviour and not a swallowed error.
-  const asked = useApi(
-    () => (signedIn
-      ? api.requests().catch(() => [] as AccessRequest[])
-      : Promise.resolve([] as AccessRequest[])),
-    [signedIn],
-  );
-  // Arriving from a granted request row, which is the path that makes the
-  // whole request → grant → proof sequence one click rather than a search
-  // through everything the buyer holds.
-  const [params] = useSearchParams();
-  const [picked, setPicked] = useState(() => params.get('grant') ?? '');
-  const [row, setRow] = useState(0);
-  const [field, setField] = useState('');
-  const [proof, setProof] = useState<RowProof | null>(null);
-  const [failure, setFailure] = useState<ApiError | null>(null);
-  const [busy, setBusy] = useState(false);
-  const back = useWayBack();
 
-  // The ledger hands these back in key order, so a grant issued in answer to a
-  // request made minutes ago sorted below 259 seeded ones and fell outside the
-  // sixty this dropdown used to show — the buyer could watch the factory grant
-  // its request and then have no way to prove anything with it. Every live
-  // grant is listed now, and `orderGrants` puts the ones answering this
-  // caller's own requests at the top.
-  const live = orderGrants(
-    (grants.data ?? []).filter((g) => g.status === 'active'),
-    asked.data ?? [],
-  );
-  const grant = live.find((g) => g.grant_id === picked) ?? live[0];
+  const [chosen, setChosen] = useState<string | null>(null);
 
-  const run = async () => {
-    if (!grant) return;
-    setBusy(true);
-    setFailure(null);
-    setProof(null);
-    try {
-      setProof(await api.proveRow({
-        grant_id: grant.grant_id,
-        record_id: grant.record_id,
-        row_index: row,
-        field_name: field.trim() || grant.field_name,
-        receipt_id: `vr-live-${Date.now().toString(36)}`,
-      }));
-    } catch (err) {
-      setFailure(err instanceof ApiError ? err : new ApiError(0, 'the proof failed'));
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (!signedIn) {
+    return (
+      <div className="lb">
+        <header className="lb__bar">
+          <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
+        </header>
+        <main className="lb__main">
+          <div className="verdictbar">
+            <div>
+              <h1 className="verdictbar__head">Check a document.</h1>
+              <p className="lead verdictbar__body">
+                Opening a document needs an account, because what you can see depends on
+                who you are. If somebody gave you a receipt link, you can check that one
+                without signing in.
+              </p>
+            </div>
+          </div>
+          <section className="specimen">
+            <div className="lb__after-actions">
+              <Link to="/login" className="btn btn--primary btn--md">Sign in</Link>
+            </div>
+          </section>
+          <div className="lb__detail"><Afterword /></div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="lb">
@@ -253,172 +253,96 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
         <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
       </header>
 
-      <main className="lb__main">
-        <div className="verdictbar">
-          <div>
-            <h1 className="verdictbar__head">Prove one value.</h1>
-            <p className="lead verdictbar__body">
-              Pick a grant you hold and a row. The factory discloses that single field
-              with its salt and the sibling hashes on its path; the root is recomputed
-              from those alone and compared to what is on the ledger.
-            </p>
-          </div>
-        </div>
+      <main className="lb__main lb__main--wide">
+        <Result query={records} pendingLabel="Reading what you can open">
+          {(all: LedgerRecord[]) => {
+            if (all.length === 0) {
+              return (
+                <div className="verdictbar">
+                  <div>
+                    <h1 className="verdictbar__head">Nothing to check yet.</h1>
+                    <p className="lead verdictbar__body">
+                      Nothing has been released to you, so there is no document to open.
+                      Ask a factory for something first.
+                    </p>
+                  </div>
+                </div>
+              );
+            }
 
-        {!signedIn ? (
-          <section className="specimen">
-            <p className="specimen__note">
-              Running a live proof needs a grant, and a grant belongs to an organisation.
-              If you were given a receipt identifier you can check it without signing in.
-            </p>
-            <div className="lb__after-actions">
-              <Link to="/login" className="btn btn--primary btn--md">Sign in</Link>
-            </div>
-          </section>
-        ) : (
-          <Result query={grants} pendingLabel="Reading the grants you hold">
-            {() => (
-              <section className="lb__detail">
-                {live.length === 0 ? (
-                  <p className="small lb__explain">
-                    You hold no live grant, so there is nothing you may disclose. Ask for
-                    one from the portal.
+            // A record named in the link wins: the reader pressed "check" on a
+            // specific document and expects that one.
+            const wanted = params.get('record');
+            const held = new Set(
+              (grants.data ?? []).filter((g) => g.status === 'active').map((g) => g.record_id),
+            );
+            // Documents something has actually been released from come first,
+            // because those are the ones that can be proved as well as read.
+            const ordered = [...all].sort(
+              (a, b) => Number(held.has(b.record_id)) - Number(held.has(a.record_id)),
+            );
+            const recordId = chosen
+              ?? (wanted && all.some((r) => r.record_id === wanted) ? wanted : null)
+              ?? ordered[0].record_id;
+            const record = all.find((r) => r.record_id === recordId) ?? ordered[0];
+
+            return (
+              <>
+                <div className="verdictbar">
+                  <div>
+                    <h1 className="verdictbar__head">Check a document.</h1>
+                    <p className="lead verdictbar__body">
+                      Everything you have been allowed to read, laid out as it is in the
+                      file. Checking a row works the fingerprint out again from what you
+                      were sent and compares it to what the factory published. If they
+                      match, the figures are real, and you did not have to take anyone{"’"}s
+                      word for it.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="lb__detail">
+                  <Field
+                    label="Which document"
+                    id="doc"
+                    hint={`${commas(all.length)} you can open.`}
+                  >
+                    <select
+                      id="doc"
+                      className="input"
+                      value={record.record_id}
+                      onChange={(e) => setChosen(e.target.value)}
+                    >
+                      {ordered.map((r) => (
+                        <option key={r.record_id} value={r.record_id}>
+                          {recordLabel(r.record_type)} · {period(r.period)} · {r.site}
+                          {held.has(r.record_id) ? '' : ' (read only)'}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <DocumentCheck key={record.record_id} recordId={record.record_id} />
+                </div>
+
+                <footer className="lb__after">
+                  <p className="lb__after-lede">
+                    Every check you run here writes a receipt onto the ledger. The factory
+                    can see them, and so can anyone you send the link to, without needing
+                    an account or asking the factory for anything.
                   </p>
-                ) : (
-                  <>
-                    <Field
-                      label="Grant"
-                      id="grant"
-                      hint={`${live.length} live grant${live.length === 1 ? '' : 's'}, newest first.`}
-                    >
-                      <select
-                        id="grant"
-                        className="input"
-                        value={grant?.grant_id ?? ''}
-                        onChange={(e) => { setPicked(e.target.value); setProof(null); }}
-                      >
-                        {live.map((g) => (
-                          <option key={g.grant_id} value={g.grant_id}>
-                            {g.record_id} · {g.field_name} · {g.purpose_code}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Row index" id="row" hint="Zero-based.">
-                      <input
-                        id="row" className="input mono" type="number" min={0} value={row}
-                        onChange={(e) => setRow(Number(e.target.value))}
-                      />
-                    </Field>
-                    <Field
-                      label="Field"
-                      id="fieldname"
-                      hint={`Leave blank to use the granted field, ${grant?.field_name ?? ''}. Naming another is refused by the contract — try it.`}
-                    >
-                      <input
-                        id="fieldname" className="input mono" value={field}
-                        placeholder={grant?.field_name}
-                        onChange={(e) => setField(e.target.value)}
-                      />
-                    </Field>
-
-                    <button
-                      type="button"
-                      className="btn btn--primary btn--md"
-                      onClick={() => void run()}
-                      disabled={busy}
-                    >
-                      {busy ? 'Proving…' : 'Run the proof'}
-                    </button>
-
-                    {failure && <Failed error={failure} />}
-
-                    {proof && <ProofResult proof={proof} />}
-                  </>
-                )}
-              </section>
-            )}
-          </Result>
-        )}
-
-        <div className="lb__detail"><Afterword /></div>
+                  <div className="lb__after-actions">
+                    <Link to={back.to} className="btn btn--primary btn--md">
+                      Back to {back.label}
+                    </Link>
+                  </div>
+                </footer>
+              </>
+            );
+          }}
+        </Result>
       </main>
     </div>
-  );
-}
-
-function ProofResult({ proof }: { proof: RowProof }) {
-  const ok = proof.verified;
-  return (
-    <>
-      <div className={`verdictbar ${ok ? 'is-ok' : 'is-bad'}`}>
-        <span className="verdictbar__mark" aria-hidden="true">
-          {ok ? <Check size={20} strokeWidth={2.5} /> : <X size={20} strokeWidth={2.5} />}
-        </span>
-        <div>
-          <h1 className="verdictbar__head">{proof.verdict}</h1>
-        </div>
-      </div>
-
-      <section className="specimen">
-        <p className="stamp-type specimen__field">{proof.disclosed.field_name}</p>
-        <p className="specimen__value">{String(proof.disclosed.value)}</p>
-        <div className="specimen__seal">
-          <Seal tone={ok ? 'sealed' : 'broken'}>{ok ? 'Verified' : 'Proof failed'}</Seal>
-        </div>
-        <p className="specimen__note small">
-          Only this single value was disclosed. The register holds{' '}
-          {commas(proof.proof.rows_in_record)} rows; the other{' '}
-          {commas(proof.proof.rows_in_record - 1)} were never transmitted and cannot be
-          recovered from what you received.
-        </p>
-      </section>
-
-      <Disclosure summary="How we checked this" open>
-        <div className={`proof ${ok ? '' : 'is-bad'}`}>
-          <div className="proof__side">
-            <p className="stamp-type">Computed root</p>
-            <p className="mono proof__hash">{proof.proof.computed_root}</p>
-          </div>
-          <div className="proof__verdict">
-            <span className={`proof__badge stamp-type ${ok ? 'ok' : 'bad'}`}>
-              {proof.proof.match ? 'match' : 'no match'}
-            </span>
-          </div>
-          <div className="proof__side">
-            <p className="stamp-type">On the ledger</p>
-            <p className="mono proof__hash">{proof.proof.on_chain_root}</p>
-          </div>
-        </div>
-
-        <Disclosure summary={`Show the ${proof.proof.steps.length} steps`}>
-          <ol className="ladder">
-            {proof.proof.steps.map((s, i) => (
-              <li key={i} className="ladder__step">
-                <span className="mono ladder__n">{String(i + 1).padStart(2, '0')}</span>
-                <span className="ladder__side stamp-type">{s.position}</span>
-                <HashChip value={s.sibling} />
-              </li>
-            ))}
-          </ol>
-        </Disclosure>
-      </Disclosure>
-
-      <Disclosure summary="Verification receipt">
-        <div className="receipt">
-          <LedgerRow label="Receipt"><span className="mono">{proof.receipt.receipt_id}</span></LedgerRow>
-          <LedgerRow label="Verifier">{shortMsp(proof.receipt.verifier_msp)}</LedgerRow>
-          <LedgerRow label="Verified at">{dateTime(proof.receipt.verified_at)}</LedgerRow>
-          <LedgerRow label="Transaction"><HashChip value={proof.tx_id} /></LedgerRow>
-          <LedgerRow label="Block"><span className="mono">#{commas(proof.block)}</span></LedgerRow>
-          <LedgerRow label="Shareable link">
-            <Link to={`/verify/${encodeURIComponent(proof.receipt.receipt_id)}`} className="mono">
-              /verify/{proof.receipt.receipt_id}
-            </Link>
-          </LedgerRow>
-        </div>
-      </Disclosure>
-    </>
   );
 }
 
@@ -427,18 +351,18 @@ function Afterword() {
   return (
     <footer className="lb__after">
       <p className="lb__after-lede">
-        Anyone holding a receipt can run this check. It needs no account, and it asks the
+        Anyone with the link can run this check. It needs no account, and it asks the
         factory for nothing.
       </p>
       <div className="lb__after-actions">
         {role ? (
           <Link to={role.landing} className="btn btn--primary btn--md">
-            Back to {role.instrument}
+            Back to {role.workspace}
           </Link>
         ) : (
           <>
             <Link to="/" className="btn btn--primary btn--md">What Breadcrumbs is</Link>
-            <Link to="/login" className="btn btn--secondary btn--md">Sign in to the portal</Link>
+            <Link to="/login" className="btn btn--secondary btn--md">Sign in</Link>
           </>
         )}
       </div>

@@ -57,7 +57,7 @@
 
 .role {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 44px 1fr;
   gap: var(--s4);
   align-items: center;
   width: 100%;
@@ -134,23 +134,6 @@
   margin-top: 5px;
 }
 
-/* Present at rest, brighter on attention. Revealing it only on hover put the
-   one piece of orienting information out of reach of every touch device. */
-.role__instrument {
-  color: var(--slub-type);
-  font-size: 10px;
-  opacity: 0.65;
-  transition: opacity var(--m-fast), color var(--m-fast);
-  white-space: nowrap;
-}
-
-.role:hover .role__instrument,
-.role.is-picked .role__instrument {
-  opacity: 1;
-}
-
-.role.is-picked .role__instrument { color: var(--brass-type); }
-
 .login__actions {
   display: flex;
   align-items: center;
@@ -181,5 +164,30 @@
   .role {
     grid-template-columns: 30px 1fr;
   }
-  .role__instrument { display: none; }
 }
+
+/* -- the way past the choice ----------------------------------------------
+ * A visitor who has not seen the product cannot answer "which of these five
+ * are you?", so the screen offers a route that does not require an answer.
+ */
+.login__tour {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  margin: var(--s5) 0 var(--s6);
+  padding: var(--s4) var(--s5);
+  border: 1px solid var(--brass-30);
+  border-radius: var(--r-md);
+  background: var(--brass-wash);
+}
+
+.login__tourhead {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--calico);
+}
+
+.login__tournote { color: var(--thread-lit); margin-top: 2px; max-width: 52ch; }

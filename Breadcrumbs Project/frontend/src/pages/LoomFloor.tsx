@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Failed, Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { HashChip, Seal } from '../components/ui';
 import {
   ApiError, api, recordLabel, shortMsp,
@@ -11,21 +12,24 @@ import {
 import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
+import { useFieldLabel } from '../lib/useFieldLabel';
 import './loom.css';
 
 const STRIP = 12;
 
 /**
- * The Loom Floor — the factory's dashboard.
+ * The factory's overview.
  *
- * Its job is producing evidence. The work happens in shifts and is thought
- * about in periods, so this is not a grid of cards: it is a bolt of cloth
- * unrolling downward, newest at the top, with a shift log ruled down the side
- * like a workshop notebook.
+ * Its job is producing evidence, so the page is a list of what has been
+ * published, newest first, with the ledger's own account of recent activity
+ * down the side.
  *
- * Everything on it is the ledger's. The shift log used to be seven sentences
- * written by hand; it is now the block log, which is the only account of what
- * happened that cannot be tidied up afterwards.
+ * It opens with the one thing this person is here to decide — whoever is
+ * waiting on an answer from them — because a dashboard that only reports is a
+ * dashboard the reader has to work out the next move from.
+ *
+ * Everything on it is the ledger's. The activity column is the block log, which
+ * is the only account of what happened that cannot be tidied up afterwards.
  */
 export default function LoomFloor() {
   const { role } = useSession();
@@ -52,12 +56,12 @@ export default function LoomFloor() {
               <header className="lf__head">
                 <div>
                   <p className="stamp-type lf__eyebrow">
-                    {role?.org} · {[...new Set(records.map((r) => r.site))].join(' · ') || '—'}
+                    {role?.org} · {[...new Set(records.map((r) => r.site))].join(' · ') || 'no site yet'}
                   </p>
                   <h1>Good afternoon, {role?.person.split(' ')[0]}.</h1>
                   <p className="lead lf__lede">
-                    {commas(sealed.length)} bolts sealed · {commas(active.length)} grants open
-                    {pending.length > 0 && ` · ${pending.length} request awaiting you`}
+                    {commas(sealed.length)} records published · {commas(active.length)} people
+                    currently allowed to see something
                   </p>
                 </div>
                 {/* Both were figures with nothing behind them: a dashboard
@@ -67,13 +71,13 @@ export default function LoomFloor() {
                   <Count
                     to="/factory/access"
                     n={pending.length}
-                    label="awaiting your response"
+                    label="requests waiting on you"
                     tone={pending.length ? 'warn' : 'calm'}
                   />
                   <Count
                     to="/factory/access"
                     n={revoked.length}
-                    label="grants you have revoked"
+                    label="permissions you withdrew"
                     tone={revoked.length ? 'warn' : 'calm'}
                   />
                 </div>
@@ -84,18 +88,19 @@ export default function LoomFloor() {
                   <Link to="/factory/upload" className="onloom">
                     <div className="onloom__edge" aria-hidden="true" />
                     <div className="onloom__body">
-                      <p className="stamp-type onloom__state">On the loom</p>
-                      <h3>Seal a finished record</h3>
+                      <p className="stamp-type onloom__state">Start here</p>
+                      <h3>Publish a finished record</h3>
                       <p className="small onloom__note">
-                        A finalised export — payroll, safety, chemical or maintenance. The
-                        file stays here; only its root hash goes to the ledger.
+                        A finished export: payroll, safety, chemicals or maintenance. The
+                        file stays on your machine. Only a fingerprint of it goes to the
+                        ledger, which is enough to prove it later and not enough to read it.
                       </p>
                     </div>
                     <span className="onloom__go" aria-hidden="true"><Plus size={18} /></span>
                   </Link>
 
                   <p className="stamp-type strip__label">
-                    Sealed · newest first · showing {recent.length} of {commas(records.length)}
+                    Published · newest first · showing {recent.length} of {commas(records.length)}
                     {records.length > STRIP && (
                       <>
                         {' · '}
@@ -117,27 +122,28 @@ export default function LoomFloor() {
                         <div className="bolt__top">
                           <h3 className="bolt__title">{recordLabel(b.record_type)}</h3>
                           <Seal tone={b.status === 'committed' ? 'sealed' : 'inert'}>
-                            {b.status === 'committed' ? 'Sealed' : 'Superseded'}
+                            {b.status === 'committed' ? 'Published' : 'Corrected'}
                           </Seal>
                         </div>
                         <p className="bolt__meta small">
-                          {period(b.period)} · {b.site} · schema {b.schema_version}
+                          {period(b.period)} · {b.site}
+                          <Tech> · schema {b.schema_version}</Tech>
                         </p>
                         <div className="bolt__foot">
-                          <span className="bolt__threads mono">
-                            {commas(b.row_count)} threads
+                          <span className="bolt__threads">
+                            {commas(b.row_count)} rows
                           </span>
                           {b.witnesses.length > 0 && (
-                            <span className="bolt__block mono">
-                              witnessed by {b.witnesses.map(shortMsp).join(', ')}
+                            <span className="bolt__block">
+                              checked by {b.witnesses.map(shortMsp).join(', ')}
                             </span>
                           )}
-                          <HashChip value={b.merkle_root} />
+                          <Tech><HashChip value={b.merkle_root} /></Tech>
                         </div>
                         {b.superseded_by && (
                           <p className="small bolt__note">
-                            Replaced by {b.superseded_by}. It stays verifiable — a
-                            correction is part of the history, not a replacement for it.
+                            Corrected by a later version. This one can still be checked.
+                            A correction is added to the history, it does not replace it.
                           </p>
                         )}
                       </div>
@@ -148,14 +154,14 @@ export default function LoomFloor() {
 
                 <aside className="shiftlog">
                   <div className="shiftlog__head">
-                    <p className="stamp-type">Shift log</p>
+                    <p className="stamp-type">Recent activity</p>
                     <Link to="/ledger" className="shiftlog__all">
                       ledger <ArrowUpRight size={12} />
                     </Link>
                   </div>
                   {activity.length === 0 ? (
                     <p className="small shiftlog__none">
-                      Nothing on the chain from this organisation yet.
+                      Nothing from your organisation on the ledger yet.
                     </p>
                   ) : (
                     <ol className="shiftlog__list">
@@ -164,7 +170,7 @@ export default function LoomFloor() {
                           <span className="mono logline__at">{dateTime(e.at).split(' · ')[0]}</span>
                           <span className="logline__text">
                             {e.text}
-                            <span className="dim"> · block #{commas(e.block)}</span>
+                            <Tech><span className="dim"> · block #{commas(e.block)}</span></Tech>
                           </span>
                         </li>
                       ))}
@@ -189,9 +195,9 @@ export default function LoomFloor() {
 /**
  * The requests waiting on a decision.
  *
- * Granting names a record, because a request asks about a period and a grant is
- * about a document. The contract decides whether the grant is allowed; this
- * form only carries the question to it.
+ * Approving names a record, because a request asks about a month and an
+ * approval is about one document. The contract decides whether it is allowed;
+ * this form only carries the question to it.
  */
 function Inbox({
   requests, records, onDone,
@@ -200,6 +206,7 @@ function Inbox({
   records: LedgerRecord[];
   onDone: () => void;
 }) {
+  const labelOf = useFieldLabel();
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [chosen, setChosen] = useState<Record<string, string>>({});
@@ -220,9 +227,9 @@ function Inbox({
   return (
     <div className="shiftlog__requests">
       <div className="shiftlog__head">
-        <p className="stamp-type">Awaiting you</p>
+        <p className="stamp-type">Waiting on you</p>
         <Link to="/factory/access" className="shiftlog__all">
-          access <ArrowUpRight size={12} />
+          all requests <ArrowUpRight size={12} />
         </Link>
       </div>
       {failure && <Failed error={failure} />}
@@ -238,17 +245,17 @@ function Inbox({
             <div key={r.id} className="req">
               <p className="req__who">{shortMsp(r.requester_msp)}</p>
               <p className="small req__what">
-                wants <span className="mono">{r.field_name}</span> from{' '}
+                wants <strong>{labelOf(r.record_type, r.field_name)}</strong> from{' '}
                 {recordLabel(r.record_type)}, {period(r.period)}
               </p>
               {candidates.length === 0 ? (
                 <p className="small req__what dim">
-                  No record of that type and period is on the ledger, so there is nothing
-                  to grant against.
+                  You have not published a record of that kind for that month, so there
+                  is nothing to give them yet.
                 </p>
               ) : (
                 <label className="req__pick">
-                  <span className="stamp-type">Grant against</span>
+                  <span className="stamp-type">Which record</span>
                   <select
                     className="input"
                     value={pick}
@@ -256,7 +263,8 @@ function Inbox({
                   >
                     {candidates.map((c) => (
                       <option key={c.record_id} value={c.record_id}>
-                        {c.record_id} · {c.site} · {commas(c.row_count)} rows
+                        {c.site} · {commas(c.row_count)} rows · published{' '}
+                        {longDate(c.committed_at)}
                       </option>
                     ))}
                   </select>
@@ -269,13 +277,13 @@ function Inbox({
                   disabled={busy === r.id || !pick}
                   onClick={() => act(r.id, () => api.answerRequest(r.id, pick))}
                 >
-                  {busy === r.id ? 'Writing…' : 'Grant one field'}
+                  {busy === r.id ? 'Writing…' : 'Approve one field'}
                 </button>
-                {/* Declining asks for a reason, and a reason wants more room
+                {/* Refusing asks for a reason, and a reason wants more room
                     than a sidebar column has. The buyer is told why, so this is
                     not a refusal that can be fired off by accident. */}
                 <Link to="/factory/access" className="btn btn--ghost btn--sm">
-                  Decline…
+                  Refuse…
                 </Link>
               </div>
             </div>

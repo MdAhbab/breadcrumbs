@@ -813,6 +813,12 @@ def _off_chain(session: Session, committed: list[dict[str, Any]]) -> None:
                 status="pending", required=3,
                 endorsers=["ApexTextileMSP", "NoorGarmentsMSP"],
                 opened_at="2027-02-05T00:00:00Z", closes_at="2027-04-26T00:00:00Z",
+                subject={
+                    "msp_id": "DeltaKnitwearMSP",
+                    "name": "Delta Knitwear Ltd",
+                    "kind": "factory",
+                    "country": "BD",
+                },
             ),
             Proposal(
                 id="p-002", kind="policy_change",
@@ -837,6 +843,11 @@ def _off_chain(session: Session, committed: list[dict[str, Any]]) -> None:
                      "review; membership itself is not in question.",
                 status="pending", required=4, endorsers=["BVCertificationMSP"],
                 opened_at="2027-04-10T00:00:00Z", closes_at="2027-05-10T00:00:00Z",
+                subject={
+                    "msp_id": "CrescentFashionMSP",
+                    "status": "suspended",
+                    "reason": "completeness referral pending review",
+                },
             ),
             Attestation(
                 id="at-001", auditor_msp="BVCertificationMSP",

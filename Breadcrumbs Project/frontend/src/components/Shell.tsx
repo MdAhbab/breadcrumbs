@@ -11,48 +11,58 @@ import { useSession } from '../lib/session';
 import { useBelow } from '../lib/useMotionPref';
 import { ChainStatus } from './ChainStatus';
 import { Notices } from './Notices';
+import { DetailToggle, Tech } from './Tech';
 import './shell.css';
 
 // Every destination is a route, never a record. The previous version linked
 // straight at `rc-001`, `vr-001` and `m-v8-rc2` — identifiers from a fixture
 // file — so the navigation broke the moment the world came from the ledger
 // instead. Index pages choose their own subject from what actually exists.
+//
+// The labels say what the screen is for, in words the reader already owns. The
+// previous set — Loom floor, Bolts, The bench, The chamber, Accumulator — was a
+// vocabulary the product invented and then required people to learn before they
+// could find anything.
 const NAV: Record<RoleId, { to: string; label: string; icon: typeof LayoutGrid }[]> = {
   factory: [
-    { to: '/factory/dashboard', label: 'Loom floor', icon: LayoutGrid },
-    { to: '/factory/upload', label: 'Seal a record', icon: UploadIcon },
-    { to: '/factory/records', label: 'Bolts', icon: FileStack },
+    { to: '/factory/dashboard', label: 'Overview', icon: LayoutGrid },
+    { to: '/factory/upload', label: 'Publish a record', icon: UploadIcon },
+    { to: '/factory/records', label: 'Your records', icon: FileStack },
     // The factory is one half of every disclosure this product makes, and
     // until this existed its only control for that was a panel at the foot
-    // of the shift log.
-    { to: '/factory/access', label: 'Access', icon: KeyRound },
-    { to: '/periods', label: 'Closed periods', icon: CalendarCheck },
+    // of the activity column.
+    { to: '/factory/access', label: 'Who can see what', icon: KeyRound },
+    { to: '/periods', label: 'Closed months', icon: CalendarCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   buyer: [
-    { to: '/buyer/portal', label: 'Request a fact', icon: Search },
-    { to: '/periods', label: 'Completeness', icon: CalendarCheck },
-    { to: '/verify', label: 'Verify a record', icon: ShieldCheck },
+    { to: '/buyer/portal', label: 'Request data', icon: Search },
+    { to: '/periods', label: 'Check for gaps', icon: CalendarCheck },
+    { to: '/verify', label: 'Check a value', icon: ShieldCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   auditor: [
-    { to: '/auditor/workspace', label: 'The bench', icon: Gauge },
-    { to: '/periods', label: 'Completeness & absence', icon: CalendarCheck },
-    { to: '/verify', label: 'Verify a record', icon: ShieldCheck },
+    { to: '/auditor/workspace', label: 'Checks to run', icon: Gauge },
+    // An auditor reads every document on the network without asking, so it
+    // needs somewhere to read them from. Without this the access was real and
+    // unreachable: there was no link to any document it did not hold a grant on.
+    { to: '/factory/records', label: 'All documents', icon: FileStack },
+    { to: '/periods', label: 'Check for gaps', icon: CalendarCheck },
+    { to: '/verify', label: 'Check a value', icon: ShieldCheck },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   consortium: [
-    { to: '/governance', label: 'The chamber', icon: ScrollText },
-    { to: '/model/gate', label: 'Gate decisions', icon: KeyRound },
-    { to: '/model/registry', label: 'Model lineage', icon: GitBranch },
-    { to: '/anchor', label: 'Accumulator', icon: Binary },
+    { to: '/governance', label: 'Members & proposals', icon: ScrollText },
+    { to: '/model/gate', label: 'Model approvals', icon: KeyRound },
+    { to: '/model/registry', label: 'Model history', icon: GitBranch },
+    { to: '/anchor', label: 'Tamper check', icon: Binary },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
   regulator: [
-    { to: '/regulator', label: 'Observatory', icon: LayoutGrid },
+    { to: '/regulator', label: 'Overview', icon: LayoutGrid },
     // Consortium-wide facts about the ledger, naming no document. The observer
-    // may read these; it may not read a seal, a grant or a record.
-    { to: '/anchor', label: 'Accumulator', icon: Binary },
+    // may read these; it may not read a commitment, a grant or a record.
+    { to: '/anchor', label: 'Tamper check', icon: Binary },
     { to: '/ledger', label: 'Ledger', icon: Boxes },
   ],
 };
@@ -158,7 +168,7 @@ export function Shell() {
       >
         <div className="nav__brand">
           <NavLink to="/" className="nav__wordmark">Breadcrumbs</NavLink>
-          <p className="stamp-type nav__instrument">{role.instrument}</p>
+          <p className="stamp-type nav__instrument">{role.label}</p>
         </div>
 
         <ul className="nav__list">
@@ -179,10 +189,13 @@ export function Shell() {
         <Notices />
 
         <div className="nav__foot">
+          <DetailToggle dark />
           <div className="nav__who">
             <p className="nav__person">{role.person}</p>
             <p className="small nav__org">{role.org}</p>
-            <p className="mono nav__msp">{role.mspId}</p>
+            {/* The network identity is a string an operator needs and nobody
+                else has any use for. */}
+            <Tech><p className="mono nav__msp">{role.mspId}</p></Tech>
           </div>
           <button type="button" className="nav__out" onClick={signOut}>
             <LogOut size={14} strokeWidth={1.75} /> Sign out

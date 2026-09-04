@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { api, taskLabel, type GateDecision } from '../lib/api';
 import { bp, bpDelta } from '../lib/format';
+import { plainReason } from '../lib/plainReason';
 import { useApi } from '../lib/useApi';
 import { useReducedMotion } from '../lib/useMotionPref';
 import { Seal } from './ui';
@@ -18,13 +19,13 @@ type Phase = 'idle' | 'running' | 'promote' | 'reject';
  * because the backwards-looking check is the one this whole mechanism exists for.
  */
 const GATE_STEPS = [
-  'Verify benchmark hashes',
-  'Collect signed submissions',
-  'Check endorsement threshold',
-  'Check agreement within \u03b4',
-  'Take medians',
-  'Test gain on the new task',
-  'Test regression on earlier tasks',
+  'Check the tests are the ones that were published',
+  'Collect the signed results from each member',
+  'Check enough members took part',
+  'Check the members agree with each other',
+  'Take the middle result for each problem',
+  'Check it is better at the new problem',
+  'Check it is not worse at the old ones',
 ];
 
 /**
@@ -112,7 +113,7 @@ export function GateSimulator({
         {phase === 'idle' && !decision && (
           <>
             <p className="lead on-dark-muted gate__prompt">
-              Submit a candidate model and watch the contract decide. One of these has
+              Submit a model update and watch the contract decide. One of these has
               quietly forgotten something the network already knew.
             </p>
             <div className="gate__actions">
@@ -122,7 +123,7 @@ export function GateSimulator({
                 disabled={!about.data?.promoted}
                 onClick={() => about.data?.promoted && run(about.data.promoted)}
               >
-                Submit a good candidate
+                Submit a good update
               </button>
               <button
                 type="button"
@@ -130,7 +131,7 @@ export function GateSimulator({
                 disabled={!about.data?.rejected}
                 onClick={() => about.data?.rejected && run(about.data.rejected)}
               >
-                Submit a forgetful candidate
+                Submit a forgetful update
               </button>
             </div>
             {about.error && (
@@ -156,14 +157,14 @@ export function GateSimulator({
         {settled && shown && (
           <div className={`outcome outcome--${phase}`} aria-live="polite">
             <Seal tone={phase === 'promote' ? 'sealed' : 'broken'} dark>
-              {phase === 'promote' ? 'Promoted' : 'Rejected'}
+              {phase === 'promote' ? 'Approved' : 'Refused'}
             </Seal>
             <h3 className="outcome__head">
               {phase === 'promote'
                 ? 'Nothing was forgotten.'
-                : 'It forgot an earlier task.'}
+                : 'It forgot something it already knew.'}
             </h3>
-            <p className="outcome__reason mono">{shown.reason}</p>
+            <p className="outcome__reason">{plainReason(shown.reason)}</p>
 
             <table className="gate__table">
               <thead>
@@ -205,7 +206,7 @@ export function GateSimulator({
                   setStep(0);
                 }}
               >
-                Try the other candidate
+                Try the other one
               </button>
             )}
 

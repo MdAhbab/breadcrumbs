@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { ConsortiumMesh } from '../components/ConsortiumMesh';
 import { Failed, Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { ApiError, api, shortMsp, type Org, type Proposal } from '../lib/api';
 import { longDate } from '../lib/format';
 import { useSession } from '../lib/session';
@@ -30,16 +31,16 @@ export default function Chamber() {
 
   return (
     <div className="chamber">
-      <Result query={world} pendingLabel="Reading the docket">
+      <Result query={world} pendingLabel="Reading the proposals">
         {([motions, orgs]) => (
           <>
             <header className="ch__head">
               <div>
                 <p className="stamp-type ch__eyebrow">{role?.org} · governance</p>
-                <h1>The chamber</h1>
+                <h1>Members &amp; proposals</h1>
                 <p className="lead ch__lede">
-                  {motions.filter((m) => m.status === 'pending').length} motions open ·{' '}
-                  {orgs.length} members of record
+                  {motions.filter((m) => m.status === 'pending').length} proposals open ·{' '}
+                  {orgs.length} member organisations
                 </p>
               </div>
               <div className="ch__tabs" role="tablist">
@@ -51,7 +52,7 @@ export default function Chamber() {
                     className={`ch__tab ${tab === t ? 'is-on' : ''}`}
                     onClick={() => setTab(t)}
                   >
-                    {t[0].toUpperCase() + t.slice(1)}
+                    {{ motions: 'Proposals', network: 'Who is connected', register: 'Members' }[t]}
                   </button>
                 ))}
               </div>
@@ -75,16 +76,16 @@ export default function Chamber() {
 
             {tab === 'register' && (
               <div className="register">
-                <p className="stamp-type register__cap">Members of record</p>
+                <p className="stamp-type register__cap">Member organisations</p>
                 <div className="scroll-x">
                   <table className="regtable">
                     <thead>
                       <tr>
                         <th scope="col">Organisation</th>
-                        <th scope="col">MSP identity</th>
+                        <Tech><th scope="col">Network identity</th></Tech>
                         <th scope="col">Role</th>
                         <th scope="col">Country</th>
-                        <th scope="col">Channels</th>
+                        <th scope="col">Can see</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -94,7 +95,7 @@ export default function Chamber() {
                             {o.name}
                             {o.is_you && <span className="small dim"> · you</span>}
                           </th>
-                          <td className="mono">{o.msp_id}</td>
+                          <Tech><td className="mono">{o.msp_id}</td></Tech>
                           <td className="regtable__role">{o.kind_label}</td>
                           <td>{o.country}</td>
                           <td className="mono dim">
@@ -108,9 +109,9 @@ export default function Chamber() {
                   </table>
                 </div>
                 <p className="small register__note">
-                  Membership and channel access come from the network&rsquo;s own
-                  configuration. Admission and suspension are motions of this chamber; a
-                  member cannot be added or removed by whoever runs the infrastructure.
+                  Who is a member, and what each member can see, comes from the network&rsquo;s
+                  own configuration. Admitting or suspending anyone takes a proposal the
+                  others vote on. Whoever runs the servers cannot do it alone.
                 </p>
               </div>
             )}
@@ -164,10 +165,11 @@ function Motion({
         <h2 className="motion__title">{m.title}</h2>
         <p className="motion__prose">{m.body}</p>
 
-        {/* The seal ledger: impressions, not a progress bar. */}
+        {/* Votes as impressions rather than a progress bar: it is a count of
+            named organisations, not a percentage of something. */}
         <div className="seals">
           <p className="stamp-type seals__label">
-            {m.endorsement_count} of {m.required} sealed
+            {m.endorsement_count} of {m.required} members have agreed
           </p>
           <div className="seals__row">
             {Array.from({ length: m.required }, (_, i) => {
@@ -176,7 +178,7 @@ function Motion({
                 <span
                   key={i}
                   className={`impression ${org ? 'is-filled' : ''}`}
-                  title={org ?? 'awaiting endorsement'}
+                  title={org ?? 'has not voted yet'}
                 >
                   {org ? org.replace('MSP', '').slice(0, 2).toUpperCase() : ''}
                 </span>
@@ -186,7 +188,7 @@ function Motion({
           <p className="small seals__who">
             {m.endorsers.length
               ? m.endorsers.map(shortMsp).join(' · ')
-              : 'No endorsements yet.'}
+              : 'Nobody has agreed yet.'}
           </p>
         </div>
 
@@ -194,10 +196,10 @@ function Motion({
 
         {carried ? (
           <div className="carried">
-            <span className="carried__stamp stamp-type">Resolved</span>
+            <span className="carried__stamp stamp-type">Passed</span>
             <p className="small carried__note">
-              Threshold reached. The outcome and the endorser set are recorded and
-              cannot be quietly revised.
+              Enough members agreed. Who agreed, and what was decided, are on the ledger
+              and cannot be quietly revised afterwards.
             </p>
           </div>
         ) : (
@@ -208,7 +210,7 @@ function Motion({
               onClick={() => void endorse()}
               disabled={mine || busy}
             >
-              {mine ? 'You have sealed this' : busy ? 'Affixing…' : 'Affix your seal'}
+              {mine ? 'You have agreed' : busy ? 'Recording…' : 'Agree to this'}
             </button>
           </div>
         )}

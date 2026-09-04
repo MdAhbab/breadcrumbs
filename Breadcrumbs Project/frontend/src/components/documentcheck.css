@@ -1,0 +1,136 @@
+/*
+ * The document, and its proof, on one table.
+ *
+ * The withheld cells are drawn rather than left blank: a gap reads as missing
+ * data, a block reads as data being kept from you, and only the second is true.
+ */
+
+.doc {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  overflow: hidden;
+}
+
+.doc__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.doc__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.doc__sub { color: var(--ink-quiet); margin-top: 4px; max-width: 76ch; }
+
+.doc__tally {
+  margin: 0;
+  padding: 10px var(--s5);
+  font-size: 13px;
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.doc__tally.is-ok { background: var(--verdigris-wash); color: var(--verdigris); }
+.doc__tally.is-bad { background: var(--madder-wash); color: var(--madder); }
+
+/* -- the table ------------------------------------------------------------- */
+
+.doc__scroll { max-width: 100%; max-height: 68vh; overflow-y: auto; }
+
+.doc__table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+
+.doc__table th,
+.doc__table td {
+  padding: 7px var(--s3);
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.doc__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--paper-2);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--ink-quiet);
+  box-shadow: inset 0 -1px 0 var(--rule);
+}
+
+.doc__th { display: inline-flex; align-items: center; gap: 5px; }
+.doc__eye { color: var(--verdigris); }
+
+.doc__table th.is-hidden { color: var(--thread-type); }
+.doc__table td.is-hidden { background: rgba(142, 136, 121, 0.06); }
+.doc__table tbody tr:hover td { background: var(--brass-wash); }
+
+.doc__rowno { color: var(--thread-type); font-size: 11px; width: 1%; }
+.doc__num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.doc__redacted {
+  color: var(--thread-35);
+  letter-spacing: -0.08em;
+  user-select: none;
+  cursor: help;
+}
+
+/* -- checking a row -------------------------------------------------------- */
+
+.doc__checkcol { width: 1%; }
+
+.doc__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 52px;
+  padding: 2px 7px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--raw-cotton);
+  color: var(--ink-quiet);
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color var(--m-fast), border-color var(--m-fast), background var(--m-fast);
+}
+
+.doc__check:hover:not(:disabled) { color: var(--brass-ink); border-color: var(--brass-30); }
+.doc__check:disabled { cursor: default; }
+
+.doc__check.is-passed {
+  color: var(--verdigris);
+  border-color: var(--verdigris-30);
+  background: var(--verdigris-wash);
+}
+
+.doc__check.is-failed {
+  color: var(--madder);
+  border-color: var(--madder-30);
+  background: var(--madder-wash);
+}
+
+.doc__table tbody tr.is-passed td { background: rgba(47, 107, 92, 0.05); }
+.doc__table tbody tr.is-failed td { background: var(--madder-wash); }
+
+.doc__note {
+  color: var(--thread-type);
+  padding: var(--s3) var(--s5);
+  border-top: 1px solid var(--rule-faint);
+}
+
+@media (max-width: 640px) {
+  .doc__head { padding: var(--s3) var(--s4); }
+  .doc__note { padding: var(--s3) var(--s4); }
+}

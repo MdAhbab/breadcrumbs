@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, api, type Completeness, type PeriodSeal } from '../lib/api';
 import { shortHash } from '../lib/format';
 import { Failed } from './states';
+import { Tech } from './Tech';
 import './mechanisms.css';
 
 /**
@@ -128,8 +129,8 @@ export function CompletenessChecker({
             <AlertTriangle size={18} />
             <span>
               {result.status === 'reopened'
-                ? 'This period is reopened and not yet re-sealed.'
-                : 'This period has never been sealed.'}
+                ? 'This month was reopened and has not been closed again.'
+                : 'This month has never been closed.'}
             </span>
           </div>
           <p className="cchk__reason">{result.reason}</p>
@@ -140,10 +141,10 @@ export function CompletenessChecker({
             {result.complete ? <Check size={18} strokeWidth={2.5} /> : <AlertTriangle size={18} />}
             <span>
               {result.complete
-                ? 'Complete — the disclosure matches the seal.'
+                ? 'Nothing is missing. You were shown everything this month holds.'
                 : shortfall > 0
-                  ? `${shortfall} record${shortfall === 1 ? '' : 's'} withheld.`
-                  : 'The disclosure does not match the seal.'}
+                  ? `${shortfall} record${shortfall === 1 ? '' : 's'} held back from you.`
+                  : 'What you were shown does not match what this month holds.'}
             </span>
             {busy && <span className="small dim">rechecking…</span>}
           </div>
@@ -151,44 +152,46 @@ export function CompletenessChecker({
           <div className="cchk__counts">
             <div>
               <span className="cchk__n">{result.sealed_count}</span>
-              <span className="stamp-type">sealed into the period</span>
+              <span className="stamp-type">in the closed month</span>
             </div>
             <span className="cchk__vs" aria-hidden="true">/</span>
             <div>
               <span className="cchk__n">{result.disclosed_count}</span>
-              <span className="stamp-type">disclosed to you</span>
+              <span className="stamp-type">shown to you</span>
             </div>
           </div>
 
-          <div className="cchk__roots">
-            <div className="cchk__root">
-              <span className="stamp-type">Sealed root, on the ledger</span>
-              <span className="mono">{shortHash(result.sealed_root ?? '')}</span>
+          <Tech>
+            <div className="cchk__roots">
+              <div className="cchk__root">
+                <span className="stamp-type">Sealed root, on the ledger</span>
+                <span className="mono">{shortHash(result.sealed_root ?? '')}</span>
+              </div>
+              <div className={`cchk__root ${result.complete ? '' : 'is-bad'}`}>
+                <span className="stamp-type">Root of what you hold</span>
+                <span className="mono">{shortHash(result.computed_root ?? '')}</span>
+              </div>
             </div>
-            <div className={`cchk__root ${result.complete ? '' : 'is-bad'}`}>
-              <span className="stamp-type">Root of what you hold</span>
-              <span className="mono">{shortHash(result.computed_root ?? '')}</span>
-            </div>
-          </div>
+          </Tech>
 
           <p className="cchk__reason">
             {result.complete
-              ? 'Both roots are the same value, so the set you hold is exactly the set that was sealed.'
-              : `${result.reason}. The two roots differ, which is the proof — not an opinion about the factory.`}
+              ? 'The month was closed at this exact list of records before you asked, and what you hold is that list. Nothing was left out.'
+              : `${result.reason}. The month says it holds more than you were shown. That is arithmetic, not an accusation.`}
           </p>
 
           {(result.amendment_count ?? 0) > 0 && (
             <p className="small cchk__amend">
-              This period has been amended {result.amendment_count} time
-              {result.amendment_count === 1 ? '' : 's'}. Check the history before
+              This month has been corrected {result.amendment_count} time
+              {result.amendment_count === 1 ? '' : 's'}. Read the corrections before
               relying on the count.
             </p>
           )}
 
           <p className="small cchk__limit">
-            What this cannot do: a register kept off the ledger entirely leaves the
-            seal internally consistent and says nothing. This proves withholding,
-            not honesty.
+            What this cannot do: a file the factory never put on the ledger at all
+            leaves everything here looking consistent. This catches things being held
+            back from you. It does not prove the factory is honest.
           </p>
         </div>
       )}

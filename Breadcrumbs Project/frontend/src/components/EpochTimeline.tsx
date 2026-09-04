@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ApiError, api, type AnchorGroup, type AnchorState, type Epoch } from '../lib/api';
 import { commas, dateTime, shortHash } from '../lib/format';
 import { Failed } from './states';
+import { Plain, Tech } from './Tech';
 import { Seal } from './ui';
 import './mechanisms.css';
 
@@ -56,9 +57,9 @@ export function EpochTimeline({
   if (!state.installed) {
     return (
       <section className="epochs epochs--off">
-        <p className="epochs__title">No accumulator on this channel</p>
+        <p className="epochs__title">The tamper check is not set up here yet</p>
         <p className="small">
-          {state.reason ?? 'No parameters have been installed, so there is nothing to fold into.'}
+          {state.reason ?? 'Nothing has been set up on this part of the network, so there is nothing to add records to.'}
         </p>
       </section>
     );
@@ -71,32 +72,35 @@ export function EpochTimeline({
       <div className="epochs__state">
         <div className="epochs__figure">
           <span className="epochs__n">{state.epoch}</span>
-          <span className="stamp-type">epochs folded</span>
+          <span className="stamp-type">times updated</span>
         </div>
         <div className="epochs__figure">
           <span className="epochs__n">{commas(state.size ?? 0)}</span>
-          <span className="stamp-type">elements committed</span>
+          <span className="stamp-type">things it covers</span>
         </div>
-        <div className="epochs__figure">
-          <span className="epochs__n">{group.params?.modulus_bits ?? '—'}</span>
-          <span className="stamp-type">bit modulus</span>
-        </div>
+        <Tech>
+          <div className="epochs__figure">
+            <span className="epochs__n">{group.params?.modulus_bits ?? 'not set'}</span>
+            <span className="stamp-type">bit modulus</span>
+          </div>
+        </Tech>
         <div className="epochs__value">
-          <span className="stamp-type">Accumulator value</span>
+          <span className="stamp-type">The number itself</span>
           <span className="mono">{shortHash(state.value_hex ?? '')}</span>
           <span className="small">
-            One integer commits every element above. Verifying one takes the same
-            time whether the set holds ten or ten million.
+            This single number stands for everything listed above. Checking whether one
+            record is inside it takes the same work whether there are ten of them or
+            ten million.
           </span>
         </div>
       </div>
 
       {group.transcript && (
         <p className="small epochs__dealer">
-          Parameters from a trusted-dealer ceremony run by {group.transcript.dealer},
-          with entropy from {group.transcript.contributors.join(', ')}. Whoever held
-          the factorisation could forge an accumulator witness, which is why no
-          verification here rests on one alone.
+          The starting numbers were set up by {group.transcript.dealer}, using randomness
+          contributed by {group.transcript.contributors.join(', ')}. Whoever held the
+          original secret from that setup could fake one of the three checks, which is
+          exactly why nothing here relies on that check by itself.
         </p>
       )}
 
@@ -110,27 +114,36 @@ export function EpochTimeline({
               <span className="etl__dot" aria-hidden="true" />
               <div className="etl__body">
                 <div className="etl__head">
-                  <span className="etl__epoch mono">epoch {e.epoch}</span>
+                  <span className="etl__epoch mono">update {e.epoch}</span>
                   <span className="small etl__when">{dateTime(e.sealed_at)}</span>
                 </div>
 
                 <div className="etl__figs">
                   <span className="small">
-                    <Layers size={12} /> {commas(e.element_count)} folded in
+                    <Layers size={12} /> {commas(e.element_count)} added
                   </span>
-                  <span className="small">set size {commas(e.size)}</span>
-                  <span className="mono etl__val">{shortHash(e.accumulator_hex)}</span>
+                  <span className="small">{commas(e.size)} covered in total</span>
+                  <Tech>
+                    <span className="mono etl__val">{shortHash(e.accumulator_hex)}</span>
+                  </Tech>
                 </div>
 
                 {e.beacon ? (
                   <div className={`etl__beacon ${short ? 'is-short' : ''}`}>
                     <Clock size={12} />
-                    <span className="mono">{commas(e.beacon.iterations)}</span>
-                    <span className="small">sequential squarings</span>
+                    <Tech>
+                      <span className="mono">{commas(e.beacon.iterations)}</span>
+                      <span className="small">sequential squarings</span>
+                    </Tech>
+                    <Plain>
+                      <span className="small">
+                        Proof that real time passed before this update
+                      </span>
+                    </Plain>
                     {short ? (
-                      <Seal tone="broken">below the agreed {commas(minimum)}</Seal>
+                      <Seal tone="broken">less work than agreed</Seal>
                     ) : (
-                      <Seal tone="sealed">delay proof verified</Seal>
+                      <Seal tone="sealed">checked</Seal>
                     )}
                   </div>
                 ) : (
@@ -138,8 +151,8 @@ export function EpochTimeline({
                     <div className="etl__beacon is-absent">
                       <Clock size={12} />
                       <span className="small">
-                        No beacon. This epoch&rsquo;s order is proved; the time that
-                        passed before it is not.
+                        No time proof yet. The order these were added in is proved.
+                        How much time passed before it is not.
                       </span>
                     </div>
                     {canPublish && minimum > 0 && (
@@ -150,14 +163,13 @@ export function EpochTimeline({
                           disabled={busy !== null}
                           onClick={() => void publish(e.epoch, minimum)}
                         >
-                          {busy === e.epoch
-                            ? 'Squaring…'
-                            : `Publish a delay proof (${commas(minimum)} squarings)`}
+                          {busy === e.epoch ? 'Working…' : 'Publish a time proof'}
                         </button>
                         <p className="small">
-                          This really does the work. It takes a couple of seconds to
-                          produce and about two milliseconds to check — which is the
-                          whole point of a verifiable delay function.
+                          This really does the work: a calculation that cannot be
+                          hurried, even with more machines. It takes a couple of seconds
+                          to produce and about two milliseconds for anyone to check.
+                          <Tech> {commas(minimum)} sequential squarings.</Tech>
                         </p>
                       </div>
                     )}

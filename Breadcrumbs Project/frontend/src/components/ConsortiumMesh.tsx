@@ -5,10 +5,11 @@ import {
   api, recordLabel,
   type Grant, type LedgerRecord, type Org, type Proposal,
 } from '../lib/api';
-import { commas, shortHash } from '../lib/format';
+import { commas, period } from '../lib/format';
 import { useApi } from '../lib/useApi';
 import { useReducedMotion } from '../lib/useMotionPref';
 import { Result } from './states';
+import { Tech } from './Tech';
 import { Modal, ModalHead, Seal } from './ui';
 import './mesh.css';
 
@@ -85,48 +86,51 @@ function storyFor(
               : `${org.channels.length} channel${org.channels.length === 1 ? '' : 's'}`}.
           </p>
           <div className="story__rows">
-            <Row k="MSP identity" v={<span className="mono">{org.msp_id}</span>} />
             <Row k="Country" v={org.country} />
-            <Row
-              k="Channels"
-              v={<span className="mono">{org.channels.join(', ') || 'none'}</span>}
-            />
             <Row k="Status" v={<Seal tone="sealed">in good standing</Seal>} />
+            <Tech>
+              <Row k="Network identity" v={<span className="mono">{org.msp_id}</span>} />
+              <Row
+                k="Channels"
+                v={<span className="mono">{org.channels.join(', ') || 'none'}</span>}
+              />
+            </Tech>
           </div>
         </>
       ),
     },
     {
-      label: org.kind === 'factory' ? 'Records sealed' : 'Records reached',
+      label: org.kind === 'factory' ? 'Records published' : 'Records reached',
       body:
         org.kind === 'factory' ? (
           owned.length ? (
             <>
               <p className="story__lede">
-                {commas(owned.length)} bolts sealed,{' '}
-                {commas(owned.reduce((a, b) => a + b.row_count, 0))} threads in total.
+                {commas(owned.length)} records published,{' '}
+                {commas(owned.reduce((a, b) => a + b.row_count, 0))} rows in total.
               </p>
               <div className="story__rows">
                 {owned.slice(0, 4).map((b) => (
                   <Row
                     key={b.record_id}
                     k={recordLabel(b.record_type)}
-                    v={<span className="mono">{shortHash(b.merkle_root)}</span>}
+                    v={<span className="small">{period(b.period)}</span>}
                   />
                 ))}
               </div>
             </>
           ) : (
             <p className="story__lede">
-              No records sealed yet. This member has an identity but has not committed.
+              Nothing published yet. This member is on the network but has not put
+              anything on the ledger.
             </p>
           )
         ) : (
           <>
             <p className="story__lede">
               {asRequester.length
-                ? `${commas(asRequester.length)} grants held. Each covers exactly one field.`
-                : 'Holds no access grants. This member observes the network only.'}
+                ? `Has been given access to ${commas(asRequester.length)} things. Each one covers exactly one column.`
+                : 'Has been given access to nothing. This member only observes.'}
             </p>
             <div className="story__rows">
               {asRequester.slice(0, 4).map((g) => (
@@ -142,8 +146,8 @@ function storyFor(
         <>
           <p className="story__lede">
             {endorsed.length
-              ? `Has affixed a seal to ${endorsed.length} motion${endorsed.length === 1 ? '' : 's'} of the chamber.`
-              : 'Has not endorsed a motion in the current session.'}
+              ? `Has agreed to ${endorsed.length} proposal${endorsed.length === 1 ? '' : 's'}.`
+              : 'Has not voted on anything recently.'}
           </p>
           <div className="story__rows">
             {endorsed.map((m) => (

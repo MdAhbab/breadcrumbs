@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 
 import { GateSimulator } from '../components/GateSimulator';
 import { Result } from '../components/states';
+import { Tech } from '../components/Tech';
+import { useDetail } from '../lib/detail';
+import { plainReason } from '../lib/plainReason';
 import { HashChip, LedgerRow, Seal } from '../components/ui';
 import { api, shortMsp, taskLabel, type GateDecision, type ModelVersion } from '../lib/api';
 import { bp, bpDelta, dateTime, longDate } from '../lib/format';
@@ -40,12 +43,15 @@ function DecisionIndex() {
     <div className="gatepage grain warp">
       <div className="gatepage__inner">
         <header className="gatepage__head">
-          <p className="stamp-type gatepage__eyebrow">Continuity Gate · decisions of record</p>
+          <p className="stamp-type gatepage__eyebrow">Model approvals</p>
           <div className="gv">
-            <h1 className="gv__head">Every candidate put to the gate.</h1>
+            <h1 className="gv__head">Every update, approved and refused.</h1>
             <p className="lead gv__body">
-              A promotion and a refusal are recorded with equal permanence. Open one to
-              see the benchmarks it was judged against and the signatures behind it.
+              The members share one detector, and it is updated in rounds. Before an
+              update is allowed to replace the one in use, a contract re-tests it on
+              every problem the model had already solved. If the update is worse at any
+              of them it is refused, and that refusal is written down just as permanently
+              as an approval. Open one to see what it was tested on and who signed it.
             </p>
           </div>
         </header>
@@ -57,7 +63,7 @@ function DecisionIndex() {
             isEmpty={(rows) => rows.length === 0}
             empty={{
               title: 'No decisions yet',
-              detail: 'Benchmarks are sealed but no candidate has been submitted.',
+              detail: 'The tests are fixed and published, but no update has been put to them.',
             }}
           >
             {(rows: ModelVersion[]) => (
@@ -65,12 +71,12 @@ function DecisionIndex() {
                 <table className="gptable">
                   <thead>
                     <tr>
-                      <th scope="col">Candidate</th>
+                      <th scope="col">Update</th>
                       <th scope="col">Round</th>
-                      <th scope="col">Parent</th>
+                      <Tech><th scope="col">Built on</th></Tech>
                       <th scope="col">Decided</th>
                       <th scope="col">Outcome</th>
-                      <th scope="col">Reason</th>
+                      <th scope="col">Why</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -84,14 +90,16 @@ function DecisionIndex() {
                             </Link>
                           </th>
                           <td className="mono">{m.round_id}</td>
-                          <td className="mono dim">{m.parent_id}</td>
+                          <Tech><td className="mono dim">{m.parent_id}</td></Tech>
                           <td className="mono dim">{longDate(m.decided_at)}</td>
                           <td>
                             <span className={`gpverdict stamp-type ${m.status === 'rejected' ? 'bad' : 'ok'}`}>
-                              {m.status}
+                              {m.status === 'rejected' ? 'refused' : 'approved'}
                             </span>
                           </td>
-                          <td className="gptable__reason">{m.outcome_reason}</td>
+                          <td className="gptable__reason">
+                            <span><Reason text={m.outcome_reason} /></span>
+                          </td>
                         </tr>
                       ))}
                   </tbody>
@@ -135,27 +143,27 @@ function OneDecision({ id }: { id: string }) {
               <>
                 <header className="gatepage__head">
                   <p className="stamp-type gatepage__eyebrow">
-                    Continuity Gate · round {d.round_id} · candidate {d.candidate_id}
+                    Model approvals · round {d.round_id}
                   </p>
 
                   <div className={`gv gv--${d.outcome}`}>
                     <Seal tone={rejected ? 'broken' : 'sealed'} dark>
-                      {rejected ? 'Rejected' : 'Promoted'}
+                      {rejected ? 'Refused' : 'Approved'}
                     </Seal>
                     <h1 className="gv__head">
                       {!rejected
-                        ? 'Candidate promoted — nothing was forgotten.'
+                        ? 'Approved. It improved without forgetting anything.'
                         : cumulative
-                          ? 'Candidate rejected — it has drifted too far from its best.'
-                          : 'Candidate rejected — it forgot an earlier task.'}
+                          ? 'Refused. It has slipped too far from its own best.'
+                          : 'Refused. It forgot something it had already learned.'}
                     </h1>
                     <p className="lead gv__body">
                       {!rejected ? (
                         <>
                           Model <span className="mono">{d.candidate_id}</span> improved on
-                          the new task and lost no more than the agreed tolerance on any
-                          earlier one, this round or against its best. It became the model
-                          in force.
+                          the new problem, and lost no more than the agreed margin on any
+                          earlier one. That holds both for this round and against its own
+                          best score. It is now the model everyone uses.
                         </>
                       ) : cumulative && drifting ? (
                         <>
@@ -163,11 +171,11 @@ function OneDecision({ id }: { id: string }) {
                           per-round check. But{' '}
                           {taskLabel(drifting.task_id).toLowerCase()} has now fallen{' '}
                           {Math.abs((drifting.drift_from_best_bp ?? 0) / 100).toFixed(1)}{' '}
-                          points below the best it ever reached — and the agreed cumulative
-                          limit is {bp(d.parameters.sigma_bp ?? 0)}.
+                          points below the best it ever reached. The agreed limit is{' '}
+                          {bp(d.parameters.sigma_bp ?? 0)}.
                           <br />
-                          This is the bound that closes slow erosion: a candidate can give
-                          up a little every round, each decision correct on its own, until
+                          This is the limit that catches slow erosion: an update can give
+                          up a little every round, each one defensible on its own, until
                           the model is ruined and no single refusal was ever warranted.
                         </>
                       ) : failing ? (
@@ -180,7 +188,7 @@ function OneDecision({ id }: { id: string }) {
                             </>
                           )}{' '}
                           but lost {Math.abs(failing.change_bp / 100).toFixed(1)} points on{' '}
-                          {taskLabel(failing.task_id).toLowerCase()} — which the network
+                          {taskLabel(failing.task_id).toLowerCase()}, which the network
                           already knew. <span className="mono">{d.parent_id}</span> was not
                           replaced by it.
                         </>
@@ -220,7 +228,7 @@ function OneDecision({ id }: { id: string }) {
                                 <span className="gptable__new stamp-type">new task</span>
                               )}
                             </th>
-                            <td><HashChip value={t.benchmark_hash} dark /></td>
+                            <Tech><td><HashChip value={t.benchmark_hash} dark /></td></Tech>
                             <td className="mono">{bp(t.previous_bp)}%</td>
                             <td className="mono">{bp(t.candidate_bp)}%</td>
                             <td className={`mono ${t.pass ? 'ok' : 'bad'}`}>
@@ -235,7 +243,7 @@ function OneDecision({ id }: { id: string }) {
                             </td>
                             <td className="mono">
                               {t.drift_from_best_bp === null ? (
-                                <span className="gptable__none">—</span>
+                                <span className="gptable__none">n/a</span>
                               ) : t.drift_from_best_bp <= 0 ? (
                                 <span className="ok">at or above it</span>
                               ) : (
@@ -267,9 +275,9 @@ function OneDecision({ id }: { id: string }) {
                   </p>
                   <p className="small gpsec__note">
                     <strong>Best ever</strong> is the highest score a task has reached under
-                    a <em>promoted</em> model, so a refused candidate cannot raise the bar it
+                    an <em>approved</em> model, so a refused update cannot raise the bar it
                     will be measured against next time. &ldquo;No baseline yet&rdquo; means
-                    nothing has been promoted on that task — there is no history to have
+                    nothing has been approved on that task, so there is no history to have
                     drifted from, which is not the same as having drifted by zero.
                   </p>
                 </section>
@@ -366,7 +374,7 @@ function OneDecision({ id }: { id: string }) {
                   <h2 className="gpsec__title">What was written to the ledger</h2>
                   <div className="gprecord">
                     <LedgerRow label="Outcome" dark>
-                      {rejected ? 'Rejected' : 'Promoted'} ·{' '}
+                      {rejected ? 'Refused' : 'Approved'} ·{' '}
                       <span className="mono">{d.reason_code}</span>
                     </LedgerRow>
                     <LedgerRow label="Decided" dark>{dateTime(d.decided_at)}</LedgerRow>
@@ -392,7 +400,7 @@ function OneDecision({ id }: { id: string }) {
                       <p className="small recompute__body">
                         Every input is on the ledger: the benchmark hashes, the signed
                         metrics, the endorser set and the parameters. Any member can
-                        recompute this outcome and get the same answer — the table above
+                        work this outcome out again and get the same answer. The table above
                         is what the contract recorded, not a summary of it.
                       </p>
                     </div>
@@ -420,4 +428,15 @@ function Rule({ label, value, sym }: { label: string; value: string; sym: string
       </div>
     </div>
   );
+}
+
+/**
+ * The contract's reason, in whichever register the reader asked for.
+ *
+ * The stored string is a ledger record and never changes; this only decides
+ * which of the two wordings is on screen.
+ */
+function Reason({ text }: { text: string }) {
+  const { technical } = useDetail();
+  return <>{technical ? text : plainReason(text)}</>;
 }

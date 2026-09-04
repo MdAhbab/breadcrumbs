@@ -5,13 +5,14 @@ import { Link } from 'react-router-dom';
 import { Empty, Failed, Result } from '../components/states';
 import { PageHead, Seal } from '../components/ui';
 import {
-  ApiError, api, recordLabel, shortMsp,
+  ApiError, api, purposeLabel, recordLabel, shortMsp,
   type AccessRequest, type Grant, type LedgerRecord, type VerificationRow,
 } from '../lib/api';
 import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './access.css';
+import { useFieldLabel } from '../lib/useFieldLabel';
 
 const PAGE = 30;
 
@@ -56,23 +57,23 @@ export default function Access() {
             <>
               <PageHead
                 eyebrow={`${role?.org} · access`}
-                title="Who may read a thread"
+                title="Who can see what"
                 lede={
-                  'A grant covers one field of one record for a fixed window, and the '
-                  + 'contract refuses anything outside it. Revoking is permanent and the '
-                  + 'reason goes on the ledger under your name — access can be given '
-                  + 'again afterwards, but as a new grant, in the open.'
+                  'Each permission covers one column of one record, until a date you set. '
+                  + 'The contract itself refuses anything wider. Withdrawing one is permanent, '
+                  + 'and the reason goes on the ledger under your name. You can give access '
+                  + 'again later, but only as a new permission, in the open.'
                 }
                 aside={
                   <div className="acc__counts">
-                    <Tally n={pending.length} label="awaiting you" tone={pending.length ? 'warn' : 'calm'} />
-                    <Tally n={active.length} label="grants live" tone="calm" />
+                    <Tally n={pending.length} label="waiting on you" tone={pending.length ? 'warn' : 'calm'} />
+                    <Tally n={active.length} label="live now" tone="calm" />
                     <Tally
                       n={grants.length - active.length}
-                      label="ended or revoked"
+                      label="expired or withdrawn"
                       tone="calm"
                     />
-                    <Tally n={verifications.length} label="verifications" tone="calm" />
+                    <Tally n={verifications.length} label="checks run" tone="calm" />
                   </div>
                 }
               />
@@ -119,6 +120,26 @@ function useAction(onDone: () => void) {
 }
 
 /* -- 1. what is waiting --------------------------------------------------- */
+
+/**
+ * Requests grouped the way they were sent.
+ *
+ * A buyer can now ask for four columns of one register in a single action, so
+ * four separate rows here would be this screen losing information the buyer
+ * took care to express. Requests sent together share a batch; anything older
+ * groups by who asked, for what kind of record and for which month, which is
+ * the same question arrived at a different way.
+ */
+function groupRequests(requests: AccessRequest[]): AccessRequest[][] {
+  const groups = new Map<string, AccessRequest[]>();
+  requests.forEach((r) => {
+    const key = r.batch_id
+      ?? `${r.requester_msp}|${r.record_type}|${r.period}|${r.purpose_code}`;
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  });
+  return [...groups.values()];
+}
+
 function Awaiting({
   requests, records, onDone,
 }: {
@@ -126,80 +147,137 @@ function Awaiting({
   records: LedgerRecord[];
   onDone: () => void;
 }) {
+  const labelOf = useFieldLabel();
   const { busy, failure, act } = useAction(onDone);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [declining, setDeclining] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [partial, setPartial] = useState<Record<string, string>>({});
+
+  const groups = groupRequests(requests);
 
   return (
     <section className="acc__section">
-      <h2 className="acc__h2">Awaiting you</h2>
+      <h2 className="acc__h2">Waiting on you</h2>
       <p className="lead acc__lede">
-        A request names a period. The grant that answers it names a document, so
-        choosing which one is part of answering rather than a detail afterwards.
+        A request names a month. What you release names one document, so choosing
+        which one is part of answering rather than a detail afterwards. Each column
+        is released on its own, even when several were asked for together.
       </p>
       {failure && <Failed error={failure} />}
 
-      {requests.length === 0 ? (
+      {groups.length === 0 ? (
         <Empty title="Nothing waiting" detail="Every request you have been sent has an answer." />
       ) : (
         <ul className="acc__list">
-          {requests.map((r) => {
+          {groups.map((group) => {
+            const first = group[0];
+            const groupKey = first.batch_id ?? first.id;
             const candidates = records.filter(
-              (x) => x.record_type === r.record_type && x.period === r.period,
+              (x) => x.record_type === first.record_type && x.period === first.period,
             );
-            const pick = chosen[r.id] ?? candidates[0]?.record_id ?? '';
+            const pick = chosen[groupKey] ?? candidates[0]?.record_id ?? '';
+            const ids = group.map((r) => r.id);
+            const working = busy === groupKey;
+            const refusing = declining && ids.includes(declining) ? declining : null;
+
             return (
-              <li key={r.id} className="areq">
+              <li key={groupKey} className="areq">
                 <div className="areq__head">
                   <div>
-                    <p className="areq__who">{shortMsp(r.requester_msp)}</p>
+                    <p className="areq__who">{shortMsp(first.requester_msp)}</p>
                     <p className="small areq__what">
-                      wants <span className="mono">{r.field_name}</span> from{' '}
-                      {recordLabel(r.record_type)}, {period(r.period)} ·{' '}
-                      <span className="mono">{r.purpose_code}</span>
+                      wants{' '}
+                      {group.length === 1 ? (
+                        <strong>{labelOf(first.record_type, first.field_name)}</strong>
+                      ) : (
+                        <strong>{group.length} figures</strong>
+                      )}{' '}
+                      from {recordLabel(first.record_type)}, {period(first.period)} ·{' '}
+                      <span>{purposeLabel(first.purpose_code)}</span>
                     </p>
                     <p className="small areq__when">
-                      asked {longDate(r.requested_at)} · access would run to{' '}
-                      {longDate(r.expires_at)}
+                      asked {longDate(first.requested_at)} · access would run to{' '}
+                      {longDate(first.expires_at)}
                     </p>
                   </div>
-                  <Seal tone="pending">pending</Seal>
+                  <Seal tone="pending">
+                    {group.length === 1 ? 'pending' : `${group.length} pending`}
+                  </Seal>
                 </div>
+
+                {group.length > 1 && (
+                  <ul className="areq__cols">
+                    {group.map((r) => (
+                      <li key={r.id} className="areq__col">
+                        <span>{labelOf(r.record_type, r.field_name)}</span>
+                        <button
+                          type="button"
+                          className="areq__colrefuse"
+                          disabled={busy !== null}
+                          onClick={() => { setDeclining(r.id); setReason(''); }}
+                        >
+                          refuse this one
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
                 {candidates.length === 0 ? (
                   <p className="small areq__none">
-                    No {recordLabel(r.record_type).toLowerCase()} for {period(r.period)} is on
-                    the ledger, so there is nothing to grant against. Decline it, or seal
-                    the record first.
+                    You have not published a {recordLabel(first.record_type).toLowerCase()}{' '}
+                    for {period(first.period)}, so there is nothing to release. Refuse it,
+                    or publish the record first.
                   </p>
                 ) : (
                   <label className="areq__pick">
-                    <span className="stamp-type">Grant against</span>
+                    <span className="stamp-type">From which record</span>
                     <select
                       className="input"
                       value={pick}
-                      onChange={(e) => setChosen({ ...chosen, [r.id]: e.target.value })}
+                      onChange={(e) => setChosen({ ...chosen, [groupKey]: e.target.value })}
                     >
                       {candidates.map((c) => (
                         <option key={c.record_id} value={c.record_id}>
-                          {c.record_id} · {c.site} · {commas(c.row_count)} rows
+                          {c.site} · {commas(c.row_count)} rows · published{' '}
+                          {longDate(c.committed_at)}
                         </option>
                       ))}
                     </select>
                     <span className="small areq__pickmeta">
                       {commas(candidates.length)} record
-                      {candidates.length === 1 ? '' : 's'} match this period.
-                      {pick && <> The buyer receives {r.field_name} from this one and nothing else.</>}
+                      {candidates.length === 1 ? '' : 's'} match this month.
+                      {pick && group.length === 1 && (
+                        <> They receive {labelOf(first.record_type, first.field_name)} from
+                          {' '}this one, and nothing else.</>
+                      )}
+                      {pick && group.length > 1 && (
+                        <> They receive those {group.length} figures from this one, each as
+                          {' '}its own permission you can withdraw separately.</>
+                      )}
                     </span>
                   </label>
                 )}
 
-                {declining === r.id ? (
+                {partial[groupKey] && (
+                  <p className="small areq__partial">{partial[groupKey]}</p>
+                )}
+
+                {refusing ? (
                   <div className="areq__reason">
+                    <p className="small areq__note">
+                      Refusing{' '}
+                      <strong>
+                        {labelOf(
+                          first.record_type,
+                          group.find((r) => r.id === refusing)!.field_name,
+                        )}
+                      </strong>.
+                    </p>
                     <input
                       className="input"
-                      placeholder="Why are you declining? The buyer is told."
+                      placeholder="Why are you refusing? The buyer is told."
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                     />
@@ -207,9 +285,9 @@ function Awaiting({
                       <button
                         type="button"
                         className="btn btn--danger btn--sm"
-                        disabled={busy === r.id}
+                        disabled={busy === refusing}
                         onClick={() => {
-                          void act(r.id, () => api.declineRequest(r.id, reason.trim()))
+                          void act(refusing, () => api.declineRequest(refusing, reason.trim()))
                             .then((ok) => {
                               if (!ok) return;
                               setDeclining(null);
@@ -217,7 +295,7 @@ function Awaiting({
                             });
                         }}
                       >
-                        {busy === r.id ? 'Declining…' : 'Decline this request'}
+                        {busy === refusing ? 'Refusing…' : 'Refuse this one'}
                       </button>
                       <button
                         type="button"
@@ -228,8 +306,8 @@ function Awaiting({
                       </button>
                     </div>
                     <p className="small areq__note">
-                      A decline is not final. You can reconsider it from the section below,
-                      and nothing is written to the ledger either way — only a grant is.
+                      Refusing is not final. You can reconsider it from the section below,
+                      and nothing is written to the ledger either way. Only a release is.
                     </p>
                   </div>
                 ) : (
@@ -237,20 +315,42 @@ function Awaiting({
                     <button
                       type="button"
                       className="btn btn--primary btn--sm"
-                      disabled={busy === r.id || !pick}
-                      onClick={() => void act(r.id, () => api.answerRequest(r.id, pick))}
+                      disabled={busy !== null || !pick}
+                      onClick={() => {
+                        void act(groupKey, async () => {
+                          if (group.length === 1) return api.answerRequest(first.id, pick);
+                          // Deliberately not all-or-nothing. If the contract
+                          // refuses one column the others are still real
+                          // permissions, and rolling them back would throw away
+                          // access this factory meant to give.
+                          const out = await api.answerBatch(ids, pick);
+                          setPartial((prev) => ({
+                            ...prev,
+                            [groupKey]: out.failed.length
+                              ? `${out.summary}. ${out.failed.map((f) => f.message).join(' ')}`
+                              : '',
+                          }));
+                          return out;
+                        });
+                      }}
                     >
                       <KeyRound size={13} />
-                      {busy === r.id ? 'Writing to the chain…' : 'Grant one field'}
+                      {working
+                        ? 'Writing to the ledger…'
+                        : group.length === 1
+                          ? 'Release this figure'
+                          : `Release all ${group.length}`}
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost btn--sm"
-                      disabled={busy === r.id}
-                      onClick={() => { setDeclining(r.id); setReason(''); }}
-                    >
-                      Decline
-                    </button>
+                    {group.length === 1 && (
+                      <button
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        disabled={busy !== null}
+                        onClick={() => { setDeclining(first.id); setReason(''); }}
+                      >
+                        Refuse
+                      </button>
+                    )}
                   </div>
                 )}
               </li>
@@ -270,6 +370,7 @@ function Answered({
   records: LedgerRecord[];
   onDone: () => void;
 }) {
+  const labelOf = useFieldLabel();
   const { busy, failure, act } = useAction(onDone);
   const [reissuing, setReissuing] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Record<string, string>>({});
@@ -281,7 +382,7 @@ function Answered({
       <h2 className="acc__h2">Answered</h2>
       <p className="lead acc__lede">
         What you decided, and what became of it. The state on the right is read off
-        the ledger rather than from the answer you gave — a grant can be revoked
+        the ledger rather than from the answer you gave. Access can be withdrawn
         long after the request that produced it was closed.
       </p>
       {failure && <Failed error={failure} />}
@@ -304,9 +405,9 @@ function Answered({
                   <div>
                     <p className="areq__who">{shortMsp(r.requester_msp)}</p>
                     <p className="small areq__what">
-                      <span className="mono">{r.field_name}</span> ·{' '}
+                      <strong>{labelOf(r.record_type, r.field_name)}</strong> ·{' '}
                       {recordLabel(r.record_type)}, {period(r.period)} ·{' '}
-                      <span className="mono">{r.purpose_code}</span>
+                      <span>{purposeLabel(r.purpose_code)}</span>
                     </p>
                     {r.grant_record_id && (
                       <p className="small areq__when">
@@ -486,6 +587,7 @@ function Issued({
   const [status, setStatus] = useState('active');
   const [who, setWho] = useState('');
   const [query, setQuery] = useState('');
+  const labelOf = useFieldLabel();
   const [shown, setShown] = useState(PAGE);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -591,8 +693,8 @@ function Issued({
                         )}
                       </th>
                       <td>{shortMsp(g.requester_msp)}</td>
-                      <td className="mono">{g.field_name}</td>
-                      <td className="mono small">{g.purpose_code}</td>
+                      <td>{labelOf(record?.record_type ?? '', g.field_name)}</td>
+                      <td className="small">{purposeLabel(g.purpose_code)}</td>
                       <td className="mono dim">{longDate(g.granted_at)}</td>
                       <td className="mono dim">{longDate(g.expires_at)}</td>
                       <td>
@@ -689,13 +791,14 @@ function Tally({ n, label, tone }: { n: number; label: string; tone: 'warn' | 'c
  * a verification happened and which root it was checked against.
  */
 function Verifications({ rows }: { rows: VerificationRow[] }) {
+  const labelOf = useFieldLabel();
   const [shown, setShown] = useState(PAGE);
 
   return (
     <section className="acc__section">
       <h2 className="acc__h2">Verifications against your records</h2>
       <p className="lead acc__lede">
-        A grant is permission. This is use — every proof anyone has run against a
+        Permission is one thing, use is another. This is use: every check anyone ran against a
         document of yours, with the field it covered and whether the root still
         matches what the ledger holds.
       </p>
@@ -735,7 +838,7 @@ function Verifications({ rows }: { rows: VerificationRow[] }) {
                       </span>
                     </th>
                     <td>{shortMsp(r.verifier_msp)}</td>
-                    <td className="mono">{r.field_name}</td>
+                    <td>{labelOf(r.record_type, r.field_name)}</td>
                     <td>
                       <Seal tone={r.result === 'match' ? 'sealed' : 'broken'}>
                         {r.result === 'match' ? 'matched' : 'no match'}

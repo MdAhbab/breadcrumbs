@@ -220,3 +220,7 @@
     padding: calc(var(--topbar) + var(--s5)) var(--pad) var(--s7);
   }
 }
+
+/* The detail switch sits above the identity block: it changes what every
+   screen shows, so it belongs with the account, not on any one page. */
+.nav__foot .dtoggle { margin-bottom: var(--s4); }

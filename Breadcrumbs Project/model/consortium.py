@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .chaincode import anchor, doccustody, fedmodel, reputation
+from .chaincode import anchor, doccustody, fedmodel, membership, reputation
 from .ledger import (
     AND,
     MSP,
@@ -163,4 +163,44 @@ def build(db_path: str = ":memory:", timestamp: str = "2026-03-01T00:00:00Z") ->
         ["BGMEAConsortiumMSP", "ApexTextileMSP", "BVCertificationMSP"],
     )
 
-    return Consortium(network=network, msp=msp, authorities=authorities, identities=identities)
+    # membership: who is in the consortium at all.
+    #
+    # Three of the five model-channel organisations, the same policy the gate
+    # uses, and for the same reason. Admitting a member was previously a row in
+    # a SQL table that the consortium administrator could flip alone, which made
+    # the governance screen's central claim — that no single participant decides
+    # who is in — false on the one page that asserted it.
+    network.install("membership", membership, NOutOf(3, GATE_ORGS), GATE_ORGS)
+
+    consortium = Consortium(
+        network=network, msp=msp, authorities=authorities, identities=identities
+    )
+    _seed_register(consortium, timestamp)
+    return consortium
+
+
+def _seed_register(consortium: Consortium, timestamp: str) -> None:
+    """
+    Put the founding members on the ledger.
+
+    The register has to start somewhere, and the founders were not admitted by a
+    motion because there was no consortium yet to carry one. `seed_member`
+    records exactly that rather than inventing a proposal id for them.
+    """
+    endorsers = consortium.endorsers(GATE_ORGS[:3])
+    for msp_id, name, kind, country in ORGS:
+        consortium.network.invoke(
+            MODEL_CHANNEL,
+            "membership",
+            "seed_member",
+            {
+                "msp_id": msp_id,
+                "name": name,
+                "kind": kind,
+                "country": country,
+                "timestamp": timestamp,
+            },
+            consortium.org_identity("BGMEAConsortiumMSP"),
+            endorsers,
+            timestamp,
+        )

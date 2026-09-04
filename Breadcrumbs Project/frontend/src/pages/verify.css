@@ -260,3 +260,12 @@
   color: var(--ink-quiet);
   font-size: clamp(1.4rem, 4vw, 2.4rem);
 }
+
+/* -- the document view needs the room a receipt does not -------------------
+ * A receipt is one object on a clean field and 780px is right for it. A whole
+ * register is a table of twenty-four rows and eight columns, and squeezing that
+ * into the same measure turns the only thing on the page into a horizontal
+ * scroll. The reading column stays narrow; the table gets the window.
+ */
+.lb__main--wide { max-width: 1240px; }
+.lb__main--wide .verdictbar { max-width: 780px; }

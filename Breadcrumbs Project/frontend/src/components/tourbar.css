@@ -1,0 +1,162 @@
+/*
+ * The guided walkthrough bar.
+ *
+ * Dark, so it reads as an overlay on the product rather than as another panel
+ * within it, and pinned to the foot where it covers the least.
+ */
+
+.tourbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  background: var(--indigo-deep);
+  border-top: 1px solid var(--brass-30);
+  box-shadow: 0 -18px 50px -20px rgba(18, 22, 28, 0.55);
+  animation: tourbar-in var(--m-base) both;
+}
+
+@keyframes tourbar-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tourbar { animation: none; }
+}
+
+.tourbar__inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s5);
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: var(--s4) var(--pad);
+}
+
+/* -- progress -------------------------------------------------------------- */
+
+.tourbar__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tourbar__pip {
+  width: 3px;
+  height: 9px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background var(--m-fast), height var(--m-fast);
+}
+
+.tourbar__pip.is-done { background: var(--brass-30); }
+.tourbar__pip.is-now { background: var(--brass-bright); height: 14px; }
+
+/* -- copy ------------------------------------------------------------------ */
+
+.tourbar__eyebrow { color: var(--brass-type); margin: 0 0 3px; }
+
+.tourbar__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--calico);
+}
+
+.tourbar__body {
+  margin: 6px 0 0;
+  max-width: 78ch;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--slub-type);
+}
+
+.tourbar__todo {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+  font-size: 13px;
+  color: var(--brass-bright);
+}
+
+.tourbar__todomark {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brass-bright);
+  box-shadow: 0 0 0 4px var(--brass-wash);
+}
+
+/* -- controls -------------------------------------------------------------- */
+
+.tourbar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.tourbar__fold,
+.tourbar__x {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--thread-lit);
+  cursor: pointer;
+  transition: color var(--m-fast), border-color var(--m-fast);
+}
+
+.tourbar__fold:hover,
+.tourbar__x:hover { color: var(--calico); border-color: rgba(255, 255, 255, 0.34); }
+.tourbar__fold:focus-visible,
+.tourbar__x:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+/* The ghost button is drawn for the light field; on this ground it needs its
+   own treatment or it disappears into the indigo. */
+.tourbar .btn--ghost { color: var(--slub-lit); border-color: rgba(255, 255, 255, 0.2); }
+.tourbar .btn--ghost:hover:not(:disabled) { color: var(--calico); border-color: rgba(255, 255, 255, 0.4); }
+
+/* -- folded ---------------------------------------------------------------- */
+
+.tourbar.is-folded .tourbar__inner { padding-top: var(--s3); padding-bottom: var(--s3); }
+.tourbar.is-folded .tourbar__rail { flex-direction: row; align-items: center; }
+.tourbar.is-folded .tourbar__pip { width: 9px; height: 3px; }
+.tourbar.is-folded .tourbar__pip.is-now { width: 14px; height: 3px; }
+.tourbar.is-folded .tourbar__title { font-size: 16px; }
+
+/* -- the page needs room under it ------------------------------------------ */
+
+body[data-tour='open'] .shellmain,
+body[data-tour='open'] .verify,
+body[data-tour='open'] .gv { padding-bottom: 240px; }
+
+body[data-tour='folded'] .shellmain,
+body[data-tour='folded'] .verify,
+body[data-tour='folded'] .gv { padding-bottom: 120px; }
+
+@media (max-width: 900px) {
+  .tourbar__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s3);
+    padding: var(--s3) var(--pad);
+  }
+
+  .tourbar__rail { flex-direction: row; align-items: center; }
+  .tourbar__pip { width: 9px; height: 3px; }
+  .tourbar__pip.is-now { width: 14px; height: 3px; }
+  .tourbar__title { font-size: 16px; }
+  .tourbar__body { font-size: 13px; }
+  .tourbar__actions { justify-content: flex-end; }
+  body[data-tour='open'] .shellmain { padding-bottom: 300px; }
+  body[data-tour='folded'] .shellmain { padding-bottom: 150px; }
+}

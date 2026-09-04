@@ -1,0 +1,59 @@
+/* The detail-level switch. Quiet: it is a preference, not an action. */
+
+.dtoggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink-quiet);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color var(--m-fast), color var(--m-fast);
+}
+
+.dtoggle:hover { color: var(--ink); border-color: var(--rule); }
+.dtoggle:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.dtoggle.is-on { color: var(--ink); border-color: var(--brass-30); }
+
+.dtoggle__label { flex: 1; text-align: left; white-space: nowrap; }
+
+.dtoggle__track {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--thread-35);
+  transition: background var(--m-fast);
+}
+
+.dtoggle.is-on .dtoggle__track { background: var(--brass); }
+
+.dtoggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--calico);
+  transition: transform var(--m-fast);
+}
+
+.dtoggle.is-on .dtoggle__knob { transform: translateX(12px); }
+
+/* In a page header rather than in the sidebar. */
+.dtoggle--compact { width: auto; padding: 5px 9px; font-size: 11px; }
+.dtoggle--compact .dtoggle__label { flex: none; }
+
+/* On the dark grounds — the nav, the gate page. */
+.dtoggle--dark { color: var(--thread-lit); border-color: rgba(255, 255, 255, 0.14); }
+.dtoggle--dark:hover { color: var(--calico); border-color: rgba(255, 255, 255, 0.28); }
+.dtoggle--dark.is-on { color: var(--calico); }
+.dtoggle--dark .dtoggle__track { background: rgba(255, 255, 255, 0.2); }

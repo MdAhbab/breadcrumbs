@@ -7,10 +7,10 @@ import { SealActions } from '../components/SealActions';
 import { Empty, Failed, Result } from '../components/states';
 import { PageHead } from '../components/ui';
 import {
-  ApiError, api, recordLabel, shortMsp,
+  ApiError, PURPOSE_LABEL, api, recordLabel, shortMsp,
   type Grant, type LedgerRecord, type Org, type PeriodSeal,
 } from '../lib/api';
-import { commas, period as periodName } from '../lib/format';
+import { commas, longDate, period as periodName } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './periods.css';
@@ -42,18 +42,18 @@ export default function Periods() {
   return (
     <div className="periods">
       <PageHead
-        eyebrow={verifier ? 'Completeness' : `${role?.org} · closed periods`}
-        title={verifier ? 'Was anything withheld?' : 'Closed periods'}
+        eyebrow={verifier ? 'Check for gaps' : `${role?.org} · closed months`}
+        title={verifier ? 'Was anything left out?' : 'Closed months'}
         lede={
           verifier
-            ? 'Other systems prove a record is genuine. A sealed period proves nothing is missing — the count and the root were fixed before you asked, so a short disclosure is arithmetic, not suspicion.'
-            : 'Closing a period fixes exactly which records it holds. After that a late record cannot be slipped in quietly; it has to be an amendment, with a reason, in the open.'
+            ? 'Proving one record is real is the easy half. This is the other one. A closed month has its list of records fixed before anybody asks about it, so if you are shown fewer than it says, that is arithmetic, not suspicion.'
+            : 'Closing a month fixes exactly which records it contains. After that nothing can be slipped in quietly. A late record has to be added as an open correction, with a reason attached.'
         }
       />
 
       <Result
         query={world}
-        pendingLabel="Reading the seals"
+        pendingLabel="Reading the closed months"
         /* Only a verifier has nothing to do here without a seal. A factory
            with records and no seals has the most to do of anyone — and this
            used to swallow the whole page, SealActions included, so the one
@@ -61,10 +61,10 @@ export default function Periods() {
            already been closed. */
         isEmpty={([seals]) => verifier && seals.length === 0}
         empty={{
-          title: 'No sealed periods you can see',
+          title: 'No closed months you can see',
           detail:
-            'A period becomes visible to you once you hold a live grant against a '
-            + 'record inside it.',
+            'A month becomes visible to you once a factory has released something to '
+            + 'you from a record inside it.',
         }}
       >
         {([seals, records, grants, orgs]) => {
@@ -91,8 +91,8 @@ export default function Periods() {
             const [, site, recordType, per] = bucket.split('|');
             const held = inBucket(bucket).length;
             const suffix = !seal
-              ? ' — not closed yet'
-              : held < seal.record_count ? ` — short by ${seal.record_count - held}` : '';
+              ? ' · not closed yet'
+              : held < seal.record_count ? ` · ${seal.record_count - held} missing` : '';
             return `${site} · ${recordLabel(recordType)} · ${periodName(per)}${suffix}`;
           };
 
@@ -103,7 +103,6 @@ export default function Periods() {
             ?? short?.bucket
             ?? buckets[0];
           const current = currentBucket ? sealOf.get(currentBucket) ?? null : null;
-          const unsealed = buckets.filter((b) => !sealOf.has(b));
 
           if (!currentBucket) {
             return (
@@ -116,7 +115,28 @@ export default function Periods() {
 
           return (
             <>
+              {/* The factory comes here to close a month, so that is the first
+                  thing on its page. It used to open on the verifier's
+                  completeness checker, which for the owner of the records can
+                  only ever say "complete" — and then on a wall of thirty
+                  identical cards. Neither answered the question the person had
+                  when they clicked "Closed months". */}
+              {role?.id === 'factory' && (
+                <section className="periods__section">
+                  <SealActions records={records} seals={seals} onChange={world.reload} />
+                </section>
+              )}
+
               <section className="periods__section">
+                <h2 className="periods__h2">
+                  {verifier ? 'Check a month for gaps' : 'Who holds a copy'}
+                </h2>
+                {!verifier && (
+                  <p className="lead periods__lede">
+                    Once a month is closed, this is who has been given something out of
+                    it. Nobody else can see any of it.
+                  </p>
+                )}
                 <div className="periods__picker">
                   <label className="periods__pick">
                     <span className="stamp-type">Period to check</span>
@@ -137,19 +157,13 @@ export default function Periods() {
                       were sealed with.
                     </p>
                   )}
-                  {!verifier && unsealed.length > 0 && (
-                    <p className="small periods__hint">
-                      {unsealed.length} period{unsealed.length === 1 ? '' : 's'} hold records
-                      and {unsealed.length === 1 ? 'has' : 'have'} never been closed. Closing
-                      one is at the foot of this page.
-                    </p>
-                  )}
+
                 </div>
 
                 {/* The completeness check is a verifier's instrument, and only a
                     verifier's. Its two sets are "what the period holds" and
                     "what I was given", and for the owner of the records those
-                    are the same set by construction — so run against a factory
+                    are the same set by construction, so run against a factory
                     it could only ever print "Complete", in second-person copy
                     written for somebody who had been given something.
 
@@ -186,29 +200,23 @@ export default function Periods() {
                 )}
               </section>
 
-              {role?.id === 'factory' && (
-                <section className="periods__section">
-                  <h2 className="periods__h2">Close or reopen a period</h2>
-                  <p className="lead periods__lede">
-                    Closing a period fixes exactly which records it holds, and the count
-                    and root cannot be revised afterwards without it being visible.
-                  </p>
-                  <SealActions records={records} seals={seals} onChange={world.reload} />
-                </section>
-              )}
-
               <section className="periods__section">
                 <h2 className="periods__h2">
-                  {verifier ? 'The seals behind that check' : 'Sealed'}
+                  {verifier ? 'The closed months behind that check' : 'Already closed'}
                 </h2>
                 {seals.length === 0 ? (
-                  <Empty title="Nothing sealed" />
-                ) : (
+                  <Empty title="Nothing closed yet" />
+                ) : verifier ? (
                   <div className="periods__grid">
                     {seals.map((s) => (
                       <PeriodSealCard key={s.bucket} seal={s} />
                     ))}
                   </div>
+                ) : (
+                  /* Thirty identical cards is not a list, it is a wall. The
+                     factory scans this for two things: which months are closed,
+                     and which ones it has had to correct. Both are one line. */
+                  <ClosedList seals={seals} />
                 )}
               </section>
 
@@ -228,6 +236,67 @@ export default function Periods() {
         }}
       </Result>
     </div>
+  );
+}
+
+/**
+ * Every closed month, as a list rather than a wall.
+ *
+ * Thirty cards of identical shape is not a list, it is wallpaper: the factory
+ * scans this for two things, which months are closed and which ones it has had
+ * to correct, and both of those are one line each. The corrections are the part
+ * worth looking at, so they are the only thing that expands.
+ */
+function ClosedList({ seals }: { seals: PeriodSeal[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const ordered = [...seals].sort((a, b) => b.bucket.localeCompare(a.bucket));
+
+  return (
+    <ul className="closed">
+      {ordered.map((seal) => {
+        const [, site, recordType, per] = seal.bucket.split('|');
+        const corrections = seal.amendments.length;
+        const expanded = open === seal.bucket;
+        return (
+          <li key={seal.bucket} className={`closed__row ${corrections ? 'has-fixes' : ''}`}>
+            <div className="closed__main">
+              <span className="closed__what">
+                {recordLabel(recordType)} · {site}
+              </span>
+              <span className="closed__when">{periodName(per)}</span>
+              <span className="small closed__count">
+                {commas(seal.record_count)} record{seal.record_count === 1 ? '' : 's'}
+              </span>
+              {corrections > 0 ? (
+                <button
+                  type="button"
+                  className="closed__fixes"
+                  onClick={() => setOpen(expanded ? null : seal.bucket)}
+                  aria-expanded={expanded}
+                >
+                  {corrections} correction{corrections === 1 ? '' : 's'}
+                </button>
+              ) : (
+                <span className="small closed__clean">no corrections</span>
+              )}
+            </div>
+            {expanded && (
+              <ol className="closed__fixlist">
+                {seal.amendments.map((a) => (
+                  <li key={a.version}>
+                    <p className="closed__fixreason">{a.reason}</p>
+                    <p className="small closed__fixmeta">
+                      {longDate(a.amended_at)} · was {a.previous_count} records ·
+                      added {a.added.join(', ')}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -287,6 +356,7 @@ function WhoHolds({
   }
   const holders = [...new Set([...live.keys(), ...ended.keys()])].sort();
   const undisclosed = held.filter((id) => !holdersOf.has(id));
+  const shared = held.length - undisclosed.length;
 
   // Terms to open the form with. This period first; failing that, any grant
   // this factory has issued on the same kind of record, which is where the
@@ -301,46 +371,99 @@ function WhoHolds({
     ?? sameType[0];
 
   const [opening, setOpening] = useState<string | null>(null);
-  const [who, setWho] = useState(
-    () => sibling?.requester_msp ?? counterparties[0]?.msp_id ?? '',
+  const [parties, setParties] = useState<string[]>(
+    () => (sibling?.requester_msp ? [sibling.requester_msp] : []),
   );
-  const [field, setField] = useState(() => sibling?.field_name ?? '');
+  // The columns this kind of record actually has, so the factory picks from
+  // what is in the file rather than typing a name from memory.
+  const columns = useApi(() => api.recordFields(), []);
+  const shareable = (columns.data?.[recordType ?? ''] ?? []).filter((f) => f.requestable);
+  const blockedFields = (columns.data?.[recordType ?? ''] ?? []).filter((f) => !f.requestable);
+  const [partial, setPartial] = useState<string | null>(null);
+
+  const [fields, setFields] = useState<string[]>(() =>
+    sibling?.field_name ? [sibling.field_name] : []);
   const [purpose, setPurpose] = useState(() => sibling?.purpose_code ?? '');
   const [until, setUntil] = useState(() => (sibling?.expires_at ?? '2028-12-31').slice(0, 10));
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ApiError | null>(null);
 
-  const ready = who !== '' && field.trim() !== '' && purpose.trim() !== '' && until !== '';
+  const ready = parties.length > 0 && fields.length > 0 && purpose.trim() !== '' && until !== '';
 
+  /**
+   * Share one record with everyone selected, one column at a time.
+   *
+   * A permission covers exactly one column for exactly one organisation, and
+   * that does not change: it is the guarantee. What changed is that releasing
+   * the same figure to a buyer and an auditor, or releasing three figures to
+   * one buyer, is now one action rather than six trips through this form.
+   *
+   * Deliberately not all-or-nothing. If the contract refuses one pairing the
+   * others are real permissions, and rolling them back would take away access
+   * the factory meant to give. The form says exactly which failed and why.
+   */
   const disclose = async (recordId: string) => {
     setBusy(true);
     setFailure(null);
-    try {
-      await api.grant({
-        record_id: recordId,
-        requester_msp: who,
-        purpose_code: purpose.trim(),
-        field_name: field.trim(),
-        expires_at: `${until}T00:00:00Z`,
-      });
-      setOpening(null);
-      onChange();
-    } catch (err) {
-      setFailure(err instanceof ApiError ? err : new ApiError(0, 'the grant was not written'));
-    } finally {
-      setBusy(false);
+    setPartial(null);
+
+    const pairs = parties.flatMap((msp) => fields.map((name) => ({ msp, name })));
+    const failed: string[] = [];
+    let written = 0;
+
+    for (const pair of pairs) {
+      try {
+        await api.grant({
+          record_id: recordId,
+          requester_msp: pair.msp,
+          purpose_code: purpose.trim(),
+          field_name: pair.name,
+          expires_at: `${until}T00:00:00Z`,
+        });
+        written += 1;
+      } catch (err) {
+        const why = err instanceof ApiError ? err.message : 'it was refused';
+        failed.push(`${shortMsp(pair.msp)} · ${pair.name}: ${why}`);
+      }
     }
+
+    setBusy(false);
+    if (failed.length === 0) {
+      setOpening(null);
+      setPartial(null);
+    } else {
+      setPartial(
+        `${written} of ${pairs.length} released. ${failed.join(' ')}`,
+      );
+    }
+    onChange();
   };
 
+  const toggleParty = (msp: string) =>
+    setParties((c) => (c.includes(msp) ? c.filter((x) => x !== msp) : [...c, msp]));
+  const toggleField = (name: string) =>
+    setFields((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
+
   return (
-    <div className="whoholds">
+    <div className={`whoholds ${opening ? 'is-sharing' : ''}`}>
       <div className="whoholds__records">
-        <p className="stamp-type whoholds__label">What this period holds</p>
+        <p className="stamp-type whoholds__label">What this month holds</p>
+        {/* Red is for an asymmetry, not for a state.
+            A month where nobody holds anything is simply unshared, and every
+            row of it used to come out in the same red as a genuinely missing
+            record — so a factory that had shared nothing was shown twenty-eight
+            errors. The colour is now reserved for the case it was written for:
+            some of this month went out and this record did not. */}
+        <p className="small whoholds__summary">
+          {shared === 0
+            ? `${commas(held.length)} record${held.length === 1 ? '' : 's'}, none shared with anyone yet.`
+            : `${commas(held.length)} record${held.length === 1 ? '' : 's'}, ${commas(shared)} shared.`}
+        </p>
         <ul className="whoholds__ids">
           {held.map((id) => {
             const to = holdersOf.get(id) ?? [];
             return (
-              <li key={id} className={`whoholds__id ${to.length ? '' : 'is-held'}`}>
+              <li key={id} className="whoholds__id">
                 <span className="mono">{id}</span>
                 {to.length > 0 ? (
                   <span className="small whoholds__to">
@@ -356,7 +479,7 @@ function WhoHolds({
                     }}
                     aria-expanded={opening === id}
                   >
-                    not disclosed
+                    share this one
                   </button>
                 )}
               </li>
@@ -369,49 +492,83 @@ function WhoHolds({
         {opening && (
           <div className="whoholds__form">
             <p className="small">
-              Release <span className="mono">{opening}</span> — one field, to one
-              organisation, until a date you set.
+              Share part of this record. Tick everyone who should get it and every
+              figure they should see. Each figure goes to each organisation as its own
+              permission, which you can withdraw one at a time.
             </p>
 
-            <label className="whoholds__field">
-              <span className="stamp-type">To</span>
-              <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>
+            <fieldset className="whoholds__set">
+              <legend className="stamp-type">Share with</legend>
+              <div className="whoholds__grid">
                 {counterparties.map((o) => (
-                  <option key={o.msp_id} value={o.msp_id}>{o.name}</option>
+                  <label key={o.msp_id} className="whoholds__tick">
+                    <input
+                      type="checkbox"
+                      checked={parties.includes(o.msp_id)}
+                      onChange={() => toggleParty(o.msp_id)}
+                    />
+                    <span>{o.name}</span>
+                  </label>
                 ))}
-              </select>
-            </label>
+              </div>
+            </fieldset>
+
+            <fieldset className="whoholds__set">
+              <legend className="stamp-type">Which figures</legend>
+              <div className="whoholds__grid">
+                {shareable.map((f) => (
+                  <label key={f.name} className="whoholds__tick">
+                    <input
+                      type="checkbox"
+                      checked={fields.includes(f.name)}
+                      onChange={() => toggleField(f.name)}
+                    />
+                    <span>{f.label}</span>
+                  </label>
+                ))}
+              </div>
+              {blockedFields.length > 0 && (
+                <p className="small whoholds__blocked">
+                  {blockedFields.map((f) => f.label).join(', ')} cannot be shared with
+                  anyone. Those identify a person.
+                </p>
+              )}
+            </fieldset>
 
             <div className="whoholds__pair">
               <label className="whoholds__field">
-                <span className="stamp-type">Field</span>
-                <input
-                  className="input mono"
-                  value={field}
-                  placeholder="cas_number"
-                  onChange={(e) => setField(e.target.value)}
-                />
+                <span className="stamp-type">What for</span>
+                <select
+                  className="input"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                >
+                  {Object.entries(PURPOSE_LABEL).map(([code, label]) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
+                </select>
               </label>
               <label className="whoholds__field">
-                <span className="stamp-type">Purpose</span>
+                <span className="stamp-type">Until</span>
                 <input
-                  className="input mono"
-                  value={purpose}
-                  placeholder="REACH-COMPLIANCE"
-                  onChange={(e) => setPurpose(e.target.value)}
+                  className="input"
+                  type="date"
+                  value={until}
+                  onChange={(e) => setUntil(e.target.value)}
                 />
               </label>
             </div>
 
-            <label className="whoholds__field">
-              <span className="stamp-type">Until</span>
-              <input
-                className="input"
-                type="date"
-                value={until}
-                onChange={(e) => setUntil(e.target.value)}
-              />
-            </label>
+            {parties.length > 0 && fields.length > 0 && (
+              <p className="small whoholds__count">
+                {parties.length * fields.length} permission
+                {parties.length * fields.length === 1 ? '' : 's'}:{' '}
+                {fields.length} figure{fields.length === 1 ? '' : 's'} to{' '}
+                {parties.length} organisation{parties.length === 1 ? '' : 's'}.
+              </p>
+            )}
+
+            {partial && <p className="small whoholds__partial">{partial}</p>}
 
             <div className="whoholds__formrow">
               <button
@@ -420,7 +577,12 @@ function WhoHolds({
                 disabled={busy || !ready}
                 onClick={() => void disclose(opening)}
               >
-                {busy ? 'Writing to the chain…' : 'Disclose this record'}
+                {busy
+                  ? 'Writing to the ledger…'
+                  : ready
+                    ? `Share ${parties.length * fields.length} permission`
+                      + (parties.length * fields.length === 1 ? '' : 's')
+                    : 'Share'}
               </button>
               <button
                 type="button"
@@ -435,10 +597,11 @@ function WhoHolds({
               {sibling
                 ? 'Prefilled from the terms this kind of record was released on before. '
                 : ''}
-              This writes a grant, which is the only thing a disclosure ever is here.
+              Sharing writes a permission onto the ledger, which is the only thing
+              sharing ever is here.
               {seal ? (
                 <>
-                  {' '}The seal does not move — it fixed this period at{' '}
+                  {' '}Closing does not move. It fixed this month at{' '}
                   {commas(seal.record_count)} before any of it was released, and that is
                   what makes the buyer's check mean anything.
                 </>
@@ -455,7 +618,7 @@ function WhoHolds({
 
         <p className="small whoholds__note">
           Every record the ledger holds for this period, and who you released each one
-          to. This list is yours alone — a buyer sees only what it was given, which is
+          to. This list is yours alone. A buyer sees only what it was given, which is
           why it can prove a record is missing without ever learning which.
         </p>
       </div>
@@ -492,7 +655,7 @@ function WhoHolds({
           <p className="small whoholds__note">
             No counterparty holds a grant against anything in this period.
             {seal
-              ? ' It is sealed and undisclosed, which is a complete answer — the seal '
+              ? ' It is closed and nothing was released, which is a complete answer. The '
                 + 'exists so a disclosure can be checked against it later, not because '
                 + 'one has to be made.'
               : ' Nothing has been released from it and it has not been closed.'}

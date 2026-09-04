@@ -60,6 +60,11 @@
   align-items: start;
 }
 
+/* The share form is a form, not a footnote to the list beside it. While it is
+   open the layout goes to one column: ten tick boxes in a 340px gutter are ten
+   tick boxes nobody can read. */
+.whoholds.is-sharing { grid-template-columns: 1fr; }
+
 @media (max-width: 900px) {
   .whoholds { grid-template-columns: 1fr; }
 }
@@ -79,11 +84,10 @@
 }
 .whoholds__id:last-child { border-bottom: 0; }
 .whoholds__to { color: var(--ink-quiet); white-space: nowrap; }
-/* The one the buyer will find missing. Named here because it is the factory's
-   own record and its own grant ledger — the asymmetry that matters is that the
-   buyer never learns which, and it does not. */
-.whoholds__id.is-held .mono { color: var(--madder); }
-.whoholds__id.is-held .whoholds__to { color: var(--madder); }
+/* Not shared is the ordinary state of a factory's own record, so it is not
+   coloured like a fault. Twenty-seven red rows because one record went out is
+   an alarm about nothing; the asymmetry that matters belongs on the buyer's
+   screen, where a short disclosure is actually a finding. */
 
 .whoholds__panel {
   padding: 20px 22px;
@@ -162,3 +166,109 @@
 .whoholds__field .stamp-type { color: var(--ink-quiet); }
 .whoholds__pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
 @media (max-width: 560px) { .whoholds__pair { grid-template-columns: 1fr; } }
+
+/* -- closed months, as a list ----------------------------------------------
+ * A grid of thirty identical cards is wallpaper. The factory scans this for
+ * two things: which months are closed, and which it has had to correct. Both
+ * are one line, and only the corrections are worth opening.
+ */
+.closed {
+  list-style: none;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--paper-2);
+}
+
+.closed__row + .closed__row { border-top: 1px solid var(--rule-faint); }
+.closed__row.has-fixes { background: var(--ochre-wash); }
+
+.closed__main {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s4);
+  padding: 10px var(--s4);
+}
+
+.closed__what { font-size: 13.5px; font-weight: 500; }
+.closed__when { color: var(--ink-quiet); font-size: 13px; }
+.closed__count { color: var(--ink-quiet); text-align: right; white-space: nowrap; }
+.closed__clean { color: var(--thread-type); text-align: right; white-space: nowrap; }
+
+.closed__fixes {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--brass-ink);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--brass-30);
+}
+
+.closed__fixes:hover { color: var(--ink); }
+
+.closed__fixlist {
+  list-style: none;
+  display: grid;
+  gap: var(--s3);
+  margin: 0;
+  padding: var(--s3) var(--s4) var(--s4) var(--s5);
+  border-top: 1px dashed var(--rule-faint);
+}
+
+.closed__fixreason { font-size: 13px; }
+.closed__fixmeta { color: var(--ink-quiet); margin-top: 2px; }
+
+@media (max-width: 720px) {
+  .closed__main { grid-template-columns: 1fr auto; gap: var(--s2) var(--s3); }
+  .closed__when { grid-column: 1; }
+  .closed__count, .closed__clean, .closed__fixes { text-align: left; }
+}
+
+/* What this month holds, said once at the top rather than inferred from the
+   colour of twenty-eight rows. */
+.whoholds__summary { color: var(--ink-quiet); margin-bottom: var(--s3); }
+
+/* -- sharing with several parties at once ----------------------------------
+ * A permission still covers one column for one organisation. This is only
+ * about issuing several of them in one action, so the form keeps saying how
+ * many separate permissions it is about to write.
+ */
+.whoholds__set { border: 0; padding: 0; margin: 0 0 var(--s4); }
+
+.whoholds__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 2px var(--s4);
+  margin-top: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--calico);
+}
+
+.whoholds__tick {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+.whoholds__tick input { accent-color: var(--brass); flex: none; }
+.whoholds__tick:hover { color: var(--brass-ink); }
+
+.whoholds__blocked { color: var(--ink-quiet); margin-top: var(--s2); }
+.whoholds__count { color: var(--brass-ink); margin-bottom: var(--s3); }
+
+.whoholds__partial {
+  margin-bottom: var(--s3);
+  padding: var(--s3);
+  border-left: 2px solid var(--ochre);
+  background: var(--ochre-wash);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}

@@ -81,25 +81,16 @@ def _fail(exc: ledger.LedgerError) -> HTTPException:
 @router.get("/records")
 def list_records(user: CurrentUser) -> list[dict]:
     """
-    Records this caller is entitled to see.
-
-    A factory sees its own. A buyer or auditor sees only records it holds a live
-    grant against — not every record on the channel, which is what an unscoped
-    listing used to return.
+    Records this caller is entitled to see. `scoping.py` holds the rule and the
+    reasoning; this endpoint no longer keeps a second copy of either.
     """
     require_capability(user, "read_records")
-    records = ledger.query(DOCUMENT_CHANNEL, "doccustody", "list_records", {}, user.role)
+    from ..scoping import scoped_records
 
-    if user.role == "factory":
-        return [r for r in records if r["owner_msp"] == user.msp_id]
-    if user.role in ("buyer", "auditor"):
-        grants = ledger.query(
-            DOCUMENT_CHANNEL, "doccustody", "list_grants",
-            {"requester_msp": user.msp_id}, user.role,
-        )
-        granted = {g["record_id"] for g in grants if g["status"] == "active"}
-        return [r for r in records if r["record_id"] in granted]
-    return records
+    # The rule used to be written out here as well as in `scoping.py`, which is
+    # exactly how the two drifted apart before: `/records` and `/records/{id}`
+    # answered different questions about who may see what.
+    return scoped_records(user)
 
 
 @router.get("/records/{record_id}")
@@ -140,6 +131,120 @@ def get_record(record_id: str, user: CurrentUser, db: Session = Depends(get_sess
         # Deliberately not the rows. The API never serves a document body; the
         # only way data leaves is one row at a time, through a proof.
         "rows_held_off_chain": len(stored.rows) if stored else 0,
+    }
+
+
+@router.get("/record-fields")
+def record_fields(user: CurrentUser, db: Session = Depends(get_session)) -> dict:
+    """
+    What can be asked for, by kind of record.
+
+    The request form used to be a free-text box captioned "e.g. net_pay_bdt",
+    which put the burden of knowing the corpus's column names on the one person
+    in the story who has never seen the file. A buyer who guessed "net_pay" got
+    a grant against a field that does not exist, and found out at proof time.
+
+    The list is read off the documents this node actually holds, so it cannot
+    drift from them, and each column arrives with a readable label. Columns that
+    identify a person are returned and marked rather than hidden: a buyer should
+    be able to see that asking for a worker's name is a thing the system will
+    not do, which is more informative than the option quietly not being there.
+    """
+    require_capability(user, "read_records")
+    from ..redaction import classify, columns_of, label_for
+
+    by_type: dict[str, dict[str, dict]] = {}
+    for doc in db.query(StoredDocument).all():
+        fields = by_type.setdefault(doc.record_type, {})
+        for name in columns_of(doc.rows):
+            if name not in fields:
+                kind = classify(name)
+                fields[name] = {
+                    "name": name,
+                    "label": label_for(name),
+                    "kind": kind,
+                    "requestable": kind != "identity",
+                }
+    return {
+        record_type: sorted(fields.values(), key=lambda f: (not f["requestable"], f["label"]))
+        for record_type, fields in sorted(by_type.items())
+    }
+
+
+@router.get("/records/{record_id}/preview")
+def preview_record(
+    record_id: str,
+    user: CurrentUser,
+    limit: int = 8,
+    db: Session = Depends(get_session),
+) -> dict:
+    """
+    A redacted look at the document body.
+
+    The record page could say a payroll register had 48 rows and could not say
+    what a row was, so the promise it was making — you are seeing one figure and
+    not the other 47 — was one the reader had to take on trust. This shows the
+    boundary instead of describing it.
+
+    The scope check is `scoped_records`, the same one `/records/{id}` uses, so a
+    record you may not open is a 404 here too and the refusal does not confirm
+    the document exists. Within that, `redact` decides column by column, and a
+    withheld cell is dropped from the response rather than hidden by the client.
+
+    Nothing here is a disclosure: a value read off this preview carries no proof
+    and no receipt, and the ledger has not attested to it. Proving a figure
+    still means `/verify`, which is the endpoint the contract polices.
+    """
+    require_capability(user, "read_records")
+    from ..redaction import redact
+    from ..scoping import scoped_records
+
+    record = next((r for r in scoped_records(user) if r["record_id"] == record_id), None)
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {record_id}")
+
+    stored = db.get(StoredDocument, record_id)
+    if stored is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"the body of {record_id} is not held by this node",
+        )
+
+    is_owner = record["owner_msp"] == user.msp_id
+    granted: set[str] = set()
+    if not is_owner:
+        grants = ledger.query(
+            DOCUMENT_CHANNEL, "doccustody", "list_grants",
+            {"requester_msp": user.msp_id}, user.role,
+        )
+        granted = {
+            g["field_name"]
+            for g in grants
+            if g["record_id"] == record_id and g["status"] == "active"
+        }
+
+    body = redact(
+        stored.rows,
+        is_owner=is_owner,
+        granted_fields=granted,
+        # The record page wants a glance; the check page wants the whole
+        # document, because you cannot check a figure you cannot see. The cap
+        # is here so a caller cannot ask for an unbounded response.
+        limit=max(1, min(limit, 500)),
+        is_auditor=user.role == "auditor",
+    )
+    access = (
+        "owner" if is_owner
+        else "auditor" if user.role == "auditor"
+        else "granted" if granted
+        else "none"
+    )
+    return {
+        "record_id": record_id,
+        "record_type": record["record_type"],
+        "access": access,
+        "granted_fields": sorted(granted),
+        **body,
     }
 
 
@@ -406,7 +511,11 @@ def verify_one_row(
 
     return {
         "verified": ok,
-        "verdict": "Verified — record is genuine" if ok else "Proof failed — do not rely on this record",
+        "verdict": (
+            "Checked. This value is real."
+            if ok
+            else "The check failed. Do not rely on this record."
+        ),
         "disclosed": {
             "field_name": body.field_name,
             "value": disclosure.value.get(body.field_name, disclosure.value),

@@ -138,7 +138,7 @@ export function SealActions({
                       Sealed at {commas(s.record_count)} record
                       {s.record_count === 1 ? '' : 's'}, version {s.version}. Reopened
                       {last && <> on {longDate(last.reopened_at)}</>}
-                      {last?.reason && <> — {last.reason}</>}. The ledger now holds{' '}
+                      {last?.reason && <>: {last.reason}</>}. The ledger now holds{' '}
                       {commas(records.filter((r) => r.bucket === s.bucket).length)} for this
                       period.
                     </p>
@@ -147,7 +147,7 @@ export function SealActions({
                   {late.length === 0 ? (
                     <p className="small sealact__meta">
                       Nothing has been committed to this period since it was reopened, and
-                      an amendment must add at least one record — naming one that was
+                      a correction must add at least one record. Naming one that was
                       already inside the seal would be a false claim on the chain. Commit
                       the late record first, then re-seal.{' '}
                       <Link

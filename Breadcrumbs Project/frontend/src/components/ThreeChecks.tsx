@@ -1,6 +1,7 @@
 import { AlertTriangle, Check, X } from 'lucide-react';
 
 import type { Verification } from '../lib/api';
+import { useDetail } from '../lib/detail';
 import './mechanisms.css';
 
 /**
@@ -18,12 +19,14 @@ import './mechanisms.css';
  * why in the fewest words that are still true.
  */
 export function ThreeChecks({ result }: { result: Verification }) {
+  const { technical } = useDetail();
+
   if (!result.anchored) {
     return (
       <section className="tcheck tcheck--off">
-        <p className="tcheck__title">This channel has no accumulator</p>
+        <p className="tcheck__title">Nothing to check this against yet</p>
         <p className="small">
-          {result.reason || 'No parameters have been installed, so there is nothing to verify against.'}
+          {result.reason || 'The tamper check has not been set up on this part of the network, so there is nothing to compare against.'}
         </p>
       </section>
     );
@@ -38,12 +41,12 @@ export function ThreeChecks({ result }: { result: Verification }) {
         <div>
           <p className="tcheck__title">
             {result.verified
-              ? 'All three checks pass'
+              ? 'All three checks pass. This has not been altered.'
               : `${result.checks.filter((c) => !c.ok).length} of 3 checks failed`}
           </p>
           <p className="small tcheck__sub">
-            Verified against epoch {result.epoch}. Each check is independent; the
-            verdict is their conjunction, not a separate opinion.
+            Three separate checks, run independently. The verdict is simply all three
+            agreeing. There is no fourth opinion on top of them.
           </p>
         </div>
       </header>
@@ -56,12 +59,16 @@ export function ThreeChecks({ result }: { result: Verification }) {
               {c.ok ? <Check size={13} strokeWidth={3} /> : <X size={13} strokeWidth={3} />}
             </span>
             <div className="tcheck__body">
-              <p className="tcheck__label">{c.label}</p>
-              <p className="small tcheck__detail">{c.detail}</p>
+              <p className="tcheck__label">{technical ? c.label : c.plain_label}</p>
+              <p className="small tcheck__detail">
+                {technical ? c.detail : c.plain_detail}
+              </p>
               {c.forgeable_by_trapdoor && (
                 <p className="small tcheck__forge">
-                  <AlertTriangle size={12} /> This is the check a holder of the
-                  modulus factorisation could forge.
+                  <AlertTriangle size={12} />{' '}
+                  {technical
+                    ? 'This is the check a holder of the modulus factorisation could forge.'
+                    : 'This is the one check somebody with the original setup secret could fake. The other two would still catch them.'}
                 </p>
               )}
             </div>
@@ -69,7 +76,9 @@ export function ThreeChecks({ result }: { result: Verification }) {
         ))}
       </ol>
 
-      <p className="small tcheck__why">{result.note}</p>
+      <p className="small tcheck__why">
+        {technical ? result.note : result.plain_note}
+      </p>
     </section>
   );
 }

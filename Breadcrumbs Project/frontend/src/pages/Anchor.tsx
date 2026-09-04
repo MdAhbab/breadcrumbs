@@ -25,17 +25,18 @@ export default function Anchor() {
     <div className="periods">
       <header className="per__head">
         <div>
-          <p className="stamp-type per__eyebrow">Anchor · RSA accumulator</p>
-          <h1>One integer for the whole ledger</h1>
+          <p className="stamp-type per__eyebrow">Has anything been tampered with?</p>
+          <h1>One number that covers everything</h1>
           <p className="lead per__lede">
-            Every committed record and every period seal folds into a single value.
-            Checking that one of them is inside takes constant time — the same work
-            whether the set holds ten elements or ten million.
+            Every record and every closed month folds into a single number. Asking
+            whether something is inside it takes the same amount of work whether there
+            are ten of them or ten million. Unusually, you can also prove that
+            something is <em>not</em> in there.
           </p>
         </div>
       </header>
 
-      <Result query={world} pendingLabel="Reading the accumulator">
+      <Result query={world} pendingLabel="Reading the check number">
         {([state, epochs, group]) => (
           <>
             <EpochTimeline
@@ -47,11 +48,13 @@ export default function Anchor() {
             />
 
             <section className="per__section">
-              <h2 className="per__h2">Proof of absence</h2>
+              <h2 className="per__h2">Proving something does not exist</h2>
               <p className="per__note">
-                A Merkle tree can prove a document is in a set. It cannot prove one
-                is not. This can — and it is the difference between &ldquo;we have no
-                record of that certificate&rdquo; and a statement somebody can check.
+                Showing that a document <em>is</em> on the ledger is the easy direction.
+                Showing that one is not there, that a certificate was never issued or
+                that a month has nothing hidden in it, is the hard one. This does it. It is
+                the difference between &ldquo;we have no record of that&rdquo; and
+                something the other side can check for themselves.
               </p>
               <AbsenceProof />
             </section>
