@@ -4,10 +4,10 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { Failed, Result } from '../components/states';
 import { StartWalkthrough } from '../components/TourBar';
-import { TOUR } from '../lib/tour';
 import { ApiError, type RoleOption } from '../lib/api';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
+import { TOUR } from '../lib/tour';
 import { useApi } from '../lib/useApi';
 import './login.css';
 

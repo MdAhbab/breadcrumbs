@@ -113,9 +113,8 @@ export function DocumentCheck({
                     <h2 className="doc__title">What you can see, and whether it is real</h2>
                     <p className="small doc__sub">
                       {commas(p.shown_rows)} row{p.shown_rows === 1 ? '' : 's'} ·{' '}
-                      {p.readable_columns} of {p.total_columns} columns readable by you.
-                      {' '}Reading them wrote nothing anywhere: opening a file is not an
-                      event, and the ledger cannot tell you have done it.
+                      {p.readable_columns} of {p.total_columns} columns readable by you ·
+                      reading writes nothing to the ledger.
                     </p>
                   </div>
                   {provable.length > 0 && (
@@ -146,28 +145,22 @@ export function DocumentCheck({
                   {provable.length > 0 ? (
                     <>
                       <p className="doc__explainline">
-                        <strong>Checking a row</strong> takes the{' '}
-                        {provable.length === 1 ? 'figure' : `${provable.length} figures`} released
-                        to you on that row, works the file&rsquo;s fingerprint out again from
-                        them, and compares it with the fingerprint the factory published when
-                        it committed the file. Matching means those figures are exactly what
-                        was published, and nothing has been altered since.
+                        <strong>Checking a row</strong> re-derives the file&rsquo;s fingerprint
+                        from the {provable.length === 1 ? 'figure' : `${provable.length} figures`}
+                        {' '}released to you and compares it with the one the factory published.
+                        A match means nothing has been altered since.
                       </p>
                       <p className="small doc__explainnote">
-                        <strong>Check every row</strong> does that {commas(p.shown_rows)} times
-                        in a row, from the top. It is the same check, not a different one, and
-                        it writes {commas(receipts)} receipt{receipts === 1 ? '' : 's'} onto the
-                        ledger under your name — one for each figure checked. The factory sees
-                        them, they cannot be edited afterwards, and they are what lets you show
-                        somebody else that you checked rather than asking them to take your
-                        word for it.
+                        <strong>Check every row</strong> repeats that {commas(p.shown_rows)} times
+                        and writes {commas(receipts)} receipt{receipts === 1 ? '' : 's'} onto the
+                        ledger under your name — permanent, and visible to the factory.
                       </p>
                     </>
                   ) : (
                     <p className="doc__explainline">
-                      Nothing here has been released to you to prove, so there is nothing to
-                      check. You can read the columns below, and reading is not proving: a
-                      figure you have only read carries no receipt and no evidence with it.
+                      Nothing here has been released to you to prove, so there is no check on
+                      this document. Reading is not proving: a figure you have only read
+                      carries no receipt with it.
                     </p>
                   )}
                 </div>
