@@ -5,7 +5,10 @@ import { Link } from 'react-router-dom';
 import { Failed, Result } from '../components/states';
 import { Tech } from '../components/Tech';
 import { Field, Seal } from '../components/ui';
-import { ApiError, api, recordLabel, shortMsp, type AuditQueue, type QueueItem } from '../lib/api';
+import {
+  ApiError, api, recordLabel, shortMsp,
+  type AuditQueue, type QueueItem, type ReviewConfirmation,
+} from '../lib/api';
 import { commas, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
@@ -196,12 +199,15 @@ export default function AuditorBench() {
                   </div>
                 </section>
 
-                <Signing
-                  allRun={allRun}
-                  queued={queued.length}
-                  existing={data.attestations}
-                  onSigned={queue.reload}
-                />
+                <div className="bench__aside">
+                  <Signing
+                    allRun={allRun}
+                    queued={queued.length}
+                    existing={data.attestations}
+                    onSigned={queue.reload}
+                  />
+                  <Confirmations />
+                </div>
               </div>
             </>
           );
@@ -325,6 +331,61 @@ function Signing({
             ))}
           </ul>
         </div>
+      )}
+    </aside>
+  );
+}
+
+/**
+ * The individual confirmations this auditor has signed, as against the batch.
+ *
+ * An attestation covers everything examined in a sitting and names no document,
+ * which is the right shape for a certification decision and the wrong one for
+ * the question a factory actually asks: has anybody looked at *this* register.
+ * Each of these is one document, signed once, with its own reference and the
+ * receipts it rests on named inside it — they are signed from the document
+ * itself, and collected here so they can be found again.
+ */
+function Confirmations() {
+  const mine = useApi(() => api.reviews(), []);
+  const rows: ReviewConfirmation[] = mine.data ?? [];
+
+  return (
+    <aside className="confirms">
+      <p className="stamp-type confirms__head">Confirmations of review</p>
+      {rows.length === 0 ? (
+        <p className="small confirms__none">
+          None yet. Open any document and sign one at the foot of it. A confirmation
+          names that document alone, and is generated once — signing the same document
+          again would be the same claim with a later date on it.
+        </p>
+      ) : (
+        <>
+          <ul className="confirms__list">
+            {rows.slice(0, 8).map((r) => (
+              <li key={r.id} className="confirms__row">
+                <Link
+                  to={`/factory/records/${encodeURIComponent(r.record_id)}`}
+                  className="mono confirms__doc"
+                >
+                  {r.record_id}
+                </Link>
+                <span className="small confirms__meta">
+                  {r.id} · {r.outcome} · {longDate(r.signed_at)}
+                  {r.checks_cited.length > 0
+                    ? ` · on ${r.checks_cited.length} receipt${r.checks_cited.length === 1 ? '' : 's'}`
+                    : ' · on no receipt'}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {rows.length > 8 && (
+            <p className="small confirms__none">
+              Showing 8 of {rows.length}. The rest are on the documents they were signed
+              against.
+            </p>
+          )}
+        </>
       )}
     </aside>
   );

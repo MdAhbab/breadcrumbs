@@ -268,6 +268,58 @@ export interface RecordPreview {
   shown_rows: number;
   readable_columns: number;
   total_columns: number;
+  /**
+   * Always false, and worth carrying rather than assuming. Opening a file is a
+   * read: no transaction is proposed and no receipt is written, so the ledger
+   * cannot tell it happened. The screen says so next to the button that does
+   * write one.
+   */
+  writes_to_ledger: boolean;
+}
+
+/**
+ * One reviewer's confirmation that one document was reviewed.
+ *
+ * Its own reference, its own reviewer, and the receipts it rests on named
+ * inside it — so it can be handed over on its own and still be followed back
+ * to the ledger.
+ */
+export interface ReviewConfirmation {
+  id: string;
+  record_id: string;
+  reviewer_msp: string;
+  reviewer_name: string;
+  reviewer_org: string;
+  reviewer_role: RoleId;
+  outcome: ReviewOutcome;
+  outcome_note: string;
+  statement: string;
+  checks_cited: string[];
+  merkle_root: string;
+  signed_at: string;
+}
+
+export type ReviewOutcome = 'accepted' | 'qualified' | 'rejected';
+
+export interface RecordReviews {
+  record_id: string;
+  reviews: ReviewConfirmation[];
+  /** This organisation's own confirmation, if it has already signed one. */
+  yours: ReviewConfirmation | null;
+  /** Whether anybody at all has confirmed this document before. */
+  reviewed_before: boolean;
+  checks_you_ran: string[];
+  may_confirm: boolean;
+  /**
+   * Whether a check is available on this document at all — that is, whether
+   * this account holds a live permission on it. An auditor reads every
+   * document on the network and can prove only what has been released to it,
+   * so on most of them there is no check to run and the panel has to say so
+   * rather than implying one was skipped.
+   */
+  may_check: boolean;
+  /** The identity the API resolved from the token — the name that will sign. */
+  you: { msp_id: string; name: string; org: string; role: RoleId; label: string };
 }
 
 export interface Grant {
@@ -877,6 +929,20 @@ export const api = {
   recordFields: () => get<Record<string, RequestableField[]>>('/api/record-fields'),
   recordPreview: (id: string, limit = 8) =>
     get<RecordPreview>(`/api/records/${encodeURIComponent(id)}/preview?limit=${limit}`),
+  /** Who has confirmed reading this document, and whether you are one of them. */
+  recordReviews: (id: string) =>
+    get<RecordReviews>(`/api/records/${encodeURIComponent(id)}/reviews`),
+  /**
+   * Confirm, individually, that this document was reviewed.
+   *
+   * The API refuses a second confirmation of the same document from the same
+   * organisation — that is the same claim with a later date on it, not a second
+   * review — and says which confirmation already stands.
+   */
+  confirmReview: (id: string, body: { outcome: ReviewOutcome; statement: string }) =>
+    post<ReviewConfirmation>(`/api/records/${encodeURIComponent(id)}/reviews`, body),
+  /** Every review confirmation this caller is a party to. */
+  reviews: () => get<ReviewConfirmation[]>('/api/reviews'),
   commitRecord: (body: {
     record_id: string; record_type: string; period: string; site: string;
     schema_version: string; rows: Record<string, unknown>[];

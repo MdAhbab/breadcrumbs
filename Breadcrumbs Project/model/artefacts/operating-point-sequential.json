@@ -4,8 +4,8 @@
   "chosen_on": "held-out validation split of the training shards",
   "validation_fraction": 0.15,
   "tau_by_budget": {
-    "0.01": 0.252485,
-    "0.05": 0.251713,
-    "0.10": 0.251128
+    "0.01": 0.164536,
+    "0.05": 0.153131,
+    "0.10": 0.136878
   }
 }

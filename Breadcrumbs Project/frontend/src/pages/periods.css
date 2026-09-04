@@ -263,7 +263,10 @@
 .whoholds__tick:hover { color: var(--brass-ink); }
 
 .whoholds__blocked { color: var(--ink-quiet); margin-top: var(--s2); }
-.whoholds__count { color: var(--brass-ink); margin-bottom: var(--s3); }
+/* Renamed from .whoholds__count, which was already the 40px figure in the
+   panel opposite — one class, two elements, and the second silently repainted
+   the first brass and moved it. */
+.whoholds__tally { color: var(--brass-ink); margin-bottom: var(--s3); }
 
 .whoholds__partial {
   margin-bottom: var(--s3);

@@ -28,7 +28,16 @@
   padding-bottom: var(--s3);
   border-bottom: 1px solid var(--rule);
 }
-.acc__lede { color: var(--ink-60); max-width: 62ch; margin: var(--s3) 0 var(--s5); }
+/* Not lead type. These are one-line notes under a heading, and at 19px over
+   three lines each they stacked into four paragraphs of theory ahead of the
+   first control, on a page whose whole job is deciding things. */
+.acc__lede {
+  color: var(--ink-60);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 78ch;
+  margin: var(--s2) 0 var(--s4);
+}
 
 .acc__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s4); }
 
@@ -183,3 +192,54 @@
   color: var(--ink);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
+
+/* -- who can see what, per organisation -----------------------------------
+ * The table below answers "is this grant live". This answers the question a
+ * factory arrives with — what can Primark see of mine — and is the filter for
+ * the table at the same time, so the summary and the detail never disagree.
+ */
+
+.acc__holders {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.aholder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  font-family: var(--font-body);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast);
+}
+
+.aholder:hover { border-color: var(--brass-30); }
+
+.aholder.is-on {
+  border-color: var(--brass-30);
+  background: var(--brass-wash);
+  box-shadow: inset 2px 0 0 var(--brass);
+}
+
+.aholder__who { font-size: 14px; font-weight: 500; }
+
+.aholder__n {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.aholder__meta { color: var(--thread-type); }

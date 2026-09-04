@@ -48,7 +48,11 @@ export default function LedgerExplorer() {
                   {integrity.channels.length} channels ·{' '}
                   {commas(integrity.channels.reduce((a, c) => a + c.height, 0))} blocks
                 </p>
-                <h1>Ledger</h1>
+                {/* The name on the navigation, not a second one for the same
+                    screen. A reader who presses "Transaction history" and lands
+                    on a page headed "Ledger" has to work out for themselves
+                    that they arrived where they meant to. */}
+                <h1>Transaction history</h1>
                 <p className="lead led__lede">
                   Everything ever written, in the order it was written, since the network
                   started. Drag along the strip to open one entry.

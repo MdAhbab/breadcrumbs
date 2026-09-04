@@ -37,12 +37,10 @@ starts the product; that one reproduces the paper. Run it as a module:
 from __future__ import annotations
 
 import argparse
-import io as _io
 import json
 import os
 import shutil
 import signal
-import socket
 import subprocess
 import sys
 import threading
@@ -51,21 +49,11 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-# Ensure stdout/stderr can handle Unicode on Windows (cp1252 consoles).
-if hasattr(sys.stdout, "buffer"):
-    sys.stdout = _io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-if hasattr(sys.stderr, "buffer"):
-    sys.stderr = _io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT / "Breadcrumbs Project"
 BACKEND = PROJECT / "backend"
 FRONTEND = PROJECT / "frontend"
-# Windows uses Scripts\python.exe; Unix uses bin/python
-if sys.platform == "win32":
-    VENV_PYTHON = PROJECT / ".venv" / "Scripts" / "python.exe"
-else:
-    VENV_PYTHON = PROJECT / ".venv" / "bin" / "python"
+VENV_PYTHON = PROJECT / ".venv" / "bin" / "python"
 CORPUS = PROJECT / "data" / "corpus"
 
 # Colours, but only when a person is watching. Piping this into a file or a log
@@ -134,12 +122,11 @@ def preflight(want_frontend: bool) -> None:
         )
 
     if want_frontend:
-        npm_exe = shutil.which("npm")
-        if npm_exe is None:
+        if shutil.which("npm") is None:
             fail("npm is not on PATH", "install Node 18 or newer, then run again.")
         if not (FRONTEND / "node_modules").is_dir():
             say(paint("  installing web dependencies (first run only)…", DIM))
-            result = subprocess.run([npm_exe, "install"], cwd=FRONTEND)
+            result = subprocess.run(["npm", "install"], cwd=FRONTEND)
             if result.returncode != 0:
                 fail("npm install failed", "run it yourself in Breadcrumbs Project/frontend")
 
@@ -180,145 +167,6 @@ def ensure_corpus(auto: bool) -> bool:
 
 
 # --------------------------------------------------------------------------
-# port and process management
-# --------------------------------------------------------------------------
-def is_port_in_use(port: int) -> bool:
-    """Check if a TCP port is currently open and accepting connections on localhost."""
-    for family, host in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
-        try:
-            with socket.socket(family, socket.SOCK_STREAM) as s:
-                s.settimeout(0.3)
-                if s.connect_ex((host, port)) == 0:
-                    return True
-        except OSError:
-            pass
-    return False
-
-
-def get_pids_listening_on(port: int) -> list[int]:
-    """Find PIDs listening on a specific TCP port (cross-platform)."""
-    if sys.platform == "win32":
-        try:
-            res = subprocess.run(
-                ["netstat", "-ano"],
-                capture_output=True, text=True, check=False,
-            )
-            pids = []
-            for line in res.stdout.splitlines():
-                # Match lines like: TCP  0.0.0.0:8000  ...  LISTENING  1234
-                if f":{port}" in line and "LISTENING" in line:
-                    parts = line.split()
-                    if parts and parts[-1].isdigit():
-                        proc = int(parts[-1])
-                        if proc != os.getpid() and proc not in pids:
-                            pids.append(proc)
-            return pids
-        except Exception:
-            return []
-    else:
-        try:
-            res = subprocess.run(
-                ["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
-                capture_output=True, text=True, check=False,
-            )
-            if res.returncode == 0 and res.stdout.strip():
-                pids = []
-                for line in res.stdout.strip().splitlines():
-                    line = line.strip()
-                    if line.isdigit():
-                        proc = int(line)
-                        if proc != os.getpid():
-                            pids.append(proc)
-                return pids
-        except Exception:
-            pass
-        return []
-
-
-def kill_process_tree(proc_id: int, sig: int) -> None:
-    """Kill a process and its group (cross-platform)."""
-    if sys.platform == "win32":
-        try:
-            subprocess.run(
-                ["taskkill", "/F", "/PID", str(proc_id)],
-                capture_output=True, check=False,
-            )
-        except Exception:
-            pass
-    else:
-        # If the parent is an old supervisor running run.py, terminate it too
-        try:
-            res = subprocess.run(
-                ["ps", "-o", "ppid=,command=", "-p", str(proc_id)],
-                capture_output=True, text=True, check=False,
-            )
-            if res.returncode == 0 and res.stdout.strip():
-                parts = res.stdout.strip().split(None, 1)
-                if len(parts) >= 1 and parts[0].isdigit():
-                    ppid = int(parts[0])
-                    cmd = parts[1] if len(parts) > 1 else ""
-                    if ppid > 1 and ppid != os.getpid() and "run.py" in cmd:
-                        try:
-                            os.kill(ppid, sig)
-                        except (ProcessLookupError, PermissionError, OSError):
-                            pass
-        except Exception:
-            pass
-
-        # Terminate process group if separate session
-        try:
-            pgid = os.getpgid(proc_id)
-            my_pgid = os.getpgid(os.getpid())
-            if pgid not in (0, 1, my_pgid):
-                os.killpg(pgid, sig)
-        except (ProcessLookupError, PermissionError, OSError):
-            pass
-
-        # Terminate the target process itself
-        try:
-            os.kill(proc_id, sig)
-        except (ProcessLookupError, PermissionError, OSError):
-            pass
-
-
-def free_port(port: int, label: str = "") -> None:
-    """
-    Ensure a port is free before starting a service.
-    If another server is already running, terminate it cleanly.
-    """
-    pids = get_pids_listening_on(port)
-    if not pids and not is_port_in_use(port):
-        return
-
-    name = f" ({label})" if label else ""
-    pid_str = f"PID {', '.join(map(str, pids))}" if pids else "unknown PID"
-    say(paint(f"  stopping existing server on port {port}{name} [{pid_str}]…", BRASS))
-
-    for pid in pids:
-        kill_process_tree(pid, signal.SIGTERM)
-
-    # Give processes up to 3 seconds to exit gracefully
-    deadline = time.time() + 3.0
-    while time.time() < deadline:
-        active = get_pids_listening_on(port)
-        if not active and not is_port_in_use(port):
-            say(paint(f"  ✓ freed port {port}", GREEN))
-            return
-        time.sleep(0.2)
-
-    # Force kill if still holding the port
-    active = get_pids_listening_on(port)
-    for pid in active:
-        kill_process_tree(pid, signal.SIGKILL)
-
-    time.sleep(0.3)
-    if not is_port_in_use(port) and not get_pids_listening_on(port):
-        say(paint(f"  ✓ freed port {port}", GREEN))
-    else:
-        say(paint(f"  ! warning: port {port} may still be in use", RED))
-
-
-# --------------------------------------------------------------------------
 # processes
 # --------------------------------------------------------------------------
 class Service:
@@ -334,22 +182,18 @@ class Service:
         self.process: subprocess.Popen[str] | None = None
 
     def start(self) -> None:
-        kwargs: dict = dict(
+        self.process = subprocess.Popen(
+            self.command,
             cwd=self.cwd,
             env=self.env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            # Its own process group, so Ctrl-C reaches this script first and the
+            # children are stopped deliberately rather than racing it.
+            start_new_session=True,
         )
-        if sys.platform != "win32":
-            # Its own process group, so Ctrl-C reaches this script first and
-            # the children are stopped deliberately rather than racing it.
-            kwargs["start_new_session"] = True
-        else:
-            # On Windows use a new process group via CREATE_NEW_PROCESS_GROUP
-            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-        self.process = subprocess.Popen(self.command, **kwargs)
         threading.Thread(target=self._pump, daemon=True).start()
 
     def _pump(self) -> None:
@@ -368,23 +212,17 @@ class Service:
         if not self.alive:
             return
         assert self.process
-        if sys.platform == "win32":
+        try:
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
             self.process.terminate()
-        else:
-            try:
-                os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
-            except (ProcessLookupError, PermissionError):
-                self.process.terminate()
         try:
             self.process.wait(timeout=8)
         except subprocess.TimeoutExpired:
-            if sys.platform == "win32":
+            try:
+                os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
                 self.process.kill()
-            else:
-                try:
-                    os.killpg(os.getpgid(self.process.pid), signal.SIGKILL)
-                except (ProcessLookupError, PermissionError):
-                    self.process.kill()
 
 
 def wait_for_world(api_port: int, service: Service, timeout: float = 240.0) -> dict | None:
@@ -446,30 +284,13 @@ def wait_for_world(api_port: int, service: Service, timeout: float = 240.0) -> d
 
 
 def wait_for_web(web_port: int, service: Service, timeout: float = 90.0) -> bool:
-    """
-    Wait for Vite to answer, asking for it by the same name the browser uses.
-
-    This asked for 127.0.0.1 once, and that is the one address Vite is not on.
-    Told to serve "localhost", Node resolves the name and binds the single
-    address it gets back — on any recent macOS that is ::1, so the dev server
-    listens on [::1]:5173 and nothing at all is on 127.0.0.1. The browser
-    resolves the same name and is served perfectly; this check was refused every
-    time, ran out its ninety seconds, and took the API down with it. The app
-    died in the middle of a working session because the supervisor could not
-    find something that was never lost. Ask for the name and the resolver hands
-    over both families, which http.client then tries in turn.
-    """
     deadline = time.time() + timeout
-    url = f"http://localhost:{web_port}/"
     while time.time() < deadline:
         if not service.alive:
             return False
         try:
-            with urllib.request.urlopen(url, timeout=3):
+            with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/", timeout=3):
                 return True
-        except urllib.error.HTTPError:
-            # It replied. A dev server answering 404 is still a dev server.
-            return True
         except (urllib.error.URLError, OSError):
             time.sleep(0.5)
     return False
@@ -543,11 +364,6 @@ def main() -> int:
     preflight(with_web)
     ensure_corpus(args.generate_corpus)
 
-    # Stop any previous servers holding the ports
-    free_port(args.api_port, "API")
-    if with_web:
-        free_port(args.web_port, "web")
-
     api_command = [
         str(VENV_PYTHON), "-m", "uvicorn", "app.main:app",
         "--host", "127.0.0.1", "--port", str(args.api_port),
@@ -571,11 +387,10 @@ def main() -> int:
         Service("api", BRASS, api_command, BACKEND, api_env)
     ]
     if with_web:
-        npm_exe = shutil.which("npm") or "npm"
         services.append(
             Service(
                 "web", BLUE,
-                [npm_exe, "run", "dev", "--", "--port", str(args.web_port), "--strictPort"],
+                ["npm", "run", "dev", "--", "--port", str(args.web_port), "--strictPort"],
                 FRONTEND,
                 # The web app reads this at build time; setting it here keeps the
                 # two ports together when either is moved.
@@ -609,19 +424,9 @@ def main() -> int:
         return 1
 
     if with_web and not wait_for_web(args.web_port, services[1], timeout=90):
-        if services[1].alive:
-            # The process is still up, so this is the check failing rather than
-            # the app. Never stop a running product over an unanswered probe —
-            # that is what made a healthy session end by itself.
-            say(paint("  ! the web app has not answered yet, but it is still "
-                      "running", BRASS))
-            say(paint(f"    try http://localhost:{args.web_port} — and see the "
-                      "'web' lines above if it is blank", DIM))
-        else:
-            say(paint("  ✕ the web app did not come up — see the 'web' lines "
-                      "above", RED))
-            shutdown()
-            return 1
+        say(paint("  ✕ the web app did not come up — see the 'web' lines above", RED))
+        shutdown()
+        return 1
 
     report(health, args.api_port, args.web_port, with_web)
 

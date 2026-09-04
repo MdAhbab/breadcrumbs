@@ -33,19 +33,25 @@ export interface TourStep {
 /**
  * Part one: how one figure gets proved.
  *
- * This is the whole product in nine steps, and it is the one a first-time
+ * This is the whole product in ten steps, and it is the one a first-time
  * visitor needs. It ends on the model refusal, which is the part worth staying
  * for.
+ *
+ * The wording tracks the screens. Every label a step tells somebody to press
+ * has to be the label they will actually see, which is why this file changes
+ * whenever the navigation does — a walkthrough naming a button that was renamed
+ * last week is worse than no walkthrough, because it teaches the reader that
+ * the instructions are not to be trusted.
  */
 export const TOUR: TourStep[] = [
   {
     role: 'factory',
     to: '/factory/dashboard',
     who: 'the factory',
-    title: 'A factory publishes its records',
+    title: 'A factory files its documents',
     body:
-      'Every line here is a real document, like a payroll register or a safety check, '
-      + 'and none of them left the factory. What went onto the shared ledger is only a '
+      'Every line here is a real document, like a wage sheet or a safety check, '
+      + 'and none of them left the factory. What went onto the shared record is only a '
       + 'fingerprint of each file. That is enough to prove the file later, and not '
       + 'enough to read it.',
   },
@@ -53,12 +59,12 @@ export const TOUR: TourStep[] = [
     role: 'factory',
     to: '/factory/upload',
     who: 'the factory',
-    title: 'Watch one being published',
+    title: 'Watch one being filed',
     body:
       'The file is fingerprinted here in the browser, and only the fingerprint is sent. '
-      + 'You can see how much stays behind: thousands of rows, none of which the ledger '
-      + 'ever sees.',
-    todo: 'Publish a record, or just carry on.',
+      + 'You can see how much stays behind: thousands of rows, none of which the shared '
+      + 'record ever sees.',
+    todo: 'Upload a document, or just carry on.',
   },
   {
     role: 'buyer',
@@ -67,8 +73,8 @@ export const TOUR: TourStep[] = [
     title: 'A buyer asks for one figure',
     body:
       'The buyer cannot browse the factory. It can only ask a narrow question: one '
-      + 'column, one kind of record, one month, and a reason. That question goes to the '
-      + 'factory, which is free to say no.',
+      + 'column, one kind of document, one month, and a reason. That question goes to '
+      + 'the factory, which is free to say no.',
     todo: 'Send a request.',
   },
   {
@@ -77,10 +83,23 @@ export const TOUR: TourStep[] = [
     who: 'the factory',
     title: 'The factory decides',
     body:
-      'The request is waiting here. Saying yes releases one column of one record. Not '
-      + 'the record, not the other rows, and not forever. The factory can take it back '
-      + 'later, and that gets written down too.',
+      'The request is waiting here, under "Sharing & permissions". Saying yes releases '
+      + 'one column of one document. Not the document, not the other rows, and not '
+      + 'forever. The tiles at the top of the page are the other half of the same '
+      + 'question: what each buyer can see in total, right now.',
     todo: 'Approve the request.',
+  },
+  {
+    role: 'buyer',
+    to: '/buyer/portal',
+    who: 'a buyer',
+    title: 'The buyer opens what it was given',
+    body:
+      'The permission is in the list now. "Open the file" goes straight into that '
+      + 'document — the columns released to you, padlocks over everything else. '
+      + 'Opening it is a read: nothing is written to the shared record, and nobody is '
+      + 'told you looked.',
+    todo: 'Press "Open the file" on the newest permission.',
   },
   {
     role: 'buyer',
@@ -88,12 +107,12 @@ export const TOUR: TourStep[] = [
     who: 'a buyer',
     title: 'The buyer checks the answer',
     body:
-      'This is the point of the whole system. Here is the document as the buyer sees it: '
-      + 'the columns it was given, and padlocks over everything else. Checking a row '
-      + 'rebuilds the fingerprint from what was sent. If it matches the one the factory '
-      + 'published months ago, those figures are real, and the buyer did not have to '
-      + 'trust anyone to know it, not the factory and not whoever runs the servers.',
-    todo: 'Press "check all rows" and watch every row turn green.',
+      'This is the point of the whole system. Checking a row rebuilds the fingerprint '
+      + 'from what was sent. If it matches the one the factory published months ago, '
+      + 'those figures are real, and the buyer did not have to trust anyone to know it, '
+      + 'not the factory and not whoever runs the servers. Each check leaves a receipt '
+      + 'on the record, which is the difference between reading a figure and proving one.',
+    todo: 'Press "Check every row against the ledger" and watch each row turn green.',
   },
   {
     role: 'auditor',
@@ -110,11 +129,12 @@ export const TOUR: TourStep[] = [
     role: 'auditor',
     to: '/periods',
     who: 'an auditor',
-    title: 'Was anything left out?',
+    title: 'Is the month complete?',
     body:
       'Checking what you were shown is the easy half. This screen answers the hard one. '
-      + 'Did the factory publish everything for the month, or quietly leave out the bad '
-      + 'week? Once a month is closed, nothing can be added to it.',
+      + 'Did the factory file everything for the month, or quietly leave out the bad '
+      + 'week? Once a month is closed, nothing can be added to it without the correction '
+      + 'being visible to everyone.',
   },
   {
     role: 'consortium',
@@ -134,7 +154,7 @@ export const TOUR: TourStep[] = [
     who: 'the consortium',
     title: 'All of it is on here',
     body:
-      'The record, the request, the approval, the checks and the refusal. Written by '
+      'The document, the request, the approval, the checks and the refusal. Written by '
       + 'five different organisations, held by all of them, and editable by none of them '
       + 'afterwards. That includes the refusal that made somebody look bad.',
   },
@@ -152,13 +172,13 @@ export const TOUR_MORE: TourStep[] = [
     role: 'factory',
     to: '/factory/records',
     who: 'the factory',
-    title: 'Look inside a record',
+    title: 'Look inside a document',
     body:
-      'Open any record and you can see what is actually in the file, with anything you '
+      'Open any document and you can see what is actually in the file, with anything you '
       + 'are not allowed to read blacked out and the reason next to it. The factory sees '
       + 'all of it. A buyer sees only the columns it was given. Nobody outside the '
       + 'factory ever sees a worker\u2019s name, and no permission opens that.',
-    todo: 'Open a record and look at the table near the top.',
+    todo: 'Open a document and look at the table near the top.',
   },
   {
     role: 'buyer',
@@ -192,8 +212,8 @@ export const TOUR_MORE: TourStep[] = [
     body:
       'Holding one figure is usually when you find out you need the next one. Any item '
       + 'in the list has "ask for more from this", which points the form back at the '
-      + 'same factory, the same kind of record and the same month, so nothing has to be '
-      + 'filled in twice.',
+      + 'same factory, the same kind of document and the same month, so nothing has to '
+      + 'be filled in twice.',
   },
   {
     role: 'auditor',
@@ -205,7 +225,7 @@ export const TOUR_MORE: TourStep[] = [
       + 'audit where the audited party chooses what the auditor may look at is not an '
       + 'audit. What stays closed is anything naming a person, because checking whether '
       + 'wages are right never requires knowing whose wages they are.',
-    todo: 'Open any record and look at how much of it you can read.',
+    todo: 'Open any document and look at how much of it you can read.',
   },
   {
     role: 'auditor',
@@ -213,11 +233,26 @@ export const TOUR_MORE: TourStep[] = [
     who: 'an auditor',
     title: 'Reading is not the same as proving',
     body:
-      'Reading a figure is open to an auditor. Proving one writes a receipt onto the '
-      + 'ledger, and a receipt names the exact figure it covers, so that still needs a '
-      + 'permission from the factory. Open any record and you can check every row in one '
-      + 'press, and each pass leaves a receipt the factory can see.',
-    todo: 'Open a record and press "check all rows".',
+      'Reading a figure is open to an auditor and writes nothing anywhere. Proving one '
+      + 'writes a receipt onto the shared record, and a receipt names the exact figure '
+      + 'it covers, so that still needs a permission from the factory. Open any document '
+      + 'and you can check every row in one press; the panel above the table says what '
+      + 'each of the two buttons does before you press either.',
+    todo: 'Open a document and press "Check every row against the ledger".',
+  },
+  {
+    role: 'auditor',
+    to: '/factory/records',
+    who: 'an auditor',
+    title: 'Putting your name to what you read',
+    body:
+      'At the foot of any document is a confirmation of review: you say what you '
+      + 'concluded, and it is generated as a document of its own, with its own '
+      + 'reference, your name on it, and the receipts on the record that it rests on. '
+      + 'It can be handed to somebody who cannot open the register itself. One is '
+      + 'generated per reviewer per document — signing the same one twice would be the '
+      + 'same claim with a later date on it, and the API refuses it.',
+    todo: 'Open a document, scroll to the foot, and sign one.',
   },
   {
     role: 'factory',
@@ -225,13 +260,13 @@ export const TOUR_MORE: TourStep[] = [
     who: 'the factory',
     title: 'Closing a month, and sharing out of it',
     body:
-      'Closing a month fixes exactly which records it contains. Nothing can be slipped '
-      + 'in afterwards, and a late record has to be added as an open correction with a '
-      + 'reason. Below that is the other half: the factory can see who holds a copy of '
-      + 'each record, and share any of them with several organisations and several '
-      + 'figures at once. Each pairing is written as its own permission it can withdraw '
-      + 'on its own.',
-    todo: 'Press "share this one" and tick more than one organisation.',
+      'Closing a month fixes exactly which documents it contains. Nothing can be '
+      + 'slipped in afterwards, and a late document has to be added as an open '
+      + 'correction with a reason. Each of these opens a panel at the right that says '
+      + 'what it is about to do first — closing a month lists every document it is about '
+      + 'to seal in. Below that is the other half: who holds a copy of each document, '
+      + 'and sharing any of them with several organisations at once.',
+    todo: 'Press "Close this period" and read the panel before confirming.',
   },
   {
     role: 'consortium',
@@ -240,9 +275,9 @@ export const TOUR_MORE: TourStep[] = [
     title: 'Admitting a member actually admits them',
     body:
       'Adding a member takes a vote by the others, and when the vote carries the member '
-      + 'is written onto the ledger there and then. They appear in the register, in the '
-      + 'network map and in the regulator\u2019s totals, with the motion that admitted '
-      + 'them attached. Whoever runs the servers cannot do any of it alone.',
+      + 'is written onto the shared record there and then. They appear in the register, '
+      + 'in the network map and in the regulator\u2019s totals, with the motion that '
+      + 'admitted them attached. Whoever runs the servers cannot do any of it alone.',
     todo: 'Agree to the membership proposal and watch the register change.',
   },
   {
@@ -251,11 +286,11 @@ export const TOUR_MORE: TourStep[] = [
     who: 'the consortium',
     title: 'Proving something is not there',
     body:
-      'Showing that a document is on the ledger is easy. Showing that one is not there '
+      'Showing that a document is on the record is easy. Showing that one is not there '
       + 'at all is the hard direction, and this does it. It is the difference between '
       + '"we have no record of that certificate" and something the other side can check '
       + 'for itself.',
-    todo: 'Try a certificate reference that was never published.',
+    todo: 'Try a certificate reference that was never filed.',
   },
   {
     role: 'consortium',
@@ -273,7 +308,7 @@ export const TOUR_MORE: TourStep[] = [
     who: 'a regulator',
     title: 'What an observer can see',
     body:
-      'The regulator gets counts and governance events, and no factory data at all. '
+      'The regulator gets counts and governance events, and no factory document at all. '
       + 'Notice that the blocked parts are still drawn, with the reason written on them. '
       + 'Hiding them entirely would teach you nothing about where the line sits.',
   },
@@ -283,10 +318,10 @@ export const TOUR_MORE: TourStep[] = [
     who: 'a regulator',
     title: 'What an observer can still check',
     body:
-      'An observer that has to take the network\u2019s word for things is not much of an '
-      + 'observer. So the regulator can still check that nothing on the ledger has been '
-      + 'altered, and can still prove that a document was never published, without ever '
-      + 'being able to read one.',
+      'An observer that has to take the network\u2019s word for things is not much of '
+      + 'an observer. So the regulator can still check that nothing on the shared record '
+      + 'has been altered, and can still prove that a document was never filed, without '
+      + 'ever being able to read one.',
   },
 ];
 

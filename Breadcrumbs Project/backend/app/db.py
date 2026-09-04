@@ -130,6 +130,42 @@ class Attestation(Base):
     signed_at = Column(String, nullable=False)
 
 
+class ReviewConfirmation(Base):
+    """
+    One reviewer's confirmation that one document was reviewed.
+
+    Deliberately separate from `Attestation`, which is a statement over a whole
+    batch. An auditor asked to show that a particular register was examined had
+    nothing to hand over but a batch-wide claim naming no document, and a buyer
+    had nothing at all. This is the individual counterpart: one reviewer, one
+    document, its own reference, and the receipts it rests on named inside it.
+
+    Off-chain, like every professional statement in this product. What is on the
+    ledger is the verification receipts this cites; a signature saying "I looked
+    at this" is an opinion about a document, not a fact about the world, and an
+    append-only record is the wrong place for one. Storing it here also keeps it
+    erasable, which a statement carrying a person's name has to be.
+    """
+
+    __tablename__ = "review_confirmations"
+
+    id = Column(String, primary_key=True)
+    record_id = Column(String, nullable=False, index=True)
+    reviewer_msp = Column(String, nullable=False, index=True)
+    reviewer_name = Column(String, nullable=False)
+    reviewer_org = Column(String, nullable=False)
+    reviewer_role = Column(String, nullable=False)
+    outcome = Column(String, nullable=False, default="accepted")
+    statement = Column(Text, nullable=False)
+    # The receipt identifiers on the ledger that this confirmation rests on, and
+    # the root they were checked against. Both are copied in at signing time so
+    # the confirmation stays a complete document: a reader can follow it back to
+    # the chain without being handed anything else.
+    checks_cited = Column(JSON, nullable=False, default=list)
+    merkle_root = Column(String, nullable=False, default="")
+    signed_at = Column(String, nullable=False)
+
+
 class Incident(Base):
     __tablename__ = "incidents"
 

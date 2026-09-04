@@ -32,6 +32,10 @@ export default function RecordDetail() {
   // than the whole page.
   const witness = useApi(() => api.witnessRequirement(id), [id]);
   const anchored = useApi(() => api.verifyRecord(id), [id]);
+  // Held by the page rather than by the sign-off panel, because two panels read
+  // it: the panel you sign in, and the count beside the witness attestations
+  // further down. Signing reloads this one query and both move together.
+  const reviews = useApi(() => api.recordReviews(id), [id]);
 
   return (
     <div className="rec">
@@ -78,7 +82,7 @@ export default function RecordDetail() {
                   {/* Ahead of the history, because "what is this document?" is
                       the question a reader arrives with, and the page used to
                       answer every question except that one. */}
-                  <DocumentCheck recordId={b.record_id} />
+                  <DocumentCheck recordId={b.record_id} reviews={reviews} />
 
                   <h2 className="rec__h2 rec__h2--spaced">History</h2>
                   <ol className="tl">
@@ -143,9 +147,22 @@ export default function RecordDetail() {
                     )}
                   </ol>
 
-                  <h2 className="rec__h2 rec__h2--spaced">Who counter-signed it</h2>
+                  <h2 className="rec__h2 rec__h2--spaced">
+                    Who counter-signed it when it was filed
+                  </h2>
+                  <p className="small rec__note">
+                    Assigned by the consortium&rsquo;s draw, before the file was
+                    published, and not chosen by the factory. Separate from a confirmation
+                    of review, which is signed afterwards by somebody who read the
+                    document — those are at the foot of the table above.
+                  </p>
                   <Result query={witness} pendingLabel="Asking who was assigned">
-                    {(req) => <WitnessPanel req={req} />}
+                    {(req) => (
+                      <WitnessPanel
+                        req={req}
+                        reviewCount={reviews.data?.reviews.length ?? 0}
+                      />
+                    )}
                   </Result>
 
                   <h2 className="rec__h2 rec__h2--spaced">Has it been tampered with?</h2>

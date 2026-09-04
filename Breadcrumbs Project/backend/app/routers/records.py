@@ -22,7 +22,7 @@ from model.merkle import MerkleTree, verify_disclosure
 
 from .. import ledger_service as ledger
 from ..auth import CurrentUser, require_capability
-from ..db import StoredDocument, get_session, notify
+from ..db import ReviewConfirmation, StoredDocument, get_session, notify
 
 router = APIRouter(tags=["records"])
 
@@ -59,6 +59,18 @@ class GrantRequest(BaseModel):
     # duplicate, correctly, and the user sees a collision they had no way to
     # anticipate.
     grant_id: str | None = None
+
+
+class NewReview(BaseModel):
+    """One reviewer's confirmation that one document was reviewed."""
+
+    outcome: str = "accepted"
+    # Checked in the handler rather than here. A `min_length` refusal arrives as
+    # a pydantic 422 the interface cannot say anything useful about, and the
+    # rule this wants is "say something", which is a count of words and not of
+    # characters — "it is good" is a finding, and twelve characters of anything
+    # is not.
+    statement: str = Field(min_length=1)
 
 
 class VerifyRequest(BaseModel):
@@ -244,8 +256,246 @@ def preview_record(
         "record_type": record["record_type"],
         "access": access,
         "granted_fields": sorted(granted),
+        # Opening a file is a read, and a read is not an event. Nothing here
+        # touches the chain: no transaction is proposed, no receipt is written,
+        # and the ledger cannot tell this call happened. The flag is returned so
+        # the interface can say that to the reader in the same breath as it
+        # offers the check that *does* write one, rather than leaving somebody
+        # to guess which of the two buttons puts their name on the ledger.
+        "writes_to_ledger": False,
         **body,
     }
+
+
+# What "say something" means, in one place, so the screen and the API agree
+# about it rather than each keeping its own idea.
+MINIMUM_WORDS = 3
+
+OUTCOMES = {
+    "accepted": "Accepted. The document was reviewed and nothing was found against it.",
+    "qualified": "Accepted with qualifications. The reviewer has noted reservations.",
+    "rejected": "Rejected. The reviewer does not accept this document as evidence.",
+}
+
+
+def _capabilities_of(role: str) -> set[str]:
+    from ..config import CAPABILITIES
+
+    return CAPABILITIES.get(role, set())
+
+
+def _reviews_for(db: Session, record_id: str) -> list[ReviewConfirmation]:
+    return (
+        db.query(ReviewConfirmation)
+        .filter(ReviewConfirmation.record_id == record_id)
+        .order_by(ReviewConfirmation.signed_at)
+        .all()
+    )
+
+
+def _review_dict(row: ReviewConfirmation) -> dict:
+    return {
+        "id": row.id,
+        "record_id": row.record_id,
+        "reviewer_msp": row.reviewer_msp,
+        "reviewer_name": row.reviewer_name,
+        "reviewer_org": row.reviewer_org,
+        "reviewer_role": row.reviewer_role,
+        "outcome": row.outcome,
+        "outcome_note": OUTCOMES.get(row.outcome, ""),
+        "statement": row.statement,
+        "checks_cited": list(row.checks_cited or []),
+        "merkle_root": row.merkle_root,
+        "signed_at": row.signed_at,
+    }
+
+
+@router.get("/records/{record_id}/reviews")
+def record_reviews(
+    record_id: str, user: CurrentUser, db: Session = Depends(get_session)
+) -> dict:
+    """
+    Who has confirmed reading this document, and whether you are one of them.
+
+    Scoped exactly like the record: asking who reviewed a document you may not
+    open would confirm that the document exists, which is the leak `/records`
+    and `/preview` are both careful to avoid.
+
+    `you` is here so a signing panel can print the name that will go onto the
+    confirmation rather than the one the browser happens to be holding. The
+    identity that signs is the one the API resolved from the token, and a screen
+    showing a different name is making a promise it does not keep.
+    """
+    require_capability(user, "read_records")
+    from ..scoping import scoped_records
+
+    record = next((r for r in scoped_records(user) if r["record_id"] == record_id), None)
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {record_id}")
+
+    rows = _reviews_for(db, record_id)
+    mine = next((r for r in rows if r.reviewer_msp == user.msp_id), None)
+    receipts = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_receipts",
+        {"record_id": record_id}, user.role,
+    ) or []
+    return {
+        "record_id": record_id,
+        "reviews": [_review_dict(r) for r in rows],
+        "yours": _review_dict(mine) if mine else None,
+        # Whether anybody at all has confirmed this document before. The first
+        # confirmation is the one that has to be minted; this is what lets the
+        # screen say so before the reviewer commits to signing.
+        "reviewed_before": bool(rows),
+        "checks_you_ran": [
+            r["receipt_id"] for r in receipts if r["verifier_msp"] == user.msp_id
+        ],
+        "may_confirm": "write_reviews" in _capabilities_of(user.role),
+        # Whether a check is even available on this document. An auditor reads
+        # every document on the channel and can prove only what a factory has
+        # released to it, so most documents it opens carry no check at all —
+        # and a panel that says "you have not checked any row yet" is then
+        # telling somebody to press a button that is not on the page.
+        "may_check": (
+            "verify_records" in _capabilities_of(user.role)
+            and any(
+                g["record_id"] == record_id and g["status"] == "active"
+                for g in ledger.query(
+                    DOCUMENT_CHANNEL, "doccustody", "list_grants",
+                    {"requester_msp": user.msp_id}, user.role,
+                ) or []
+            )
+        ),
+        "you": {
+            "msp_id": user.msp_id,
+            "name": user.person,
+            "org": user.org,
+            "role": user.role,
+            "label": user.label,
+        },
+    }
+
+
+@router.post("/records/{record_id}/reviews", status_code=status.HTTP_201_CREATED)
+def confirm_review(
+    record_id: str, body: NewReview, user: CurrentUser,
+    db: Session = Depends(get_session),
+) -> dict:
+    """
+    Confirm, individually, that this document was reviewed.
+
+    An auditor's batch attestation covers everything it checked that day and
+    names no document, so a factory asked to show that one register had been
+    examined had nothing to hand over. This mints the missing half: one
+    confirmation, one document, its own reference, the receipts it rests on
+    copied into it, and the root those receipts were checked against.
+
+    One is generated only where this reviewer has not confirmed this document
+    already. A second confirmation of the same document by the same organisation
+    is not a second review, it is the same claim with a later date on it, which
+    is how a signature stops meaning anything. A different reviewer is a
+    different matter and gets its own: two reviewers agreeing is a fact worth
+    being able to show.
+
+    Off-chain on purpose. What is on the ledger is each verification receipt
+    this cites, and those are the part a third party can check.
+    """
+    require_capability(user, "write_reviews")
+    from ..scoping import scoped_records
+
+    if body.outcome not in OUTCOMES:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"unknown outcome {body.outcome}; expected one of {', '.join(OUTCOMES)}",
+        )
+
+    if len(body.statement.split()) < MINIMUM_WORDS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            {
+                "code": "NO_STATEMENT",
+                "message": (
+                    "Say what you concluded, in at least "
+                    f"{MINIMUM_WORDS} words. The confirmation is handed to people "
+                    "who cannot open the document themselves, and a signature with "
+                    "nothing behind it tells them nothing."
+                ),
+            },
+        )
+
+    record = next((r for r in scoped_records(user) if r["record_id"] == record_id), None)
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no record {record_id}")
+
+    existing = next(
+        (r for r in _reviews_for(db, record_id) if r.reviewer_msp == user.msp_id), None
+    )
+    if existing is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "code": "ALREADY_REVIEWED",
+                "message": (
+                    f"{user.org} confirmed a review of this document on "
+                    f"{existing.signed_at[:10]}, as {existing.id}. A second "
+                    "confirmation of the same document would not be a second review."
+                ),
+                "review_id": existing.id,
+            },
+        )
+
+    receipts = ledger.query(
+        DOCUMENT_CHANNEL, "doccustody", "list_receipts",
+        {"record_id": record_id}, user.role,
+    ) or []
+    cited = [r["receipt_id"] for r in receipts if r["verifier_msp"] == user.msp_id]
+
+    count = db.query(ReviewConfirmation).count()
+    row = ReviewConfirmation(
+        id=f"rv-{count + 1:03d}",
+        record_id=record_id,
+        reviewer_msp=user.msp_id,
+        reviewer_name=user.person,
+        reviewer_org=user.org,
+        reviewer_role=user.role,
+        outcome=body.outcome,
+        statement=body.statement.strip(),
+        checks_cited=cited,
+        merkle_root=record["merkle_root"],
+        signed_at=now(),
+    )
+    db.add(row)
+    # The owner is told, because a confirmation naming its document is the one
+    # thing a factory can hand somebody who asks whether anyone has looked.
+    notify(
+        db,
+        record["owner_msp"],
+        "record_reviewed",
+        f"{user.org} confirmed a review of {record_id} ({body.outcome}), as {row.id}",
+    )
+    db.commit()
+    return _review_dict(row)
+
+
+@router.get("/reviews")
+def my_reviews(user: CurrentUser, db: Session = Depends(get_session)) -> list[dict]:
+    """
+    Every review confirmation this caller is a party to.
+
+    A reviewer sees what it signed; anyone else sees what was signed about
+    documents they may open, which for a factory is its own. Nobody sees a
+    confirmation about a document they could not have opened in the first place.
+    """
+    require_capability(user, "read_records")
+    from ..scoping import scoped_records
+
+    rows = db.query(ReviewConfirmation).order_by(ReviewConfirmation.signed_at.desc()).all()
+    if user.role in ("auditor", "buyer"):
+        kept = [r for r in rows if r.reviewer_msp == user.msp_id]
+    else:
+        visible = {r["record_id"] for r in scoped_records(user)}
+        kept = [r for r in rows if r.record_id in visible]
+    return [_review_dict(r) for r in kept]
 
 
 @router.post("/records", status_code=status.HTTP_201_CREATED)

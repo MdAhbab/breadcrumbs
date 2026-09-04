@@ -1,10 +1,11 @@
-import { ArrowLeft, Check, X } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Check, Search, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { DocumentCheck } from '../components/DocumentCheck';
 import { Result } from '../components/states';
-import { Disclosure, Field, LedgerRow, Seal } from '../components/ui';
+import { Tech } from '../components/Tech';
+import { Disclosure, LedgerRow, Seal } from '../components/ui';
 import {
   api, recordLabel, shortMsp,
   type Grant, type LedgerRecord, type PublicReceipt,
@@ -193,6 +194,17 @@ function FromReceipt({ id }: { id: string }) {
 }
 
 /* -- the signed-in path --------------------------------------------------- */
+/** How many documents the picker lists before it asks to be told to go on. */
+const PAGE = 12;
+
+type Scope = 'held' | 'read' | 'all';
+
+const SCOPES: { id: Scope; label: string }[] = [
+  { id: 'held', label: 'Released to me' },
+  { id: 'read', label: 'Read only' },
+  { id: 'all', label: 'All' },
+];
+
 /**
  * The signed-in path: a document, and the proof that it is real.
  *
@@ -201,10 +213,25 @@ function FromReceipt({ id }: { id: string }) {
  * the shape of anybody's question: nobody arrives wanting row 0 of anything.
  * A buyer opens what it was given, reads it, and wants to know whether it is
  * true — so the screen is now the document, with the check on every row of it.
+ *
+ * Rebuilt again, in the order the reader needs rather than the order the data
+ * arrives in: which document and what you hold on it, then the document, then
+ * what checking it leaves behind.
+ *
+ * The picker is the part that had to change twice. It was a `<select>`, which
+ * is a fine control for five options and an unusable one for six hundred and
+ * eighty-eight — an auditor reads every document on the network, so its list is
+ * every document on the network, and finding one meant scrolling a native
+ * dropdown past six hundred entries it had no permission to prove anything on.
+ * It is now a card naming the current document, with a search-and-filter panel
+ * behind one press. Closed by default: somebody arriving from a link is already
+ * where they meant to be, and should not have to dismiss a chooser to read the
+ * thing they chose.
  */
 function LiveProof({ signedIn }: { signedIn: boolean }) {
   const back = useWayBack();
   const [params] = useSearchParams();
+  const labelOf = useFieldLabel();
 
   // Everything this account can open. For a buyer that is what it holds
   // permissions on; for an auditor it is every document on the network.
@@ -218,6 +245,24 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
   );
 
   const [chosen, setChosen] = useState<string | null>(null);
+  // The picker, and the two controls that make a list of hundreds usable.
+  const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState('');
+  const [scope, setScope] = useState<Scope>('held');
+  const [listed, setListed] = useState(PAGE);
+
+  // A link is an instruction, and it has to win over a choice made before it
+  // arrived. Without this, opening one grant from the portal and then pressing
+  // "see the number" on a second one left the first document on screen: the
+  // route had not changed, only the query, so nothing re-mounted and the stale
+  // selection stood. That is the whole of the reported bug — the page opened,
+  // and opened the wrong thing.
+  const link = `${params.get('grant') ?? ''}|${params.get('record') ?? ''}`;
+  useEffect(() => { setChosen(null); setPicking(false); }, [link]);
+
+  // Narrowing the list is a new question about it, so it starts from the top
+  // rather than from wherever the last "show more" left off.
+  useEffect(() => { setListed(PAGE); }, [query, scope]);
 
   if (!signedIn) {
     return (
@@ -270,66 +315,252 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
               );
             }
 
-            // A record named in the link wins: the reader pressed "check" on a
-            // specific document and expects that one.
-            const wanted = params.get('record');
-            const held = new Set(
-              (grants.data ?? []).filter((g) => g.status === 'active').map((g) => g.record_id),
-            );
+            const live = (grants.data ?? []).filter((g) => g.status === 'active');
+            const held = new Set(live.map((g) => g.record_id));
+
+            // Which document the link is asking for. A grant identifier is the
+            // usual way in — "see the number" on a permission names the
+            // permission, not the file underneath it — so it is resolved to its
+            // record here. `?record=` stays supported for links that already
+            // know the document.
+            const askedGrant = params.get('grant');
+            const grantNamed = askedGrant
+              ? (grants.data ?? []).find((g) => g.grant_id === askedGrant)
+              : undefined;
+            const wanted = grantNamed?.record_id ?? params.get('record') ?? null;
+            const reachable = wanted && all.some((r) => r.record_id === wanted) ? wanted : null;
+            // The link named something this account cannot open. Almost always
+            // a permission that has since been withdrawn, and saying so is far
+            // better than silently opening a different document.
+            //
+            // Only once the permissions have actually arrived, though: a grant
+            // identifier cannot be resolved against a list that is still being
+            // fetched, and flashing "the link you followed names something you
+            // cannot open" for the half second before it lands would be the
+            // screen accusing itself.
+            const missed =
+              !grants.loading
+              && Boolean(askedGrant || params.get('record'))
+              && !reachable;
+
             // Documents something has actually been released from come first,
             // because those are the ones that can be proved as well as read.
             const ordered = [...all].sort(
               (a, b) => Number(held.has(b.record_id)) - Number(held.has(a.record_id)),
             );
-            const recordId = chosen
-              ?? (wanted && all.some((r) => r.record_id === wanted) ? wanted : null)
-              ?? ordered[0].record_id;
+            const recordId = chosen ?? reachable ?? ordered[0].record_id;
             const record = all.find((r) => r.record_id === recordId) ?? ordered[0];
+            const mine = live.filter((g) => g.record_id === record.record_id);
+            const releasable = ordered.filter((r) => held.has(r.record_id));
+            const readOnly = ordered.filter((r) => !held.has(r.record_id));
+
+            // What the picker is showing. A search over the words actually on
+            // the row — the month as it is written, the site, the kind of
+            // document, the identifier — because those are what somebody has in
+            // their hand when they come looking for one document out of 688.
+            const pool = scope === 'held' ? releasable : scope === 'read' ? readOnly : ordered;
+            const needle = query.trim().toLowerCase();
+            const matching = needle
+              ? pool.filter((r) =>
+                [
+                  recordLabel(r.record_type), period(r.period), r.period,
+                  r.site, r.record_id, shortMsp(r.owner_msp),
+                ].join(' ').toLowerCase().includes(needle))
+              : pool;
 
             return (
               <>
+                {/* One sentence. The three that were here explained the
+                    Merkle check twice over before the reader had seen a single
+                    row of the document they came to look at — and the same
+                    explanation is on the table itself, where somebody deciding
+                    whether to press the button is actually looking. */}
                 <div className="verdictbar">
                   <div>
-                    <h1 className="verdictbar__head">Check a document.</h1>
+                    <h1 className="verdictbar__head">Verify a document.</h1>
                     <p className="lead verdictbar__body">
-                      Everything you have been allowed to read, laid out as it is in the
-                      file. Checking a row works the fingerprint out again from what you
-                      were sent and compares it to what the factory published. If they
-                      match, the figures are real, and you did not have to take anyone{"’"}s
-                      word for it.
+                      Read what was released to you, and check any row of it against the
+                      fingerprint the factory published.
                     </p>
                   </div>
                 </div>
 
                 <div className="lb__detail">
-                  <Field
-                    label="Which document"
-                    id="doc"
-                    hint={`${commas(all.length)} you can open.`}
-                  >
-                    <select
-                      id="doc"
-                      className="input"
-                      value={record.record_id}
-                      onChange={(e) => setChosen(e.target.value)}
-                    >
-                      {ordered.map((r) => (
-                        <option key={r.record_id} value={r.record_id}>
-                          {recordLabel(r.record_type)} · {period(r.period)} · {r.site}
-                          {held.has(r.record_id) ? '' : ' (read only)'}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                  {missed && (
+                    <p className="lb__missed">
+                      The link you followed names something you cannot open now. The usual
+                      reason is that the permission behind it has been withdrawn — access
+                      ends at the contract, so a link that worked yesterday stops working
+                      rather than quietly showing you the file anyway. The document below
+                      is one you do still hold.
+                    </p>
+                  )}
 
+                  {/* Which document, what you hold on it, and the way to a
+                      different one — one card rather than three stacked blocks
+                      of prose. */}
+                  <section className="docbar">
+                    <div className="docbar__now">
+                      <div className="docbar__what">
+                        <p className="docbar__name">
+                          {recordLabel(record.record_type)} · {period(record.period)} ·{' '}
+                          {record.site}
+                        </p>
+                        <p className="small docbar__meta">
+                          {shortMsp(record.owner_msp)} · published{' '}
+                          {longDate(record.committed_at)}
+                          <Tech> · <span className="mono">{record.record_id}</span></Tech>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                        onClick={() => setPicking((open) => !open)}
+                        aria-expanded={picking}
+                      >
+                        <Search size={13} />
+                        {picking ? 'Close' : 'Change document'}
+                      </button>
+                    </div>
+
+                    {mine.length > 0 ? (
+                      <ul className="docbar__held">
+                        {mine.map((g) => (
+                          <li key={g.grant_id} className="docbar__grant">
+                            <Seal tone="sealed">
+                              {labelOf(record.record_type, g.field_name)}
+                            </Seal>
+                            <span className="small docbar__until">
+                              until {longDate(g.expires_at)}
+                            </span>
+                          </li>
+                        ))}
+                        <li className="small docbar__note">
+                          Released to you, and provable. Everything else in the file is
+                          readable at most.
+                        </li>
+                      </ul>
+                    ) : (
+                      <p className="small docbar__note">
+                        Read only. Nothing in this document has been released to you, so
+                        there is no row to prove — proving a figure writes a receipt naming
+                        it, and that needs a permission.
+                      </p>
+                    )}
+
+                    {picking && (
+                      <div className="docpick">
+                        <div className="docpick__controls">
+                          <label className="docpick__search">
+                            <span className="visually-hidden">Search documents</span>
+                            <Search size={14} aria-hidden="true" />
+                            <input
+                              className="input"
+                              type="search"
+                              value={query}
+                              placeholder="Month, site, kind of document, or identifier…"
+                              onChange={(e) => setQuery(e.target.value)}
+                              autoFocus
+                            />
+                          </label>
+                          <div className="docpick__scopes" role="group" aria-label="Which documents">
+                            {SCOPES.map(({ id, label }) => (
+                              <button
+                                key={id}
+                                type="button"
+                                className={`docpick__scope ${scope === id ? 'is-on' : ''}`}
+                                aria-pressed={scope === id}
+                                onClick={() => setScope(id)}
+                              >
+                                {label}
+                                <span className="docpick__count">
+                                  {commas(
+                                    id === 'held' ? releasable.length
+                                      : id === 'read' ? readOnly.length
+                                        : ordered.length,
+                                  )}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {matching.length === 0 ? (
+                          <p className="small docpick__none">
+                            Nothing matches. {scope === 'held' && readOnly.length > 0
+                              ? 'You may be looking at one you can read but hold nothing on — try "read only".'
+                              : 'Try a month, a site, or part of an identifier.'}
+                          </p>
+                        ) : (
+                          <>
+                            <p className="small docpick__tally">
+                              {matching.length === ordered.length
+                                ? `${commas(matching.length)} documents`
+                                : `${commas(matching.length)} of ${commas(ordered.length)} documents`}
+                            </p>
+                            <ul className="docpick__list">
+                              {matching.slice(0, listed).map((r) => (
+                                <li key={r.record_id}>
+                                  <button
+                                    type="button"
+                                    className={`docpick__row ${
+                                      r.record_id === record.record_id ? 'is-on' : ''}`}
+                                    onClick={() => {
+                                      setChosen(r.record_id);
+                                      setPicking(false);
+                                    }}
+                                  >
+                                    <span className="docpick__rowname">
+                                      {recordLabel(r.record_type)} · {period(r.period)} ·{' '}
+                                      {r.site}
+                                    </span>
+                                    <span className="small docpick__rowmeta">
+                                      <span className="mono">{r.record_id}</span> ·{' '}
+                                      {commas(r.row_count)} rows ·{' '}
+                                      {shortMsp(r.owner_msp)}
+                                    </span>
+                                    <span className={`docpick__tag ${
+                                      held.has(r.record_id) ? 'is-held' : ''}`}
+                                    >
+                                      {held.has(r.record_id)
+                                        ? `${commas(
+                                          live.filter((g) => g.record_id === r.record_id).length,
+                                        )} released`
+                                        : 'read only'}
+                                    </span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                            {matching.length > listed && (
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                onClick={() => setListed((n) => n + PAGE)}
+                              >
+                                Show {Math.min(PAGE, matching.length - listed)} more
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* The document, and the check on each row. */}
                   <DocumentCheck key={record.record_id} recordId={record.record_id} />
                 </div>
 
+                {/* 4 — what checking leaves behind. Stated only where it is
+                    true: with nothing released, nothing here writes a receipt,
+                    and the page used to promise one either way. */}
                 <footer className="lb__after">
                   <p className="lb__after-lede">
-                    Every check you run here writes a receipt onto the ledger. The factory
-                    can see them, and so can anyone you send the link to, without needing
-                    an account or asking the factory for anything.
+                    {mine.length > 0
+                      ? 'A check writes a receipt anyone can verify without an account. Opening '
+                        + 'the file writes nothing.'
+                      : 'Opening a file writes nothing to the ledger. Only checking a released '
+                        + 'figure does, and nothing here has been released to you.'}
                   </p>
                   <div className="lb__after-actions">
                     <Link to={back.to} className="btn btn--primary btn--md">

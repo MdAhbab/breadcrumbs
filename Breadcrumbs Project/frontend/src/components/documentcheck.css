@@ -134,3 +134,33 @@
   .doc__head { padding: var(--s3) var(--s4); }
   .doc__note { padding: var(--s3) var(--s4); }
 }
+
+/* -- what the two controls do ---------------------------------------------
+ * The check button used to be captioned "Check all 1,847 rows" and nothing
+ * else, so the one control on this table that writes to a permanent shared
+ * record looked exactly like a filter. This block is the difference between
+ * reading and proving, said before either is pressed rather than after.
+ */
+
+.doc__explain {
+  padding: var(--s3) var(--s5);
+  border-bottom: 1px solid var(--rule-faint);
+  background: var(--raw-cotton);
+}
+
+.doc__explainline {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-80);
+  max-width: 88ch;
+}
+
+.doc__explainnote {
+  margin: 6px 0 0;
+  color: var(--thread-type);
+  max-width: 88ch;
+}
+
+@media (max-width: 640px) {
+  .doc__explain { padding: var(--s3) var(--s4); }
+}

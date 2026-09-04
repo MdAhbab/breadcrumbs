@@ -653,3 +653,103 @@
 .ws-warp { stroke: var(--slub); }
 .ws-trace { stroke: var(--brass-bright); }
 .ws-node { fill: var(--brass-bright); }
+
+/* -- the workflow, the claims and the roles -------------------------------
+ * What replaced the competitor matrix, the limitations list and the two
+ * simulators. All three are plain blocks of type: this part of the page is
+ * being read by somebody who does not yet know what the product is, and a
+ * device they have to operate before they understand it is a device too early.
+ */
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: var(--s5);
+  counter-reset: none;
+}
+
+.step {
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+
+.step__n {
+  display: block;
+  font-size: 12px;
+  color: var(--brass-ink);
+  letter-spacing: 0.06em;
+}
+
+.step__who { color: var(--ink-quiet); margin: var(--s3) 0 4px; }
+
+.step__h {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.step__p {
+  margin: var(--s3) 0 0;
+  color: var(--ink-60);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.claims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--s5);
+  position: relative;
+  z-index: 2;
+}
+
+.claim { border-top: 1px solid var(--slub-40); padding-top: var(--s4); }
+
+.claim__h {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--raw-cotton);
+}
+
+.claim__p {
+  margin: var(--s3) 0 0;
+  color: rgba(244, 241, 232, 0.72);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Named for this section rather than for what it holds. `.roles` and `.role`
+   are the sign-in screen's classes, and every stylesheet in this app is global
+   — so these rules were reaching across and laying that screen's numbered list
+   out as a wrapped grid of cards, three across and two below. */
+.whouses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(212px, 1fr));
+  gap: var(--s5);
+}
+
+.whouses__row { border-top: 1px solid var(--rule); padding-top: var(--s4); }
+
+.whouses__who {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.whouses__what {
+  margin: var(--s3) 0 0;
+  color: var(--ink-60);
+  font-size: 14.5px;
+  line-height: 1.6;
+}

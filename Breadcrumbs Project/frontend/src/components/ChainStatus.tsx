@@ -167,7 +167,7 @@ export function ChainStatus({ variant = 'nav' }: { variant?: 'nav' | 'bar' }) {
                 : 'The re-check did not pass on every channel.'}
             </span>
             <Link to="/ledger" className="btn btn--primary btn--sm" onClick={() => setOpen(false)}>
-              Open the ledger <ArrowUpRight size={14} />
+              Open the transaction history <ArrowUpRight size={14} />
             </Link>
           </footer>
         </Modal>

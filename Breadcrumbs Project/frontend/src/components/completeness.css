@@ -1,0 +1,91 @@
+/*
+ * What you were given, made readable.
+ *
+ * The left column of the completeness check used to be a bare scrolling list of
+ * ticked serial numbers, taller than the answer it was an input to. These are
+ * the parts that replaced it: a one-line summary of the set, a search, a filter
+ * over the two things that actually vary inside one month, and paging. The
+ * identifiers themselves are unchanged — the sealed root is a hash over exactly
+ * those strings, so they stay in full and in mono.
+ *
+ * Loaded after mechanisms.css, which holds the .cchk block this extends.
+ */
+
+.cchk__summary {
+  color: var(--ink-80);
+  margin: 0 0 4px;
+  line-height: 1.55;
+}
+
+.cchk__summary strong { color: var(--ink); }
+
+.cchk__released {
+  color: var(--thread-type);
+  margin: 0 0 var(--s3);
+  max-width: 54ch;
+}
+
+.cchk__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.cchk__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 170px;
+}
+
+.cchk__search svg {
+  position: absolute;
+  left: 11px;
+  color: var(--thread-type);
+  pointer-events: none;
+}
+
+.cchk__search .input { height: 36px; padding-left: 31px; font-size: 13px; }
+
+.cchk__filter { height: 36px; font-size: 13px; flex: 0 1 auto; width: auto; min-width: 150px; }
+
+/* Bounded, so the input to the check can never be taller than the answer to it.
+   Buckets in this corpus run to 49 records. */
+.cchk__list {
+  max-height: 44vh;
+  overflow-y: auto;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--r-sm);
+}
+
+.cchk__id { flex: 0 0 auto; }
+.cchk__rows { color: var(--ink-quiet); white-space: nowrap; }
+.cchk__item .seal { margin-left: auto; }
+.cchk__item .seal + .cchk__held { margin-left: var(--s2); }
+
+.cchk__more {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.cchk__more .cchk__hint { margin-top: 0; }
+
+/* When the reader has changed the set, everything on the right is an answer
+   about a set they invented. Saying so is the difference between a what-if and
+   an accusation. */
+.cchk__whatif {
+  margin: var(--s3) 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid var(--ochre);
+  background: var(--ochre-wash);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 13px;
+  color: var(--ink-80);
+}
+
+.cchk__when { color: var(--ink-quiet); margin: 0 0 var(--s3); }
+.cchk__cannot { color: var(--ink-quiet); margin-top: var(--s3); max-width: 62ch; }

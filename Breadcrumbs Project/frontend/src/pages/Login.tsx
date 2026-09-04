@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { Failed, Result } from '../components/states';
 import { StartWalkthrough } from '../components/TourBar';
+import { TOUR } from '../lib/tour';
 import { ApiError, type RoleOption } from '../lib/api';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
@@ -66,8 +67,11 @@ export default function Login() {
           <div>
             <p className="login__tourhead">First time here?</p>
             <p className="small login__tournote">
-              Nine steps, start to finish. It signs you in as each person in turn, so
-              you do not have to know who to pick.
+              {/* Counted, not typed. It said nine while the walkthrough had ten,
+                  which is the sort of thing that goes stale the first time a
+                  step is added and nobody thinks to look here. */}
+              {TOUR.length} steps, start to finish. It signs you in as each person in
+              turn, so you do not have to know who to pick.
             </p>
           </div>
           <StartWalkthrough className="btn btn--primary" />
@@ -111,13 +115,9 @@ export default function Login() {
             <ArrowRight size={16} />
           </button>
           <Link to="/verify" className="login__nolink">
-            Check a value without signing in
+            Verify a document without signing in
           </Link>
         </div>
-
-        <p className="small login__foot">
-          Team CookieMonsters · United International University
-        </p>
       </div>
     </div>
   );

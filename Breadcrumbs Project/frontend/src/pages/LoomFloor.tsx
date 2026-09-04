@@ -156,7 +156,7 @@ export default function LoomFloor() {
                   <div className="shiftlog__head">
                     <p className="stamp-type">Recent activity</p>
                     <Link to="/ledger" className="shiftlog__all">
-                      ledger <ArrowUpRight size={12} />
+                      all of it <ArrowUpRight size={12} />
                     </Link>
                   </div>
                   {activity.length === 0 ? (

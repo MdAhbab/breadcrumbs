@@ -121,7 +121,10 @@ python -m model.run --help  # evaluation, adversary scoring, benchmarks
 ```
 
 Deploying it, including what "deploying the AI" actually means, is in
-`Breadcrumbs Project/DEPLOY.md`.
+`Breadcrumbs Project/DEPLOY.md`. Using it — what each screen is called, what each
+of the five roles can do, and where the line between reading a figure and proving
+one falls — is in `Breadcrumbs Project/docs/using-the-app.md`, and the product
+walks you through the same thing itself from the home page.
 
 No Docker required. The report's numbers regenerate from `make bench` — nothing in the
 document is typed by hand, and an unmeasured figure renders as a bold `??` on the page.

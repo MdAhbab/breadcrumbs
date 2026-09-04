@@ -50,6 +50,10 @@ make bench    # measure everything, regenerate the report's numbers
 
 `SETUP.md` covers a fresh machine. `AUDIT.md` is the security review: five
 serious findings, all fixed, plus what is still open and why.
+`docs/using-the-app.md` is the written guide to the product itself: what every
+screen is called, what each role can do, and the difference between reading a
+figure and proving one. The in-product walkthrough covers the same ground by
+driving the real screens.
 
 **Three attacks in the test suite succeed**, deliberately and on the record: a model
 poisoned just inside the Continuity Gate's tolerance is promoted, a colluding assigned

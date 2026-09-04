@@ -2,6 +2,7 @@ import { ShieldCheck, ShieldOff, ShieldQuestion } from 'lucide-react';
 
 import { CHECK_CODES, shortMsp, type WitnessRequirement } from '../lib/api';
 import { dateTime } from '../lib/format';
+import { ReviewedMark } from './ReviewSignoff';
 import { Tech } from './Tech';
 import { Seal } from './ui';
 import './mechanisms.css';
@@ -22,7 +23,14 @@ import './mechanisms.css';
  * presence" are both attestations and they are not remotely the same evidence,
  * so the weight is drawn rather than left for the reader to infer.
  */
-export function WitnessPanel({ req }: { req: WitnessRequirement }) {
+export function WitnessPanel({
+  req, reviewCount = 0,
+}: {
+  req: WitnessRequirement;
+  /** Confirmations of review standing against this document. A different
+      signature entirely, shown here only so a reader stops looking. */
+  reviewCount?: number;
+}) {
   if (!req.in_force) {
     return (
       <section className="wit wit--off">
@@ -38,6 +46,7 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
             </p>
           </div>
         </header>
+        <AlsoReviewed n={reviewCount} />
       </section>
     );
   }
@@ -58,6 +67,7 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
             </p>
           </div>
         </header>
+        <AlsoReviewed n={reviewCount} />
       </section>
     );
   }
@@ -75,6 +85,7 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
             </p>
           </div>
         </header>
+        <AlsoReviewed n={reviewCount} />
       </section>
     );
   }
@@ -142,6 +153,36 @@ export function WitnessPanel({ req }: { req: WitnessRequirement }) {
           less evidence behind it than the rule asks for.
         </p>
       )}
+
+      <AlsoReviewed n={reviewCount} />
     </section>
+  );
+}
+
+/**
+ * The other signature this product calls counter-signing, named on the panel
+ * where the confusion actually lands.
+ *
+ * Somebody who has just signed a confirmation of review arrives at the heading
+ * "Who counter-signed it when it was filed", finds their own name absent, and
+ * concludes their signature did not take. It did: this panel is about the
+ * witness the consortium assigned before the file was published, and a
+ * confirmation of review is signed afterwards by whoever read the document.
+ * Different party, different moment, different weight — so the count is set
+ * apart from the attestations rather than added to them. Merging the two would
+ * present an off-chain statement as an on-chain one, which is the one thing
+ * this panel exists to keep straight.
+ */
+function AlsoReviewed({ n }: { n: number }) {
+  if (n === 0) return null;
+  return (
+    <p className="small wit__also">
+      <ReviewedMark n={n} /> signed after this document was published, by
+      organisations that read it. That is a different signature from the one
+      above and is not counted towards it: it is held off the ledger, and it says
+      the document was read rather than that anybody witnessed it being made. The
+      confirmations themselves are at the foot of the document, further up this
+      page.
+    </p>
   );
 }

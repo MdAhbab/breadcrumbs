@@ -1,42 +1,44 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
-import { Check, Minus } from 'lucide-react';
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { GateSimulator } from '../components/GateSimulator';
 import { StartWalkthrough } from '../components/TourBar';
-import { Seal, Stamp } from '../components/ui';
-import { api } from '../lib/api';
-import { useApi } from '../lib/useApi';
 import { useBelow, useReducedMotion } from '../lib/useMotionPref';
 import './landing.css';
 
 const WeaveScene = lazy(() => import('../three/WeaveScene'));
-const ChainedStack = lazy(() => import('../three/ChainedStack'));
 
 gsap.registerPlugin(ScrollTrigger);
 
+/**
+ * The front door.
+ *
+ * This page had become a summary of the report rather than an introduction to
+ * the product. It carried a competitor matrix, a list of the system's own
+ * unsolved limitations, the corpus seed and manifest digest, a toggle
+ * demonstrating the Wüst–Gervais test for whether a blockchain is justified,
+ * and a simulator of the machine-learning gate. Every one of those is true and
+ * worth publishing, and none of them answers the question somebody arriving
+ * here actually has, which is: what is this, and what would I do with it?
+ *
+ * So the page is now an introduction. What the problem is, what Breadcrumbs
+ * does about it, the four steps of using it, and who each step belongs to. A
+ * reader who has never heard of a Merkle tree should be able to finish it and
+ * explain the product to somebody else. The engineering detail did not go
+ * anywhere — it is in the report, in the walkthrough, and on the screens
+ * themselves, where somebody who wants it will be looking for it.
+ */
 export default function Landing() {
   const reduced = useReducedMotion();
   // Phones only. A single-draw-call instanced mesh is comfortable on a tablet;
   // it is the small, thermally-limited devices that need the still instead.
   const isPhone = useBelow(640);
   const progress = useRef(0);
-  const unwind = useRef(0);
   const root = useRef<HTMLDivElement>(null);
   const [showCanvas, setShowCanvas] = useState(false);
   const [stuck, setStuck] = useState(false);
-
-  // The comparison table, the admissions and the corpus figures are served from
-  // `/api/about` rather than held here, so one edit changes them everywhere and
-  // the interface cannot keep a friendlier copy of the limitations than the
-  // report does. The endpoint needs no token: a claim about a system's honesty
-  // that you have to sign in to read is not much of a claim.
-  const about = useApi(() => api.about(), []);
-  const limitations = about.data?.limitations ?? [];
-  const matrix = about.data?.comparison ?? { columns: [], rows: [] };
 
   // The header is transparent over the hero and takes a ground once the reader
   // has left it, so it never competes with the opening statement.
@@ -58,17 +60,9 @@ export default function Landing() {
     return () => window.cancelAnimationFrame(id);
   }, [reduced, isPhone]);
 
-  // The sections above grow when the API answers, which moves every pinned
-  // trigger below them. ScrollTrigger caches those positions at creation, so
-  // without this the pinned store would let go several hundred pixels early.
-  useEffect(() => {
-    if (about.data) ScrollTrigger.refresh();
-  }, [about.data]);
-
   useEffect(() => {
     if (reduced) {
       progress.current = 0.75; // render the woven, traced state immediately
-      unwind.current = 1;      // and the chain already paid out to its limit
       return;
     }
 
@@ -93,20 +87,9 @@ export default function Landing() {
         },
       });
 
-      // The chained store unwinds across the length of the limitations list.
-      ScrollTrigger.create({
-        trigger: '#unwind-track',
-        start: 'top 78%',
-        end: 'bottom bottom',
-        scrub: true,
-        onUpdate: (self) => {
-          unwind.current = self.progress;
-        },
-      });
-
-      // Beat 2 and 3 pin their copy while the weave advances beneath. The block
-      // fades in, holds, and fades back out before the top edge can cut it in
-      // half — a paragraph sliced by the viewport reads as a rendering fault.
+      // The two copy beats hold while the weave advances beneath. Each fades
+      // in, holds, and fades out before the top edge can cut it in half — a
+      // paragraph sliced by the viewport reads as a rendering fault.
       gsap.utils.toArray<HTMLElement>('.beat-copy').forEach((el) => {
         gsap
           .timeline({
@@ -143,13 +126,13 @@ export default function Landing() {
         <div className="shell lhead__in">
           <Link to="/" className="lhead__mark">Breadcrumbs</Link>
           <nav className="lhead__nav" aria-label="Primary">
-            <Link to="/verify/vr-001" className="lhead__link">Verify a record</Link>
+            <Link to="/verify/vr-001" className="lhead__link">See a real check</Link>
             <Link to="/login" className="btn btn--onDark btn--sm">Sign in</Link>
           </nav>
         </div>
       </header>
 
-      {/* ---------------------------------------------- beats 1-3: the weave */}
+      {/* ------------------------------------------------- the opening beats */}
       <div id="weave-track" className="weave-track">
         <div className="weave-stage warp">
           {showCanvas ? (
@@ -162,7 +145,7 @@ export default function Landing() {
           <div className="weave-vignette" />
         </div>
 
-        {/* Beat 1 — loose threads */}
+        {/* The opening claim, in the words the product would use to a stranger */}
         <section className="beat beat--hero">
           <div className="shell">
             <div className="hero">
@@ -172,9 +155,10 @@ export default function Landing() {
                 Reveal nothing else.
               </h1>
               <p className="lead hero__lede">
-                A shared ledger that lets a factory prove its own records are real,
-                without publishing them, and without anyone having to trust whoever runs
-                the server.
+                Breadcrumbs lets a factory show that its own paperwork is genuine —
+                a wage sheet, a safety inspection, a chemical inventory — without
+                handing the file over, and without anyone having to take its word,
+                or ours, for any of it.
               </p>
               {/* The walkthrough is first, and it is the primary button. A
                   visitor who has not seen the product cannot pick one of five
@@ -188,12 +172,6 @@ export default function Landing() {
                   Sign in
                 </Link>
               </div>
-              <div className="hero__stamp">
-                <Stamp kind="specified" dark />
-                <span className="small">
-                  Prototype for the Blockchain Olympiad 2026 finals
-                </span>
-              </div>
             </div>
           </div>
           <div className="scroll-cue" aria-hidden="true">
@@ -201,169 +179,147 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* Beat 2 — the weave assembles */}
+        {/* The problem, before any of the machinery */}
         <section className="beat beat--copy">
           <div className="shell">
             <div className="beat-copy">
-              <p className="stamp-type beat__num">01 · Making the fingerprint</p>
-              <h2>A payroll register has 1,847 rows.</h2>
+              <p className="stamp-type beat__num">The problem</p>
+              <h2>Nobody believes the paperwork.</h2>
               <p className="lead">
-                Each row gets its own random number mixed in, then a fingerprint. Pairs
-                combine, and combine again, until the whole file is one number.
+                A clothing brand cannot tell whether a supplier&rsquo;s wage sheet is the
+                real one, so it sends auditors. The factory pays for audit after audit,
+                shows the same documents again, and the documents can still be edited
+                the day after anyone looks at them.
               </p>
               <p className="lead beat__muted">
-                Only that number goes on the ledger. The file never does.
+                And the fraud that actually happens is not a forged wage sheet. It is a
+                second one, and a decision about which to show.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Beat 3 — pull one thread */}
+        {/* The answer, in one plain paragraph */}
         <section className="beat beat--copy beat--right">
           <div className="shell">
             <div className="beat-copy">
-              <p className="stamp-type beat__num">02 · Proving one row</p>
-              <h2>One row. Eleven numbers.</h2>
+              <p className="stamp-type beat__num">The idea</p>
+              <h2>Publish a fingerprint. Keep the file.</h2>
               <p className="lead">
-                To prove one worker&rsquo;s pay, the factory sends that row and eleven
-                numbers from the tree above it. The buyer redoes the arithmetic and sees
-                whether it lands on the same result the factory published.
+                When a factory files a document here, the file stays in the factory. What
+                goes onto the shared record is a fingerprint of it — a short code that
+                could not be worked back into the document, and could not be produced
+                again by a different one.
               </p>
               <p className="lead beat__accent">
-                The buyer learned one number. The other 1,846 rows never left the building.
+                Later the factory can release a single figure out of that file and prove
+                it belongs to the original. One line goes across. Everything else stays
+                where it was.
               </p>
             </div>
           </div>
         </section>
       </div>
 
-      {/* ------------------------------------------------- beat 4: the loom */}
-      <DecisionLoom />
+      {/* ---------------------------------------------------- how it works */}
+      <section className="beat-block beat-block--cotton">
+        <div className="shell">
+          <div className="section-head" data-rise>
+            <div>
+              <p className="stamp-type section-head__eyebrow">How it works</p>
+              <h2>Four steps, and the whole product is in them.</h2>
+              <p className="lead section-head__lede">
+                Nothing is automatic and nothing is hidden. Each step is somebody
+                deciding something, and each one leaves a record the other side can
+                check for itself.
+              </p>
+            </div>
+          </div>
 
-      {/* -------------------------------------------------- beat 5: the gate */}
+          <ol className="steps" data-rise>
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="step">
+                <span className="step__n mono">{String(i + 1).padStart(2, '0')}</span>
+                <p className="stamp-type step__who">{s.who}</p>
+                <h3 className="step__h">{s.title}</h3>
+                <p className="step__p">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------- the part that is new */}
       <section className="beat-block beat-block--dark grain warp">
         <div className="shell">
           <div className="section-head" data-rise>
             <div>
-              <p className="stamp-type section-head__eyebrow">03 · Checking the shared model</p>
-              <h2 className="on-dark">A model that improves can still be getting worse.</h2>
+              <p className="stamp-type section-head__eyebrow">Why it is different</p>
+              <h2 className="on-dark">Being real is not the same as being all of it.</h2>
               <p className="lead on-dark-muted">
-                A new detector is better at this month&rsquo;s problem and quietly worse at
-                last year&rsquo;s. Forgetting does not make an update look bad. On the data a
-                review committee is looking at, it looks excellent. So the rule moves into
-                a contract that checks the older problems too.
+                Plenty of systems can tell you a document is genuine. Hand a brand four
+                wage sheets and every one of them checks out — and the fifth, the bad
+                week, was simply never mentioned. A check that only looks at what it is
+                given can never notice what it was not.
               </p>
             </div>
           </div>
-          <GateSimulator />
+
+          <div className="claims" data-rise>
+            <div className="claim">
+              <h3 className="claim__h">A month gets closed</h3>
+              <p className="claim__p">
+                When a factory finishes a month, it closes it: the shared record fixes
+                how many documents that month contained, before anybody asks to see any
+                of them.
+              </p>
+            </div>
+            <div className="claim">
+              <h3 className="claim__h">The arithmetic does the accusing</h3>
+              <p className="claim__p">
+                A buyer shown four documents for a month closed at five does not need to
+                suspect anything. The numbers do not add up, and that is a fact rather
+                than a complaint.
+              </p>
+            </div>
+            <div className="claim">
+              <h3 className="claim__h">Nobody owns the record</h3>
+              <p className="claim__p">
+                Factories, brands, auditors and the trade body all hold the same copy.
+                Adding to it takes agreement, and nothing already in it can be edited by
+                anybody — including us.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ------------------------------------------------ beat 6: the matrix */}
+      {/* -------------------------------------------------------- who it is for */}
       <section className="beat-block">
         <div className="shell">
           <div className="section-head" data-rise>
             <div>
-              <p className="stamp-type section-head__eyebrow">04 · Where we sit</p>
-              <h2>We lose most of these columns.</h2>
+              <p className="stamp-type section-head__eyebrow">Who uses it</p>
+              <h2>Five people, one record between them.</h2>
               <p className="lead section-head__lede">
-                Notarisation already makes documents tamper-evident. LiFeChain already puts
-                federated lifelong learning on a chain. We only claim the last column.
+                Signing in as any of them takes one press, and each sees only what that
+                job is allowed to see. The walkthrough visits all five in order.
               </p>
             </div>
           </div>
 
-          <div className="matrix-wrap scroll-x">
-            <table className="matrix">
-              <thead>
-                <tr>
-                  <th scope="col">System</th>
-                  {matrix.columns.map((c, i) => (
-                    <th key={c} scope="col" className={i === matrix.columns.length - 1 ? 'is-ours' : ''}>
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {matrix.rows.map((row) => {
-                  const ours = row.name === 'Breadcrumbs';
-                  return (
-                    <tr key={row.name} className={ours ? 'is-ours' : ''}>
-                      <th scope="row">{row.name}</th>
-                      {row.cells.map((on, i) => (
-                        <td key={i} className={i === row.cells.length - 1 && on ? 'is-key' : ''}>
-                          {on ? <Check size={15} /> : <Minus size={13} className="dash" />}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* -------------------------------------------- beat 7: the limitations */}
-      <section className="beat-block beat-block--vat grain" id="unwind-track">
-        <div className="unwind-stage">
-          {/* Pinned, so the store stays in view while the admissions scroll past
-              it — the wrap loosening as you read is the whole device. */}
-          <div className="unwind-pin">
-            {showCanvas ? (
-              <Suspense fallback={<ChainedStill />}>
-                <ChainedStack progress={unwind} />
-              </Suspense>
-            ) : (
-              <ChainedStill />
-            )}
-            <div className="unwind-veil" />
-          </div>
-        </div>
-
-        <div className="shell unwind-copy">
-          <div className="section-head" data-rise>
-            <div>
-              <p className="stamp-type section-head__eyebrow">05 · What we cannot do</p>
-              <h2 className="on-dark">What we cannot do yet.</h2>
-              <p className="lead on-dark-muted">
-                One tier for each thing still holding us back. The wrap loosens as you
-                read, and never comes off, because none of these are solved.
-              </p>
-            </div>
-          </div>
-
-          <ol className="limits" data-rise>
-            {limitations.map((l, i) => (
-              <li key={i} className="limit">
-                <span className="limit__n mono">{String(i + 1).padStart(2, '0')}</span>
-                <p>{l}</p>
+          <ul className="whouses" data-rise>
+            {ROLES.map((r) => (
+              <li key={r.who} className="whouses__row">
+                <p className="whouses__who">{r.who}</p>
+                <p className="whouses__what">{r.what}</p>
               </li>
             ))}
-          </ol>
-
-          {about.data?.provenance.corpus === 'present' && (
-            <p className="small unwind-note">
-              The demonstration behind this page runs on{' '}
-              {about.data.provenance.records_on_ledger?.toLocaleString('en-GB')} documents
-              from a synthetic corpus generated at seed {about.data.provenance.seed}, over
-              the period {about.data.provenance.periods}. Every factory, worker and
-              measurement in it is invented, and the manifest digest is{' '}
-              <span className="mono">
-                {about.data.provenance.manifest_sha256?.slice(0, 16)}…
-              </span>
-            </p>
-          )}
-          <p className="small unwind-note">
-            {limitations.length === 0
-              ? 'These are served by the API, which is not answering. They are in the report, in the same words.'
-              : 'Every one of these is in the report, in the same words.'}
-          </p>
+          </ul>
         </div>
       </section>
 
-      {/* ------------------------------------------------------ beat 8: close */}
+      {/* ------------------------------------------------------------- close */}
       <section className="beat-block beat-block--close grain warp">
         <div className="shell close">
           <h2 className="hero-type close__line">
@@ -379,84 +335,87 @@ export default function Landing() {
               Sign in
             </Link>
           </div>
-          <p className="small close__meta">
-            Team CookieMonsters · United International University · 2026
-          </p>
         </div>
       </section>
     </div>
   );
 }
 
-/* ------------------------------------------------------- the chained still --
- * The phone and reduced-motion rendering of the constrained store: the same
- * platters, the same wrap, drawn once and not moving. The links overlap along
- * their turn for the same reason they do in the scene — a row of separated
- * ovals reads as beads, and only an overlapping one reads as a chain.
+/**
+ * The workflow, as four sentences.
+ *
+ * Written for somebody who has never used the product and does not yet know
+ * that it has five roles: each step says whose step it is, in the words that
+ * job goes by, before it says what happens.
  */
-function ChainedStill() {
-  const platters = Array.from({ length: 9 }, (_, i) => ({ cy: 40 + i * 20, freed: i <= 4 }));
-  const turns = [148, 168, 188, 208];
-  const perTurn = 38;
+const STEPS: { who: string; title: string; body: string }[] = [
+  {
+    who: 'The factory',
+    title: 'Files a document',
+    body:
+      'A wage sheet or an inspection is uploaded. The file stays in the factory; only '
+      + 'its fingerprint goes onto the shared record, along with what kind of document '
+      + 'it is and which month it covers.',
+  },
+  {
+    who: 'A brand or buyer',
+    title: 'Asks for one figure',
+    body:
+      'Not the file, and not a copy of it. One column of one kind of document for one '
+      + 'month, with a reason attached. The request goes to the factory, which is free '
+      + 'to say no.',
+  },
+  {
+    who: 'The factory',
+    title: 'Decides, and can change its mind',
+    body:
+      'Saying yes releases that one column of one document, until a date it sets. It '
+      + 'can be withdrawn later, and withdrawing it is recorded with the reason, under '
+      + 'the name of whoever did it.',
+  },
+  {
+    who: 'The buyer, or an auditor',
+    title: 'Checks it, and checks nothing is missing',
+    body:
+      'The released figure is checked against the fingerprint the factory published '
+      + 'months earlier. Then the month itself is checked: closed at five documents, '
+      + 'shown four, and the shortfall is arithmetic rather than suspicion.',
+  },
+];
 
-  return (
-    <svg
-      className="chained-still"
-      viewBox="0 0 200 252"
-      aria-hidden="true"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      {platters.map(({ cy, freed }) => (
-        <g key={cy}>
-          <path className="cs-body" d={`M52 ${cy} v9 a48 12 0 0 0 96 0 v-9`} />
-          <ellipse className="cs-body" cx="100" cy={cy} rx="48" ry="12" />
-          <ellipse
-            className={`cs-rim ${freed ? 'is-freed' : ''}`}
-            cx="100"
-            cy={cy + 9}
-            rx="48"
-            ry="12"
-          />
-        </g>
-      ))}
-
-      {turns.map((cy) =>
-        Array.from({ length: perTurn }, (_, j) => {
-          const a = (j / perTurn) * Math.PI * 2;
-          const front = Math.sin(a) > 0;
-          return (
-            <ellipse
-              key={`${cy}-${j}`}
-              className="cs-link"
-              cx={100 + Math.cos(a) * 52}
-              cy={cy + Math.sin(a) * 13}
-              rx={j % 2 ? 2.9 : 4.5}
-              ry={j % 2 ? 4.5 : 2.9}
-              opacity={front ? 0.95 : 0.34}
-            />
-          );
-        }),
-      )}
-
-      {/* what has come off, heaped at the foot */}
-      {Array.from({ length: 30 }, (_, j) => {
-        const s = j / 29;
-        const a = s * 13.5;
-        const r = 5 + s * 21;
-        return (
-          <ellipse
-            key={`heap-${j}`}
-            className="cs-link is-slack"
-            cx={150 + Math.cos(a) * r}
-            cy={228 + Math.sin(a) * r * 0.3}
-            rx={j % 2 ? 2.6 : 4.1}
-            ry={j % 2 ? 4.1 : 2.6}
-          />
-        );
-      })}
-    </svg>
-  );
-}
+const ROLES: { who: string; what: string }[] = [
+  {
+    who: 'Factory',
+    what:
+      'Files documents, decides who may see which column of them, closes each month, '
+      + 'and can see every use anybody has made of what it released.',
+  },
+  {
+    who: 'Brand or buyer',
+    what:
+      'Asks for the figures it needs, reads what it was given, checks each one against '
+      + 'the record, and confirms a month is complete.',
+  },
+  {
+    who: 'Auditor',
+    what:
+      'Reads every document on the network without asking — an audit where the audited '
+      + 'party picks what may be looked at is not an audit — and signs off on what it '
+      + 'examined. Names of workers stay closed to it, as to everyone.',
+  },
+  {
+    who: 'Trade body',
+    what:
+      'Admits and suspends members by vote, and approves the shared fraud detector '
+      + 'before any new version of it can be used.',
+  },
+  {
+    who: 'Regulator',
+    what:
+      'Watches. Sees governance and totals, no factory document at all, and can still '
+      + 'check that nothing in the record has been altered.',
+  },
+];
 
 /* -------------------------------------------------------------- the still --
  * What a phone gets, and what anyone with reduced motion preferences gets: the
@@ -480,73 +439,5 @@ function WovenStill() {
         <circle key={x} cx={x} cy="96" r="1.6" className="ws-node" />
       ))}
     </svg>
-  );
-}
-
-/* ------------------------------------------------------ the Decision Loom --
- * Three shuttles in a track. All three conditions must hold for a blockchain to
- * be the right answer — the Wüst–Gervais test. The visitor proves it to
- * themselves, which is far more persuasive than being told.
- */
-function DecisionLoom() {
-  const [state, setState] = useState([true, true, true]);
-  const all = state.every(Boolean);
-
-  const CONDITIONS = [
-    'Multiple parties write to the same record',
-    'No single trusted custodian',
-    'The parties do not fully trust each other',
-  ];
-
-  const firstOff = state.findIndex((s) => !s);
-
-  return (
-    <section className="beat-block beat-block--cotton">
-      <div className="shell">
-        <div className="section-head" data-rise>
-          <div>
-            <p className="stamp-type section-head__eyebrow">02b · Why a blockchain</p>
-            <h2>Turn one off and the answer changes.</h2>
-            <p className="lead section-head__lede">
-              Three conditions decide whether a distributed ledger is justified at all.
-              All three are true in this industry, which is the only reason we claim it.
-            </p>
-          </div>
-        </div>
-
-        <div className="loom">
-          <div className="loom__shuttles">
-            {CONDITIONS.map((c, i) => (
-              <button
-                key={c}
-                type="button"
-                className={`shuttle ${state[i] ? 'is-on' : ''}`}
-                onClick={() => setState((s) => s.map((v, j) => (j === i ? !v : v)))}
-                aria-pressed={state[i]}
-              >
-                <span className="shuttle__track">
-                  <span className="shuttle__knob" />
-                </span>
-                <span className="shuttle__label">{c}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className={`verdict ${all ? 'is-yes' : 'is-no'}`}>
-            <Seal tone={all ? 'sealed' : 'inert'}>
-              {all ? 'Justified' : 'Not justified'}
-            </Seal>
-            <h3 className="verdict__line">
-              {all ? 'A blockchain is justified.' : 'Use a database.'}
-            </h3>
-            <p className="small verdict__why">
-              {all
-                ? 'Multiple writers, no candidate custodian, and mutual distrust. All three hold, so the ledger earns its place.'
-                : `Without “${CONDITIONS[firstOff].toLowerCase()}”, an ordinary database with good access logs does the same job more cheaply.`}
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }

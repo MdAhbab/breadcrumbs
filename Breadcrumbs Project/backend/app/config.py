@@ -133,6 +133,11 @@ CAPABILITIES: dict[str, set[str]] = {
     },
     "buyer": {
         "read_records", "read_grants", "write_requests", "verify_records",
+        # Counter-signing a document it was given. A buyer's signature is a
+        # commercial acknowledgement rather than an audit opinion, and the
+        # confirmation says which, but both are statements a named person makes
+        # about a named document and neither belongs only to the auditor.
+        "write_reviews",
         "read_model", "read_ledger", "read_directory", "read_activity", "read_queue",
         "read_requests",
         # The completeness check is the buyer's instrument, and read_seals is
@@ -142,6 +147,7 @@ CAPABILITIES: dict[str, set[str]] = {
     },
     "auditor": {
         "read_records", "read_grants", "verify_records", "write_attestations",
+        "write_reviews",
         "read_model", "read_ledger", "read_directory", "read_activity", "read_queue",
         "read_requests",
         "read_seals", "read_witness", "contribute_seed",

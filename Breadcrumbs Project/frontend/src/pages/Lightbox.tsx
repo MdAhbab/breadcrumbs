@@ -110,7 +110,8 @@ export default function Lightbox() {
               <p className="small lbx__side-note">
                 Each one covers a single column of a single record, until the date on
                 it. Anything wider is refused by the contract itself, not by this
-                screen.
+                screen. Opening a file you hold is a read: it writes nothing to the
+                ledger and leaves no trace on it. Only checking a figure does.
               </p>
             </aside>
           </>
@@ -265,13 +266,28 @@ function AskedRow({
         {item.reason && <span className="small reqrow__reason">{item.reason}</span>}
 
         <span className="reqrow__acts">
+          {/* Straight into the file this permission was written against.
+              The link carries the grant rather than the document, because a
+              buyer holds permissions and not documents — the verify screen
+              resolves one to the other. It used to carry the grant to a screen
+              that read only `?record=`, so every one of these opened whichever
+              document happened to sort first.
+
+              Opening it is a read. Nothing is proposed to the chain and no
+              receipt is written until a figure is actually checked, which is
+              why this says "open" and not "prove". */}
           {item.grantId && (
             <Link
               to={`/verify?grant=${encodeURIComponent(item.grantId)}`}
               className="reqrow__prove"
             >
-              See the number <ArrowRight size={12} />
+              Open the file <ArrowRight size={12} />
             </Link>
+          )}
+          {item.grantId && (
+            <span className="small reqrow__hint">
+              Read the figure released to you, and check it against the ledger.
+            </span>
           )}
           {/* Holding one column of a register is the moment you find out you
               need the next one, and until now that meant filling the form in

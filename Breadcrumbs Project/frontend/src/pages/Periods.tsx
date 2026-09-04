@@ -41,13 +41,18 @@ export default function Periods() {
 
   return (
     <div className="periods">
+      {/* "Check for gaps" named the fault rather than the job, and "Closed
+          months" named the state a period ends in rather than the work of
+          putting it there. Both now say what the person came to do: a buyer or
+          an auditor is confirming a month is complete, and a factory is closing
+          one, which is what every finance and compliance team already calls it. */}
       <PageHead
-        eyebrow={verifier ? 'Check for gaps' : `${role?.org} · closed months`}
-        title={verifier ? 'Was anything left out?' : 'Closed months'}
+        eyebrow={verifier ? 'Monthly completeness' : `${role?.org} · month-end closing`}
+        title={verifier ? 'Is this month complete?' : 'Month-end closing'}
         lede={
           verifier
             ? 'Proving one record is real is the easy half. This is the other one. A closed month has its list of records fixed before anybody asks about it, so if you are shown fewer than it says, that is arithmetic, not suspicion.'
-            : 'Closing a month fixes exactly which records it contains. After that nothing can be slipped in quietly. A late record has to be added as an open correction, with a reason attached.'
+            : 'Closing a month fixes exactly which records it contains. After that nothing can be slipped in quietly. A late record has to be added as an open correction, with a reason attached. Each of these opens its form in a panel at the right, with what it is about to do written out before you press.'
         }
       />
 
@@ -68,8 +73,16 @@ export default function Periods() {
         }}
       >
         {([seals, records, grants, orgs]) => {
+          // The whole record, not only its identifier. The completeness check
+          // needs the count and the identifiers; the person reading it needs to
+          // know what the documents *are*, and the page already had that in
+          // memory and was discarding it one line after fetching it.
+          const recordsIn = (bucket: string) =>
+            records
+              .filter((r) => r.bucket === bucket)
+              .sort((a, b) => a.record_id.localeCompare(b.record_id));
           const inBucket = (bucket: string) =>
-            records.filter((r) => r.bucket === bucket).map((r) => r.record_id).sort();
+            recordsIn(bucket).map((r) => r.record_id);
 
           const sealOf = new Map(seals.map((s) => [s.bucket, s]));
 
@@ -90,9 +103,14 @@ export default function Periods() {
             const seal = sealOf.get(bucket);
             const [, site, recordType, per] = bucket.split('|');
             const held = inBucket(bucket).length;
+            // A reopened period's count is one the contract refuses to answer
+            // with — its membership is mid-revision — so asserting a shortfall
+            // from it here would contradict the panel below, which correctly
+            // says the month is being corrected.
             const suffix = !seal
               ? ' · not closed yet'
-              : held < seal.record_count ? ` · ${seal.record_count - held} missing` : '';
+              : seal.status === 'reopened' ? ' · being corrected'
+                : held < seal.record_count ? ` · ${seal.record_count - held} missing` : '';
             return `${site} · ${recordLabel(recordType)} · ${periodName(per)}${suffix}`;
           };
 
@@ -129,7 +147,7 @@ export default function Periods() {
 
               <section className="periods__section">
                 <h2 className="periods__h2">
-                  {verifier ? 'Check a month for gaps' : 'Who holds a copy'}
+                  {verifier ? 'Check a month is complete' : 'Who holds a copy'}
                 </h2>
                 {!verifier && (
                   <p className="lead periods__lede">
@@ -178,8 +196,19 @@ export default function Periods() {
                   <CompletenessChecker
                     key={current.bucket}
                     seal={current}
-                    sealedIds={inBucket(current.bucket)}
-                    disclosedIds={inBucket(current.bucket)}
+                    given={recordsIn(current.bucket)}
+                    grants={grants.filter(
+                      (g) => g.status === 'active'
+                        && recordsIn(current.bucket).some((r) => r.record_id === g.record_id),
+                    )}
+                    /* An auditor reads every document on the channel, so its
+                       "what I was shown" is the whole sealed month by
+                       construction and the check could only ever print
+                       "nothing is missing" — including on the period this
+                       world seeds a withheld register into. Naming the
+                       difference is the fix; pretending its read access is a
+                       disclosure was the bug. */
+                    readsEverything={role?.id === 'auditor'}
                   />
                 ) : (
                   <WhoHolds
@@ -560,7 +589,7 @@ function WhoHolds({
             </div>
 
             {parties.length > 0 && fields.length > 0 && (
-              <p className="small whoholds__count">
+              <p className="small whoholds__tally">
                 {parties.length * fields.length} permission
                 {parties.length * fields.length === 1 ? '' : 's'}:{' '}
                 {fields.length} figure{fields.length === 1 ? '' : 's'} to{' '}
@@ -688,8 +717,8 @@ function WhoHolds({
         )}
 
         <p className="small whoholds__note">
-          A buyer checking this period recomputes the root over what it was given and
-          compares it to the count you fixed when you closed it.
+          A buyer checking this period has the ledger recompute the root over what it
+          was given, and compares it to the count you fixed when you closed it.
           Where it is short, the two roots differ and the shortfall is arithmetic rather
           than an accusation. That is the same fact as this screen, seen from the other
           end.

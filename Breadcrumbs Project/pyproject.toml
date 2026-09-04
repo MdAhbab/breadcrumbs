@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "breadcrumbs"
 version = "1.0.0"
 description = "A permissioned ledger for verifiable factory records, with a Continuity Gate governing a shared detector"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10"
 dependencies = [
     "cryptography>=42",
     "numpy>=2.0",

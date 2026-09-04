@@ -588,3 +588,79 @@ select.input {
 .swatch--auditor { background: var(--kind-auditor); }
 .swatch--regulator { background: var(--kind-regulator); }
 .swatch--consortium { background: var(--kind-consortium); }
+
+/* -- Drawer: a form that opens from the right ------------------------------
+ * The list it was opened from stays where it is. A form that unfolds inside a
+ * row pushes every row below it down the page, and on a list of thirty periods
+ * that is the whole screen moving each time somebody presses a button.
+ */
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(12, 20, 37, 0.5);
+  animation: modal-fade var(--m-fast);
+}
+
+.drawer__panel {
+  position: relative;
+  width: min(520px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s5);
+  background: var(--raw-cotton);
+  border-left: 1px solid var(--rule);
+  box-shadow: var(--e3);
+  animation: drawer-in var(--m-base);
+}
+
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer__panel { animation: none; }
+}
+
+.drawer__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s4);
+  margin-bottom: var(--s4);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.drawer__eyebrow { color: var(--brass-ink); margin: 0 0 5px; }
+
+.drawer__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.drawer__x {
+  flex: 0 0 auto;
+  background: none;
+  border: 0;
+  padding: 4px;
+  color: var(--ink-quiet);
+  cursor: pointer;
+  transition: color var(--m-instant);
+}
+
+.drawer__x:hover { color: var(--ink); }
+
+@media (max-width: 560px) {
+  .drawer__panel { width: 100%; border-left: 0; padding: var(--s5) var(--s4); }
+}

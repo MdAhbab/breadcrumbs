@@ -19,51 +19,63 @@ import './shell.css';
 // file — so the navigation broke the moment the world came from the ledger
 // instead. Index pages choose their own subject from what actually exists.
 //
-// The labels say what the screen is for, in words the reader already owns. The
-// previous set — Loom floor, Bolts, The bench, The chamber, Accumulator — was a
-// vocabulary the product invented and then required people to learn before they
-// could find anything.
+// The labels are the words the job is already done in, not the words this
+// product would like to teach. Two rounds of that were needed. The first set —
+// Loom floor, Bolts, The bench, The chamber, Accumulator — was a vocabulary the
+// product invented outright. The second was plainer and still asked the reader
+// to hold the product's own model of itself: "Check a value" is not a thing
+// anybody sets out to do, "Check for gaps" names a fault rather than the task,
+// and "Ledger" is the name of the machinery rather than of what is on it.
+//
+// So: a factory uploads documents and shares them. A buyer requests documents,
+// verifies them, and checks a month is complete. Everyone can open the
+// transaction history. Those are the sentences people already say.
 const NAV: Record<RoleId, { to: string; label: string; icon: typeof LayoutGrid }[]> = {
   factory: [
-    { to: '/factory/dashboard', label: 'Overview', icon: LayoutGrid },
-    { to: '/factory/upload', label: 'Publish a record', icon: UploadIcon },
-    { to: '/factory/records', label: 'Your records', icon: FileStack },
+    { to: '/factory/dashboard', label: 'Dashboard', icon: LayoutGrid },
+    { to: '/factory/upload', label: 'Upload a document', icon: UploadIcon },
+    { to: '/factory/records', label: 'My documents', icon: FileStack },
     // The factory is one half of every disclosure this product makes, and
     // until this existed its only control for that was a panel at the foot
     // of the activity column.
-    { to: '/factory/access', label: 'Who can see what', icon: KeyRound },
-    { to: '/periods', label: 'Closed months', icon: CalendarCheck },
-    { to: '/ledger', label: 'Ledger', icon: Boxes },
+    { to: '/factory/access', label: 'Sharing & permissions', icon: KeyRound },
+    // "Closed months" described the state a period ends in rather than the job
+    // of putting it there, which every finance and compliance team already
+    // calls closing the month.
+    { to: '/periods', label: 'Month-end closing', icon: CalendarCheck },
+    { to: '/ledger', label: 'Transaction history', icon: Boxes },
   ],
   buyer: [
-    { to: '/buyer/portal', label: 'Request data', icon: Search },
-    { to: '/periods', label: 'Check for gaps', icon: CalendarCheck },
-    { to: '/verify', label: 'Check a value', icon: ShieldCheck },
-    { to: '/ledger', label: 'Ledger', icon: Boxes },
+    { to: '/buyer/portal', label: 'Request documents', icon: Search },
+    // Was "Check for gaps", which names the fault rather than the check. What a
+    // buyer is doing here is confirming a month is complete.
+    { to: '/periods', label: 'Monthly completeness', icon: CalendarCheck },
+    { to: '/verify', label: 'Verify a document', icon: ShieldCheck },
+    { to: '/ledger', label: 'Transaction history', icon: Boxes },
   ],
   auditor: [
-    { to: '/auditor/workspace', label: 'Checks to run', icon: Gauge },
+    { to: '/auditor/workspace', label: 'My audit checks', icon: Gauge },
     // An auditor reads every document on the network without asking, so it
     // needs somewhere to read them from. Without this the access was real and
     // unreachable: there was no link to any document it did not hold a grant on.
     { to: '/factory/records', label: 'All documents', icon: FileStack },
-    { to: '/periods', label: 'Check for gaps', icon: CalendarCheck },
-    { to: '/verify', label: 'Check a value', icon: ShieldCheck },
-    { to: '/ledger', label: 'Ledger', icon: Boxes },
+    { to: '/periods', label: 'Monthly completeness', icon: CalendarCheck },
+    { to: '/verify', label: 'Verify a document', icon: ShieldCheck },
+    { to: '/ledger', label: 'Transaction history', icon: Boxes },
   ],
   consortium: [
-    { to: '/governance', label: 'Members & proposals', icon: ScrollText },
-    { to: '/model/gate', label: 'Model approvals', icon: KeyRound },
-    { to: '/model/registry', label: 'Model history', icon: GitBranch },
+    { to: '/governance', label: 'Members & voting', icon: ScrollText },
+    { to: '/model/gate', label: 'AI model approvals', icon: KeyRound },
+    { to: '/model/registry', label: 'AI model history', icon: GitBranch },
     { to: '/anchor', label: 'Tamper check', icon: Binary },
-    { to: '/ledger', label: 'Ledger', icon: Boxes },
+    { to: '/ledger', label: 'Transaction history', icon: Boxes },
   ],
   regulator: [
-    { to: '/regulator', label: 'Overview', icon: LayoutGrid },
+    { to: '/regulator', label: 'Dashboard', icon: LayoutGrid },
     // Consortium-wide facts about the ledger, naming no document. The observer
     // may read these; it may not read a commitment, a grant or a record.
     { to: '/anchor', label: 'Tamper check', icon: Binary },
-    { to: '/ledger', label: 'Ledger', icon: Boxes },
+    { to: '/ledger', label: 'Transaction history', icon: Boxes },
   ],
 };
 

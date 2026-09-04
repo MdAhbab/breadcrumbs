@@ -26,11 +26,19 @@ const PAGE = 30;
  * it was on. The dashboard counted "grants you have revoked" on a page that
  * could not revoke one.
  *
- * The three sections are the three questions the job actually has: what is
- * waiting for me, what did I decide, and what is live right now. They are not
- * three views of one list — a request is a question that was asked, and a grant
- * is a fact on the ledger, and the difference between them is the whole
- * consent model.
+ * The four sections are the four questions the job actually has: what needs
+ * answering, what did I decide, what can each of them see now, and what have
+ * they done with it. They are not four views of one list — a request is a
+ * question that was asked, a grant is a fact on the ledger, and a receipt is
+ * somebody using one, and the differences between them are the whole consent
+ * model.
+ *
+ * Every heading here used to name the product's own state machine — "Waiting on
+ * you", "Answered", "Grants you have issued", "Verifications against your
+ * records" — over three lines of explanation each, set in lead type. Four
+ * paragraphs of theory before the first control, on a page whose entire job is
+ * deciding things. The explanations have moved to where the decision is, or
+ * gone.
  *
  * Nothing here can undo anything. A revocation is permanent and stays on the
  * chain with its reason; the way back from one is to grant the access again,
@@ -56,23 +64,17 @@ export default function Access() {
           return (
             <>
               <PageHead
-                eyebrow={`${role?.org} · access`}
+                eyebrow={`${role?.org} · sharing & permissions`}
                 title="Who can see what"
                 lede={
-                  'Each permission covers one column of one record, until a date you set. '
-                  + 'The contract itself refuses anything wider. Withdrawing one is permanent, '
-                  + 'and the reason goes on the ledger under your name. You can give access '
-                  + 'again later, but only as a new permission, in the open.'
+                  'Everything you have shared, and everything anyone has asked you for. '
+                  + 'A permission covers one column of one document, until a date you set.'
                 }
                 aside={
                   <div className="acc__counts">
-                    <Tally n={pending.length} label="waiting on you" tone={pending.length ? 'warn' : 'calm'} />
+                    <Tally n={pending.length} label="to answer" tone={pending.length ? 'warn' : 'calm'} />
                     <Tally n={active.length} label="live now" tone="calm" />
-                    <Tally
-                      n={grants.length - active.length}
-                      label="expired or withdrawn"
-                      tone="calm"
-                    />
+                    <Tally n={grants.length - active.length} label="ended" tone="calm" />
                     <Tally n={verifications.length} label="checks run" tone="calm" />
                   </div>
                 }
@@ -151,23 +153,55 @@ function Awaiting({
   const { busy, failure, act } = useAction(onDone);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [declining, setDeclining] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
+  // Drafts are per row, keyed by the request they belong to.
+  //
+  // This section renders as many cards as there are open requests, and a single
+  // `reason` string behind all of them is a bug you only see with more than one
+  // on screen: start refusing Primark's overtime column, change your mind,
+  // open the refusal on a different buyer's request, and the half-written
+  // sentence about the first one is sitting in the box — attached now to a
+  // refusal that will be shown to somebody else and written down as final.
+  const [reasons, setReasons] = useState<Record<string, string>>({});
   const [partial, setPartial] = useState<Record<string, string>>({});
+
+  const draft = (id: string) => reasons[id] ?? '';
+  const setDraft = (id: string, value: string) =>
+    setReasons((current) => ({ ...current, [id]: value }));
+  const clearDraft = (id: string) =>
+    setReasons((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
 
   const groups = groupRequests(requests);
 
   return (
     <section className="acc__section">
-      <h2 className="acc__h2">Waiting on you</h2>
-      <p className="lead acc__lede">
-        A request names a month. What you release names one document, so choosing
-        which one is part of answering rather than a detail afterwards. Each column
-        is released on its own, even when several were asked for together.
+      <h2 className="acc__h2">Requests to answer</h2>
+      <p className="acc__lede">
+        A request names a month; what you release names one document. Pick which one,
+        then release or refuse — each column separately, even when several were asked
+        for at once.
       </p>
       {failure && <Failed error={failure} />}
 
       {groups.length === 0 ? (
-        <Empty title="Nothing waiting" detail="Every request you have been sent has an answer." />
+        /* An empty inbox is the normal state of this section, and it used to
+           be the end of the road: a grey box saying nothing is waiting, on the
+           one screen in the product where a factory can give access. You do not
+           have to be asked. */
+        <Empty
+          title="Nothing to answer"
+          detail={
+            <>
+              Every request you have been sent has an answer. You can also share a
+              document without being asked — from{' '}
+              <Link to="/periods">Month-end closing</Link>, where you can see who holds
+              what for each month.
+            </>
+          }
+        />
       ) : (
         <ul className="acc__list">
           {groups.map((group) => {
@@ -215,7 +249,7 @@ function Awaiting({
                           type="button"
                           className="areq__colrefuse"
                           disabled={busy !== null}
-                          onClick={() => { setDeclining(r.id); setReason(''); }}
+                          onClick={() => setDeclining(r.id)}
                         >
                           refuse this one
                         </button>
@@ -278,8 +312,8 @@ function Awaiting({
                     <input
                       className="input"
                       placeholder="Why are you refusing? The buyer is told."
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
+                      value={draft(refusing)}
+                      onChange={(e) => setDraft(refusing, e.target.value)}
                     />
                     <div className="areq__actions">
                       <button
@@ -287,11 +321,12 @@ function Awaiting({
                         className="btn btn--danger btn--sm"
                         disabled={busy === refusing}
                         onClick={() => {
-                          void act(refusing, () => api.declineRequest(refusing, reason.trim()))
+                          void act(refusing, () =>
+                            api.declineRequest(refusing, draft(refusing).trim()))
                             .then((ok) => {
                               if (!ok) return;
                               setDeclining(null);
-                              setReason('');
+                              clearDraft(refusing);
                             });
                         }}
                       >
@@ -300,7 +335,7 @@ function Awaiting({
                       <button
                         type="button"
                         className="btn btn--ghost btn--sm"
-                        onClick={() => { setDeclining(null); setReason(''); }}
+                        onClick={() => { setDeclining(null); clearDraft(refusing); }}
                       >
                         Cancel
                       </button>
@@ -346,7 +381,7 @@ function Awaiting({
                         type="button"
                         className="btn btn--ghost btn--sm"
                         disabled={busy !== null}
-                        onClick={() => { setDeclining(first.id); setReason(''); }}
+                        onClick={() => setDeclining(first.id)}
                       >
                         Refuse
                       </button>
@@ -375,20 +410,26 @@ function Answered({
   const [reissuing, setReissuing] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [revoking, setRevoking] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
+  // Per row, for the same reason as the section above: this list is long, every
+  // row can open its own form, and a shared draft belongs to whichever one was
+  // opened last.
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+
+  const draft = (id: string) => reasons[id] ?? '';
+  const setDraft = (id: string, value: string) =>
+    setReasons((current) => ({ ...current, [id]: value }));
 
   return (
     <section className="acc__section">
-      <h2 className="acc__h2">Answered</h2>
-      <p className="lead acc__lede">
-        What you decided, and what became of it. The state on the right is read off
-        the ledger rather than from the answer you gave. Access can be withdrawn
-        long after the request that produced it was closed.
+      <h2 className="acc__h2">What you decided</h2>
+      <p className="acc__lede">
+        The state on the right is read off the ledger, not from the answer you gave —
+        access can be withdrawn long after the request that produced it was closed.
       </p>
       {failure && <Failed error={failure} />}
 
       {requests.length === 0 ? (
-        <Empty title="Nothing answered yet" detail="Requests you grant or decline collect here." />
+        <Empty title="Nothing decided yet" detail="Requests you release or refuse collect here." />
       ) : (
         <ul className="acc__list">
           {requests.map((r) => {
@@ -397,7 +438,15 @@ function Answered({
             const candidates = records.filter(
               (x) => x.record_type === r.record_type && x.period === r.period,
             );
-            const pick = chosen[r.id] ?? r.grant_record_id ?? candidates[0]?.record_id ?? '';
+            // Only default to the record the withdrawn grant covered if it is
+            // still one of the options. It is not always: a superseded record
+            // drops out of the list, and a `<select>` whose value matches no
+            // option shows the first one while submitting a different one — so
+            // the factory read "grant against doc-A" and granted against doc-B.
+            const previous = candidates.some((x) => x.record_id === r.grant_record_id)
+              ? r.grant_record_id ?? ''
+              : '';
+            const pick = chosen[r.id] ?? previous ?? candidates[0]?.record_id ?? '';
 
             return (
               <li key={r.id} className="areq areq--answered">
@@ -446,20 +495,20 @@ function Answered({
                       <input
                         className="input"
                         placeholder="Why is this access being withdrawn?"
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
+                        value={draft(r.id)}
+                        onChange={(e) => setDraft(r.id, e.target.value)}
                       />
                       <div className="areq__actions">
                         <button
                           type="button"
                           className="btn btn--danger btn--sm"
-                          disabled={reason.trim().length < 4 || busy === r.id}
+                          disabled={draft(r.id).trim().length < 4 || busy === r.id}
                           onClick={() => {
-                            void act(r.id, () => api.revoke(r.grant_id!, reason.trim()))
+                            void act(r.id, () => api.revoke(r.grant_id!, draft(r.id).trim()))
                               .then((ok) => {
                                 if (!ok) return;
                                 setRevoking(null);
-                                setReason('');
+                                setDraft(r.id, '');
                               });
                           }}
                         >
@@ -468,7 +517,7 @@ function Answered({
                         <button
                           type="button"
                           className="btn btn--ghost btn--sm"
-                          onClick={() => { setRevoking(null); setReason(''); }}
+                          onClick={() => setRevoking(null)}
                         >
                           Cancel
                         </button>
@@ -483,7 +532,7 @@ function Answered({
                       <button
                         type="button"
                         className="btn btn--ghost btn--sm"
-                        onClick={() => { setRevoking(r.id); setReason(''); }}
+                        onClick={() => setRevoking(r.id)}
                       >
                         Revoke this access
                       </button>
@@ -590,7 +639,13 @@ function Issued({
   const labelOf = useFieldLabel();
   const [shown, setShown] = useState(PAGE);
   const [revoking, setRevoking] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
+  // Keyed by grant, so a reason typed into one row of a three-hundred row table
+  // stays in that row.
+  const [reasons, setReasons] = useState<Record<string, string>>({});
+
+  const draft = (id: string) => reasons[id] ?? '';
+  const setDraft = (id: string, value: string) =>
+    setReasons((current) => ({ ...current, [id]: value }));
 
   const byId = new Map(records.map((r) => [r.record_id, r]));
   const buyers = [...new Set(grants.map((g) => g.requester_msp))].sort();
@@ -612,18 +667,68 @@ function Issued({
 
   return (
     <section className="acc__section">
-      <h2 className="acc__h2">Grants you have issued</h2>
-      <p className="lead acc__lede">
-        Every one of them, live and ended. Each is one field of one document, and
-        revoking it takes effect at the contract: a verification against a revoked
-        grant is refused, not merely hidden.
+      <h2 className="acc__h2">Who can see what</h2>
+      <p className="acc__lede">
+        Press an organisation to see only theirs. Revoking takes effect at the
+        contract — a check against a revoked permission is refused, not merely hidden.
       </p>
       {failure && <Failed error={failure} />}
+
+      {/* Who can see what, per organisation, before the three hundred rows
+          that spell it out.
+          The table could answer "is this grant live" and could not answer the
+          question a factory actually arrives with — what can Primark see of
+          mine, in total. Reaching that meant setting a filter to a buyer, then
+          setting it again to count what had been withdrawn, and counting rows
+          by eye either way. Each tile is also the filter, so the summary and
+          the detail are the same control rather than two. */}
+      <ul className="acc__holders">
+        <li>
+          <button
+            type="button"
+            className={`aholder ${who === '' ? 'is-on' : ''}`}
+            aria-pressed={who === ''}
+            onClick={() => { setWho(''); setShown(PAGE); }}
+          >
+            <span className="aholder__who">Everyone</span>
+            <span className="aholder__n">{commas(grants.filter((g) => g.status === 'active').length)}</span>
+            <span className="small aholder__meta">live permissions in total</span>
+          </button>
+        </li>
+        {buyers.map((msp) => {
+          const theirs = grants.filter((g) => g.requester_msp === msp);
+          const liveOnes = theirs.filter((g) => g.status === 'active');
+          const docs = new Set(liveOnes.map((g) => g.record_id)).size;
+          const ended = theirs.length - liveOnes.length;
+          return (
+            <li key={msp}>
+              <button
+                type="button"
+                className={`aholder ${who === msp ? 'is-on' : ''}`}
+                aria-pressed={who === msp}
+                onClick={() => { setWho(who === msp ? '' : msp); setShown(PAGE); }}
+              >
+                <span className="aholder__who">{shortMsp(msp)}</span>
+                <span className="aholder__n">{commas(liveOnes.length)}</span>
+                <span className="small aholder__meta">
+                  live {liveOnes.length === 1 ? 'permission' : 'permissions'} across{' '}
+                  {commas(docs)} document{docs === 1 ? '' : 's'}
+                  {ended > 0 && ` · ${commas(ended)} ended`}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
 
       <div className="acc__filters">
         <label className="acc__pick">
           <span className="stamp-type">Status</span>
-          <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <select
+            className="input"
+            value={status}
+            onChange={(e) => { setStatus(e.target.value); setShown(PAGE); }}
+          >
             <option value="active">Live</option>
             <option value="revoked">Revoked</option>
             <option value="">All</option>
@@ -631,7 +736,11 @@ function Issued({
         </label>
         <label className="acc__pick">
           <span className="stamp-type">Holder</span>
-          <select className="input" value={who} onChange={(e) => setWho(e.target.value)}>
+          <select
+            className="input"
+            value={who}
+            onChange={(e) => { setWho(e.target.value); setShown(PAGE); }}
+          >
             <option value="">Everyone</option>
             {buyers.map((b) => (
               <option key={b} value={b}>{shortMsp(b)}</option>
@@ -645,17 +754,27 @@ function Issued({
             type="search"
             value={query}
             placeholder="doc-… · net_pay_bdt · g-…"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }}
           />
         </label>
       </div>
 
       <p className="small acc__count">
-        {commas(filtered.length)} of {commas(grants.length)} grants.
+        {commas(filtered.length)} of {commas(grants.length)} permissions
+        {who ? ` · ${shortMsp(who)}` : ''}.
       </p>
 
       {filtered.length === 0 ? (
-        <Empty title="Nothing matches" detail="No grant you have issued fits those filters." />
+        <Empty
+          title="Nothing matches"
+          detail={
+            who
+              ? `${shortMsp(who)} holds nothing that fits those filters. Try "All" under `
+                + 'Status — access that has been withdrawn is still a fact about what they '
+                + 'were once given.'
+              : 'No grant you have issued fits those filters.'
+          }
+        />
       ) : (
         <>
           <div className="scroll-x">
@@ -711,19 +830,22 @@ function Issued({
                             <input
                               className="input"
                               placeholder="Why? This goes on the ledger."
-                              value={reason}
-                              onChange={(e) => setReason(e.target.value)}
+                              value={draft(g.grant_id)}
+                              onChange={(e) => setDraft(g.grant_id, e.target.value)}
                             />
                             <button
                               type="button"
                               className="btn btn--danger btn--sm"
-                              disabled={reason.trim().length < 4 || busy === g.grant_id}
+                              disabled={
+                                draft(g.grant_id).trim().length < 4 || busy === g.grant_id
+                              }
                               onClick={() => {
-                                void act(g.grant_id, () => api.revoke(g.grant_id, reason.trim()))
+                                void act(g.grant_id, () =>
+                                  api.revoke(g.grant_id, draft(g.grant_id).trim()))
                                   .then((ok) => {
                                     if (!ok) return;
                                     setRevoking(null);
-                                    setReason('');
+                                    setDraft(g.grant_id, '');
                                   });
                               }}
                             >
@@ -732,7 +854,7 @@ function Issued({
                             <button
                               type="button"
                               className="btn btn--ghost btn--sm"
-                              onClick={() => { setRevoking(null); setReason(''); }}
+                              onClick={() => setRevoking(null)}
                             >
                               Cancel
                             </button>
@@ -741,7 +863,7 @@ function Issued({
                           <button
                             type="button"
                             className="btn btn--ghost btn--sm"
-                            onClick={() => { setRevoking(g.grant_id); setReason(''); }}
+                            onClick={() => setRevoking(g.grant_id)}
                           >
                             Revoke
                           </button>
@@ -796,17 +918,16 @@ function Verifications({ rows }: { rows: VerificationRow[] }) {
 
   return (
     <section className="acc__section">
-      <h2 className="acc__h2">Verifications against your records</h2>
-      <p className="lead acc__lede">
-        Permission is one thing, use is another. This is use: every check anyone ran against a
-        document of yours, with the field it covered and whether the root still
-        matches what the ledger holds.
+      <h2 className="acc__h2">What they have checked</h2>
+      <p className="acc__lede">
+        Permission is one thing, use is another. Every check anyone has run against a
+        document of yours, and whether it still matches what the ledger holds.
       </p>
 
       {rows.length === 0 ? (
         <Empty
-          title="Nothing verified yet"
-          detail="A receipt appears here the first time a counterparty proves a value against one of your records."
+          title="Nothing checked yet"
+          detail="A receipt appears here the first time somebody proves a figure against one of your documents."
         />
       ) : (
         <>

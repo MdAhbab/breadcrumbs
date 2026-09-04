@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { ApiError, api, recordLabel, type LedgerRecord, type PeriodSeal } from '../lib/api';
 import { commas, longDate, period as periodName } from '../lib/format';
 import { Failed } from './states';
+import { Drawer, DrawerHead } from './ui';
 import './mechanisms.css';
 
 /**
@@ -26,7 +27,19 @@ import './mechanisms.css';
  * rendered a banner saying N periods were reopened and not yet re-sealed while
  * offering no way to re-seal one. The chaincode's own docstring names that
  * failure: the error message described a door that was not there.
+ *
+ * Every form here now opens in a panel at the right rather than unfolding
+ * inside the row it belongs to. Three lists live on this screen and each row of
+ * each of them can open a form; inline, pressing one pushed everything below it
+ * down the page, and closing a month — which is irreversible in the only sense
+ * that matters, since undoing it is a permanent, counted reopening — happened
+ * on a single unguarded click with no statement of what was about to be fixed.
+ * The panel is where that statement goes.
  */
+type Panel =
+  | { kind: 'close' | 'reopen' | 'amend'; bucket: string }
+  | null;
+
 export function SealActions({
   records,
   seals,
@@ -38,10 +51,8 @@ export function SealActions({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<ApiError | null>(null);
+  const [panel, setPanel] = useState<Panel>(null);
   const [reason, setReason] = useState('');
-  const [reopening, setReopening] = useState<string | null>(null);
-  const [amending, setAmending] = useState<string | null>(null);
-  const [amendReason, setAmendReason] = useState('');
   const [picked, setPicked] = useState<Record<string, string[]>>({});
 
   // Buckets the ledger holds records for but has never closed. A reopened
@@ -61,16 +72,20 @@ export function SealActions({
     setFailure(null);
     try {
       await run();
-      setReopening(null);
-      setAmending(null);
+      setPanel(null);
       setReason('');
-      setAmendReason('');
       onChange();
     } catch (err) {
       setFailure(err instanceof ApiError ? err : new ApiError(0, 'that did not work'));
     } finally {
       setBusy(null);
     }
+  };
+
+  const openPanel = (kind: 'close' | 'reopen' | 'amend', bucket: string) => {
+    setFailure(null);
+    setReason('');
+    setPanel({ kind, bucket });
   };
 
   const seal = (bucket: string, held: LedgerRecord[]) => {
@@ -103,9 +118,16 @@ export function SealActions({
       .sort((a, b) => a.record_id.localeCompare(b.record_id));
   };
 
+  const inBucket = (bucket: string) => records.filter((r) => r.bucket === bucket);
+  const sealOf = (bucket: string) => seals.find((s) => s.bucket === bucket) ?? null;
+  const nameOf = (bucket: string) => {
+    const [, site, recordType, per] = bucket.split('|');
+    return `${recordLabel(recordType)} · ${site} · ${periodName(per)}`;
+  };
+
   return (
     <div className="sealact">
-      {failure && <Failed error={failure} />}
+      {failure && !panel && <Failed error={failure} />}
 
       {reopened.length > 0 && (
         <div className="sealact__warn">
@@ -125,7 +147,6 @@ export function SealActions({
           <ul className="sealact__list">
             {reopened.map((s) => {
               const late = lateIn(s);
-              const chosen = picked[s.bucket] ?? late.map((r) => r.record_id);
               const last = s.reopenings?.[s.reopenings.length - 1];
               const [, , , per] = s.bucket.split('|');
               return (
@@ -157,81 +178,15 @@ export function SealActions({
                           + '&site=' + encodeURIComponent(s.site)
                         }
                       >
-                        Seal a record
+                        Upload a document
                       </Link>
                       .
                     </p>
-                  ) : amending === s.bucket ? (
-                    <div className="sealact__reopen">
-                      <fieldset className="sealact__adds">
-                        <legend className="stamp-type">
-                          Records committed since the reopening
-                        </legend>
-                        {late.map((r) => (
-                          <label key={r.record_id} className="sealact__add">
-                            <input
-                              type="checkbox"
-                              checked={chosen.includes(r.record_id)}
-                              onChange={(e) =>
-                                setPicked({
-                                  ...picked,
-                                  [s.bucket]: e.target.checked
-                                    ? [...chosen, r.record_id]
-                                    : chosen.filter((id) => id !== r.record_id),
-                                })
-                              }
-                            />
-                            <span className="mono">{r.record_id}</span>
-                            <span className="small sealact__meta">
-                              {commas(r.row_count)} rows · committed {longDate(r.committed_at)}
-                            </span>
-                          </label>
-                        ))}
-                      </fieldset>
-                      <input
-                        className="input"
-                        placeholder="Why was this record late?"
-                        value={amendReason}
-                        onChange={(e) => setAmendReason(e.target.value)}
-                      />
-                      <div className="sealact__actions">
-                        <button
-                          type="button"
-                          className="btn btn--primary btn--sm"
-                          disabled={
-                            amendReason.trim().length < 8
-                            || chosen.length === 0
-                            || busy === s.bucket
-                          }
-                          onClick={() =>
-                            void act(s.bucket, () =>
-                              api.amendSeal(s.bucket, chosen, amendReason.trim()),
-                            )
-                          }
-                        >
-                          <Lock size={13} />
-                          {busy === s.bucket ? 'Amending…' : 'Amend and re-seal'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => { setAmending(null); setAmendReason(''); }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                      <p className="small sealact__meta">
-                        The seal it has now stays in its own history with its own count and
-                        root; this writes the next version over it. A period that has been
-                        amended four times says so to anyone who looks, and that visibility
-                        is the point rather than a side effect.
-                      </p>
-                    </div>
                   ) : (
                     <button
                       type="button"
                       className="btn btn--primary btn--sm"
-                      onClick={() => { setAmending(s.bucket); setAmendReason(''); }}
+                      onClick={() => openPanel('amend', s.bucket)}
                     >
                       <Lock size={13} /> Amend and re-seal
                     </button>
@@ -266,9 +221,9 @@ export function SealActions({
                   type="button"
                   className="btn btn--primary btn--sm"
                   disabled={busy === bucket}
-                  onClick={() => void seal(bucket, held)}
+                  onClick={() => openPanel('close', bucket)}
                 >
-                  <Lock size={13} /> {busy === bucket ? 'Sealing…' : 'Close this period'}
+                  <Lock size={13} /> Close this period
                 </button>
               </li>
             );
@@ -282,60 +237,279 @@ export function SealActions({
         counted on the seal, and the reason is recorded before anything changes.
       </p>
 
-      {reopening === null ? (
-        <select
-          className="input"
-          value=""
-          onChange={(e) => e.target.value && setReopening(e.target.value)}
-        >
-          <option value="">Choose a period…</option>
-          {seals
-            .filter((s) => s.status === 'sealed')
-            .map((s) => (
-              <option key={s.bucket} value={s.bucket}>
-                {s.site} · {recordLabel(s.record_type)} · {periodName(s.period)} ·{' '}
-                {s.record_count} records
-              </option>
-            ))}
-        </select>
-      ) : (
-        <div className="sealact__reopen">
-          <p className="mono small">{reopening}</p>
-          <input
-            className="input"
-            placeholder="Why is this period being reopened?"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
+      <select
+        className="input"
+        value=""
+        onChange={(e) => e.target.value && openPanel('reopen', e.target.value)}
+      >
+        <option value="">Choose a period…</option>
+        {seals
+          .filter((s) => s.status === 'sealed')
+          .map((s) => (
+            <option key={s.bucket} value={s.bucket}>
+              {s.site} · {recordLabel(s.record_type)} · {periodName(s.period)} ·{' '}
+              {s.record_count} records
+            </option>
+          ))}
+      </select>
+
+      {/* -- the form, at the right ---------------------------------------- */}
+      {panel && (
+        <Drawer label={`${panel.kind} ${nameOf(panel.bucket)}`} onClose={() => setPanel(null)}>
+          <DrawerHead
+            eyebrow={nameOf(panel.bucket)}
+            title={
+              panel.kind === 'close' ? 'Close this month'
+                : panel.kind === 'reopen' ? 'Reopen this month'
+                  : 'Amend and re-seal'
+            }
+            onClose={() => setPanel(null)}
           />
-          <div className="sealact__actions">
-            <button
-              type="button"
-              className="btn btn--danger btn--sm"
-              disabled={reason.trim().length < 8 || busy === reopening}
-              onClick={() => void act(reopening, () => api.reopenSeal(reopening, reason.trim()))}
-            >
-              <Unlock size={13} />
-              {busy === reopening ? 'Reopening…' : 'Reopen, permanently'}
-            </button>
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => { setReopening(null); setReason(''); }}
-            >
-              Cancel
-            </button>
-          </div>
-          {reason.trim().length < 8 && (
-            <p className="small sealact__meta">
-              Write a reason. The contract requires one and it stays on the seal.
-            </p>
+
+          {failure && <Failed error={failure} />}
+
+          {panel.kind === 'close' && (
+            <ClosePanel
+              bucket={panel.bucket}
+              held={inBucket(panel.bucket)}
+              busy={busy === panel.bucket}
+              onConfirm={() => void seal(panel.bucket, inBucket(panel.bucket))}
+              onCancel={() => setPanel(null)}
+            />
           )}
-          <p className="small sealact__meta">
-            Nothing else changes yet. Reopening records the intent; the period is closed
-            again by committing the late record and amending, both of which stay visible.
-          </p>
-        </div>
+
+          {panel.kind === 'reopen' && (
+            <ReopenPanel
+              seal={sealOf(panel.bucket)}
+              reason={reason}
+              onReason={setReason}
+              busy={busy === panel.bucket}
+              onConfirm={() =>
+                void act(panel.bucket, () => api.reopenSeal(panel.bucket, reason.trim()))}
+              onCancel={() => setPanel(null)}
+            />
+          )}
+
+          {panel.kind === 'amend' && (() => {
+            const s = sealOf(panel.bucket);
+            if (!s) return null;
+            const late = lateIn(s);
+            const chosen = picked[s.bucket] ?? late.map((r) => r.record_id);
+            return (
+              <AmendPanel
+                seal={s}
+                late={late}
+                chosen={chosen}
+                onPick={(ids) => setPicked({ ...picked, [s.bucket]: ids })}
+                reason={reason}
+                onReason={setReason}
+                busy={busy === panel.bucket}
+                onConfirm={() =>
+                  void act(panel.bucket, () =>
+                    api.amendSeal(panel.bucket, chosen, reason.trim()))}
+                onCancel={() => setPanel(null)}
+              />
+            );
+          })()}
+        </Drawer>
       )}
+    </div>
+  );
+}
+
+/**
+ * Closing a month, with the list it is about to fix in front of you.
+ *
+ * This was one unguarded press. What it does is fix the membership of a period
+ * permanently — the only way back is a reopening, which is itself permanent and
+ * counted on the seal — and the factory was not shown which records were about
+ * to be inside it.
+ */
+function ClosePanel({
+  bucket, held, busy, onConfirm, onCancel,
+}: {
+  bucket: string;
+  held: LedgerRecord[];
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [, , , per] = bucket.split('|');
+  return (
+    <div className="sealpanel">
+      <p className="sealpanel__lede">
+        Closing fixes exactly which records {periodName(per)} contains. After this,
+        nothing can be added to it quietly: a late record has to come in as an open
+        correction, with a reason, and the seal counts how many times that has happened.
+      </p>
+
+      <p className="stamp-type sealpanel__label">
+        {commas(held.length)} record{held.length === 1 ? '' : 's'} will be sealed in
+      </p>
+      <ul className="sealpanel__ids">
+        {held.map((r) => (
+          <li key={r.record_id}>
+            <span className="mono">{r.record_id}</span>
+            <span className="small sealact__meta">
+              {commas(r.row_count)} rows · committed {longDate(r.committed_at)}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="sealpanel__actions">
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={busy || held.length === 0}
+          onClick={onConfirm}
+        >
+          <Lock size={13} />
+          {busy ? 'Closing…' : `Close ${periodName(per)} at ${commas(held.length)}`}
+        </button>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+
+      <p className="small sealact__meta">
+        The count and a root over those identifiers go onto the ledger. That is what a
+        buyer later checks its disclosure against, which is why it has to be fixed before
+        anything is released rather than after.
+      </p>
+    </div>
+  );
+}
+
+function ReopenPanel({
+  seal, reason, onReason, busy, onConfirm, onCancel,
+}: {
+  seal: PeriodSeal | null;
+  reason: string;
+  onReason: (v: string) => void;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="sealpanel">
+      <p className="sealpanel__lede">
+        {seal
+          ? `Sealed at ${commas(seal.record_count)} record${seal.record_count === 1 ? '' : 's'}, `
+            + `version ${seal.version}, on ${longDate(seal.sealed_at)}.`
+          : 'This period is closed.'}{' '}
+        Reopening is permanent and is counted on the seal for anyone who looks at it
+        afterwards.
+      </p>
+
+      <label className="sealpanel__field">
+        <span className="stamp-type">Why is this period being reopened?</span>
+        <input
+          className="input"
+          placeholder="A late payroll register for the Ashulia line…"
+          value={reason}
+          onChange={(e) => onReason(e.target.value)}
+        />
+      </label>
+
+      <div className="sealpanel__actions">
+        <button
+          type="button"
+          className="btn btn--danger btn--sm"
+          disabled={reason.trim().length < 8 || busy}
+          onClick={onConfirm}
+        >
+          <Unlock size={13} /> {busy ? 'Reopening…' : 'Reopen, permanently'}
+        </button>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+
+      {reason.trim().length < 8 && (
+        <p className="small sealact__meta">
+          Write a reason. The contract requires one and it stays on the seal.
+        </p>
+      )}
+      <p className="small sealact__meta">
+        Nothing else changes yet. Reopening records the intent; the period is closed again
+        by committing the late record and amending, both of which stay visible.
+      </p>
+    </div>
+  );
+}
+
+function AmendPanel({
+  seal, late, chosen, onPick, reason, onReason, busy, onConfirm, onCancel,
+}: {
+  seal: PeriodSeal;
+  late: LedgerRecord[];
+  chosen: string[];
+  onPick: (ids: string[]) => void;
+  reason: string;
+  onReason: (v: string) => void;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="sealpanel">
+      <p className="sealpanel__lede">
+        Sealed at {commas(seal.record_count)} record{seal.record_count === 1 ? '' : 's'},
+        version {seal.version}. Tick what is being added and say why it was late.
+      </p>
+
+      <fieldset className="sealact__adds">
+        <legend className="stamp-type">Records committed since the reopening</legend>
+        {late.map((r) => (
+          <label key={r.record_id} className="sealact__add">
+            <input
+              type="checkbox"
+              checked={chosen.includes(r.record_id)}
+              onChange={(e) =>
+                onPick(
+                  e.target.checked
+                    ? [...chosen, r.record_id]
+                    : chosen.filter((id) => id !== r.record_id),
+                )}
+            />
+            <span className="mono">{r.record_id}</span>
+            <span className="small sealact__meta">
+              {commas(r.row_count)} rows · committed {longDate(r.committed_at)}
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      <label className="sealpanel__field">
+        <span className="stamp-type">Why was this record late?</span>
+        <input
+          className="input"
+          placeholder="Received from the Ashulia line after the month was closed…"
+          value={reason}
+          onChange={(e) => onReason(e.target.value)}
+        />
+      </label>
+
+      <div className="sealpanel__actions">
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={reason.trim().length < 8 || chosen.length === 0 || busy}
+          onClick={onConfirm}
+        >
+          <Lock size={13} /> {busy ? 'Amending…' : 'Amend and re-seal'}
+        </button>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+
+      <p className="small sealact__meta">
+        The seal it has now stays in its own history with its own count and root; this
+        writes the next version over it. A period that has been amended four times says so
+        to anyone who looks, and that visibility is the point rather than a side effect.
+      </p>
     </div>
   );
 }

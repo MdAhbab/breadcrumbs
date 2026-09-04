@@ -211,9 +211,14 @@ const FOCUSABLE = [
   'select:not([disabled])', 'textarea:not([disabled])', '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-export function Modal({
-  label, onClose, className = '', children,
-}: { label: string; onClose: () => void; className?: string; children: ReactNode }) {
+/**
+ * The four things a dialog must do, and that hand-rolled ones forget.
+ *
+ * Shared by the centred dialog and the side panel below, because they differ in
+ * where they sit on the screen and in nothing else. Two copies of a focus trap
+ * is two places for one of them to rot.
+ */
+function useDialogChrome(onClose: () => void) {
   const panel = useRef<HTMLDivElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
 
@@ -250,6 +255,14 @@ export function Modal({
     };
   }, [onClose]);
 
+  return panel;
+}
+
+export function Modal({
+  label, onClose, className = '', children,
+}: { label: string; onClose: () => void; className?: string; children: ReactNode }) {
+  const panel = useDialogChrome(onClose);
+
   return createPortal(
     <div className="modal">
       <div className="modal__scrim" onClick={onClose} />
@@ -265,6 +278,59 @@ export function Modal({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/* ---------------------------------------------------------------- Drawer ---
+ * A form that opens from the right, over the page it belongs to.
+ *
+ * Closing a period, reopening one and amending one are all decisions taken
+ * about a row in a list, and each was a form that unfolded *inside* its row —
+ * so opening one pushed every other period down the page, and a list of thirty
+ * reflowed under the reader's hands. A panel at the edge leaves the list where
+ * it is, which is the thing being decided about, and gives a form with four
+ * fields in it room to be four fields rather than a squeeze between two rows.
+ *
+ * Light rather than the dialog's indigo: these hold real forms, and every input
+ * in this product is drawn for paper.
+ */
+export function Drawer({
+  label, onClose, children,
+}: { label: string; onClose: () => void; children: ReactNode }) {
+  const panel = useDialogChrome(onClose);
+
+  return createPortal(
+    <div className="drawer">
+      <div className="drawer__scrim" onClick={onClose} />
+      <div
+        ref={panel}
+        className="drawer__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** The side panel's header: what this is about, and the way out. */
+export function DrawerHead({
+  eyebrow, title, onClose,
+}: { eyebrow?: string; title: string; onClose: () => void }) {
+  return (
+    <header className="drawer__head">
+      <div>
+        {eyebrow && <p className="stamp-type drawer__eyebrow">{eyebrow}</p>}
+        <h3 className="drawer__title">{title}</h3>
+      </div>
+      <button type="button" className="drawer__x" onClick={onClose} aria-label="Close">
+        <X size={16} />
+      </button>
+    </header>
   );
 }
 

@@ -51,6 +51,7 @@ from .db import (
     Incident,
     Notification,
     Proposal,
+    ReviewConfirmation,
     StoredDocument,
 )
 
@@ -101,7 +102,8 @@ ROLE_OF_MSP = {
 def _clear_off_chain(session: Session) -> None:
     """Empty the off-chain store so it cannot outlive the chain it describes."""
     for table in (
-        StoredDocument, Proposal, BuyerRequest, Attestation, Incident, Notification,
+        StoredDocument, Proposal, BuyerRequest, Attestation, ReviewConfirmation,
+        Incident, Notification,
     ):
         session.query(table).delete()
     session.commit()

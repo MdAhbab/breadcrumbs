@@ -156,3 +156,26 @@
 /* A one-line answer to "what am I looking at?", which the heading alone was
    never going to give. */
 .bench__lede { margin-top: 6px; max-width: 62ch; color: var(--ink-quiet); }
+
+/* -- the right-hand column ------------------------------------------------
+ * Two different signatures live here and they are not the same act. The
+ * attestation above covers a batch and names no document; the confirmations
+ * below name one document each. Keeping them in one column, in that order,
+ * is what stops either being mistaken for the other.
+ */
+.bench__aside { display: flex; flex-direction: column; gap: var(--s5); }
+
+.confirms {
+  padding: var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+}
+
+.confirms__head { color: var(--ink-quiet); margin: 0 0 var(--s3); }
+.confirms__none { color: var(--thread-type); margin: 0; }
+
+.confirms__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.confirms__row { display: flex; flex-direction: column; gap: 2px; }
+.confirms__doc { font-size: 12.5px; }
+.confirms__meta { color: var(--thread-type); }

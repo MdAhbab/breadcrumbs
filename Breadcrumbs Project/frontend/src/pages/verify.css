@@ -269,3 +269,196 @@
  */
 .lb__main--wide { max-width: 1240px; }
 .lb__main--wide .verdictbar { max-width: 780px; }
+
+/* -- the signed-in path, in order ------------------------------------------
+ * Which document, what you hold on it, the document itself, and what checking
+ * it leaves behind. The middle one is new: this screen used to describe a
+ * reader's permissions in prose and never name a column or a date.
+ */
+
+.lb__missed {
+  margin: 0 0 var(--s5);
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--ochre);
+  background: var(--ochre-wash);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 14px;
+  color: var(--ink-80);
+  max-width: 78ch;
+}
+
+
+/* -- the document card, and the picker behind it --------------------------
+ * A `<select>` is a fine control for five options and an unusable one for six
+ * hundred and eighty-eight. This is the current document, what you hold on it,
+ * and — only when asked for — a searchable list of the rest.
+ */
+
+.docbar {
+  margin: 0 0 var(--s5);
+  padding: var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--raw-cotton);
+}
+
+.docbar__now {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.docbar__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.docbar__meta { color: var(--thread-type); margin: 4px 0 0; }
+
+.docbar__held {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: var(--s3) 0 0;
+  border-top: 1px solid var(--rule-faint);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s4);
+}
+
+.docbar__grant { display: flex; align-items: center; gap: 7px; }
+.docbar__until { color: var(--thread-type); }
+.docbar__note { color: var(--thread-type); max-width: 72ch; flex-basis: 100%; margin: 0; }
+
+.docbar p.docbar__note { margin-top: var(--s3); }
+
+/* -- the picker ----------------------------------------------------------- */
+
+.docpick {
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+
+.docpick__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.docpick__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 240px;
+}
+
+.docpick__search svg {
+  position: absolute;
+  left: 12px;
+  color: var(--thread-type);
+  pointer-events: none;
+}
+
+.docpick__search .input { padding-left: 34px; }
+
+.docpick__scopes { display: flex; gap: 0; }
+
+.docpick__scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink-60);
+  cursor: pointer;
+  transition: background var(--m-fast), color var(--m-fast);
+}
+
+.docpick__scope:first-child { border-radius: var(--r-md) 0 0 var(--r-md); }
+.docpick__scope:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
+.docpick__scope + .docpick__scope { border-left: 0; }
+.docpick__scope:hover { color: var(--ink); }
+
+.docpick__scope.is-on {
+  background: var(--brass-wash);
+  border-color: var(--brass-30);
+  color: var(--brass-ink);
+}
+
+.docpick__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--thread-type);
+}
+
+.docpick__scope.is-on .docpick__count { color: var(--brass-ink); }
+
+.docpick__tally { color: var(--thread-type); margin: var(--s3) 0 6px; }
+.docpick__none { color: var(--thread-type); margin: var(--s3) 0 0; max-width: 70ch; }
+
+.docpick__list {
+  list-style: none;
+  margin: 0 0 var(--s3);
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+}
+
+.docpick__list > li + li { border-top: 1px solid var(--rule-faint); }
+
+.docpick__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--s4);
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  background: none;
+  border: 0;
+  font-family: var(--font-body);
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--m-instant);
+}
+
+.docpick__row:hover { background: var(--brass-wash); }
+.docpick__row.is-on { background: var(--brass-wash); box-shadow: inset 2px 0 0 var(--brass); }
+
+.docpick__rowname { font-size: 14px; }
+.docpick__rowmeta { grid-column: 1; color: var(--thread-type); }
+
+.docpick__tag {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--thread-type);
+  white-space: nowrap;
+}
+
+.docpick__tag.is-held {
+  border-color: var(--verdigris-30);
+  background: var(--verdigris-wash);
+  color: var(--verdigris);
+}
+
+/* The signed-in path opens on a control, not on a statement, so it does not
+   need the clearance the receipt view gives its one object. */
+.lb__main--wide .lb__detail { margin-top: var(--s5); }
