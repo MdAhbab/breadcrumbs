@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 
 import { AbsenceProof } from '../components/AbsenceProof';
@@ -5,7 +6,7 @@ import { CompletenessChecker } from '../components/CompletenessChecker';
 import { PeriodSealCard } from '../components/PeriodSealCard';
 import { SealActions } from '../components/SealActions';
 import { Empty, Failed, Result } from '../components/states';
-import { PageHead } from '../components/ui';
+import { Drawer, DrawerHead, PageHead } from '../components/ui';
 import {
   ApiError, PURPOSE_LABEL, api, recordLabel, shortMsp,
   type Grant, type LedgerRecord, type Org, type PeriodSeal,
@@ -220,7 +221,7 @@ export default function Periods() {
                     key={currentBucket}
                     bucket={currentBucket}
                     seal={current}
-                    held={inBucket(currentBucket)}
+                    held={recordsIn(currentBucket)}
                     records={records}
                     grants={grants}
                     orgs={orgs}
@@ -330,6 +331,20 @@ function ClosedList({ seals }: { seals: PeriodSeal[] }) {
 }
 
 /**
+ * The tail of an identifier, as a name.
+ *
+ * A record has no title in this corpus — nothing but `doc-ash-w2-008882` — and
+ * every document in one month shares its site, kind and period, so those cannot
+ * tell two of them apart either. What is left that a person can hold in their
+ * head is the last segment. The full identifier is always printed beside it,
+ * because that is what the grants, the receipts and every other screen name.
+ */
+function shortRef(recordId: string): string {
+  const tail = recordId.split('-').pop() ?? recordId;
+  return `#${tail}`;
+}
+
+/**
  * The owner's side of the completeness check.
  *
  * A buyer recomputes the root over what it was given and compares it to the
@@ -360,14 +375,16 @@ function WhoHolds({
   bucket: string;
   /** Null while the period is still open: it holds records and has no count. */
   seal: PeriodSeal | null;
-  held: string[];
+  /** Every record of this period, whole — not only its identifier. */
+  held: LedgerRecord[];
   records: LedgerRecord[];
   grants: Grant[];
   orgs: Org[];
   onChange: () => void;
 }) {
   const [, site, recordType, per] = bucket.split('|');
-  const inPeriod = new Set(held);
+  const heldIds = held.map((r) => r.record_id);
+  const inPeriod = new Set(heldIds);
   const typeOf = new Map(records.map((r) => [r.record_id, r.record_type]));
 
   // Who currently holds each record, and the same tallied by organisation.
@@ -384,7 +401,7 @@ function WhoHolds({
     }
   }
   const holders = [...new Set([...live.keys(), ...ended.keys()])].sort();
-  const undisclosed = held.filter((id) => !holdersOf.has(id));
+  const undisclosed = heldIds.filter((id) => !holdersOf.has(id));
   const shared = held.length - undisclosed.length;
 
   // Terms to open the form with. This period first; failing that, any grant
@@ -400,6 +417,13 @@ function WhoHolds({
     ?? sameType[0];
 
   const [opening, setOpening] = useState<string | null>(null);
+  // Twenty-eight rows of `doc-ash-w2-008882` with no way to narrow them is a
+  // filing cabinet with the labels facing the wall. The identifier stays — it
+  // is the handle everything else in the product refers to — but it stops
+  // being the only thing on the row, and it stops being the only way in.
+  const [query, setQuery] = useState('');
+  const [only, setOnly] = useState<'all' | 'shared' | 'unshared'>('all');
+  const [shownRecords, setShownRecords] = useState(12);
   const [parties, setParties] = useState<string[]>(
     () => (sibling?.requester_msp ? [sibling.requester_msp] : []),
   );
@@ -474,7 +498,7 @@ function WhoHolds({
     setFields((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
 
   return (
-    <div className={`whoholds ${opening ? 'is-sharing' : ''}`}>
+    <div className="whoholds">
       <div className="whoholds__records">
         <p className="stamp-type whoholds__label">What this month holds</p>
         {/* Red is for an asymmetry, not for a state.
@@ -488,162 +512,117 @@ function WhoHolds({
             ? `${commas(held.length)} record${held.length === 1 ? '' : 's'}, none shared with anyone yet.`
             : `${commas(held.length)} record${held.length === 1 ? '' : 's'}, ${commas(shared)} shared.`}
         </p>
-        <ul className="whoholds__ids">
-          {held.map((id) => {
-            const to = holdersOf.get(id) ?? [];
-            return (
-              <li key={id} className="whoholds__id">
-                <span className="mono">{id}</span>
-                {to.length > 0 ? (
-                  <span className="small whoholds__to">
-                    {to.length === 1 ? shortMsp(to[0]) : `${to.length} holders`}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="whoholds__disclose small"
-                    onClick={() => {
-                      setFailure(null);
-                      setOpening(opening === id ? null : id);
-                    }}
-                    aria-expanded={opening === id}
-                  >
-                    share this one
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
 
-        {failure && <Failed error={failure} />}
+        <div className="whoholds__tools">
+          <label className="whoholds__search">
+            <span className="visually-hidden">Find a document</span>
+            <Search size={13} aria-hidden="true" />
+            <input
+              className="input"
+              type="search"
+              value={query}
+              placeholder="Find by reference…"
+              onChange={(e) => { setQuery(e.target.value); setShownRecords(12); }}
+            />
+          </label>
+          {shared > 0 && shared < held.length && (
+            <select
+              className="input whoholds__filter"
+              value={only}
+              onChange={(e) => {
+                setOnly(e.target.value as 'all' | 'shared' | 'unshared');
+                setShownRecords(12);
+              }}
+              aria-label="Which of these to show"
+            >
+              <option value="all">All {commas(held.length)}</option>
+              <option value="shared">Shared ({commas(shared)})</option>
+              <option value="unshared">Not shared ({commas(held.length - shared)})</option>
+            </select>
+          )}
+        </div>
 
-        {opening && (
-          <div className="whoholds__form">
-            <p className="small">
-              Share part of this record. Tick everyone who should get it and every
-              figure they should see. Each figure goes to each organisation as its own
-              permission, which you can withdraw one at a time.
-            </p>
+        {(() => {
+          const needle = query.trim().toLowerCase();
+          const matching = held.filter((r) => {
+            if (needle && !r.record_id.toLowerCase().includes(needle)) return false;
+            const to = holdersOf.get(r.record_id) ?? [];
+            if (only === 'shared') return to.length > 0;
+            if (only === 'unshared') return to.length === 0;
+            return true;
+          });
 
-            <fieldset className="whoholds__set">
-              <legend className="stamp-type">Share with</legend>
-              <div className="whoholds__grid">
-                {counterparties.map((o) => (
-                  <label key={o.msp_id} className="whoholds__tick">
-                    <input
-                      type="checkbox"
-                      checked={parties.includes(o.msp_id)}
-                      onChange={() => toggleParty(o.msp_id)}
-                    />
-                    <span>{o.name}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+          if (matching.length === 0) {
+            return <p className="small whoholds__note">Nothing here matches that.</p>;
+          }
 
-            <fieldset className="whoholds__set">
-              <legend className="stamp-type">Which figures</legend>
-              <div className="whoholds__grid">
-                {shareable.map((f) => (
-                  <label key={f.name} className="whoholds__tick">
-                    <input
-                      type="checkbox"
-                      checked={fields.includes(f.name)}
-                      onChange={() => toggleField(f.name)}
-                    />
-                    <span>{f.label}</span>
-                  </label>
-                ))}
-              </div>
-              {blockedFields.length > 0 && (
-                <p className="small whoholds__blocked">
-                  {blockedFields.map((f) => f.label).join(', ')} cannot be shared with
-                  anyone. Those identify a person.
+          return (
+            <>
+              <ul className="whoholds__ids">
+                {matching.slice(0, shownRecords).map((r) => {
+                  const to = holdersOf.get(r.record_id) ?? [];
+                  return (
+                    <li key={r.record_id} className="whoholds__id">
+                      <span className="whoholds__doc">
+                        {/* A name, then the reference. There is no title on a
+                            record — the corpus has none — so the name is what
+                            genuinely distinguishes one from the next: what kind
+                            of document it is, its short reference, and how big
+                            it is. The full identifier stays underneath, because
+                            it is what every other screen and every grant names. */}
+                        <span className="whoholds__docname">
+                          {recordLabel(r.record_type)} {shortRef(r.record_id)}
+                        </span>
+                        <span className="small whoholds__docmeta">
+                          <span className="mono">{r.record_id}</span> ·{' '}
+                          {commas(r.row_count)} rows
+                          {r.witnesses.length > 0 && ' · counter-signed'}
+                          {r.status === 'superseded' && ' · corrected by a later version'}
+                        </span>
+                      </span>
+                      {to.length > 0 ? (
+                        <span className="small whoholds__to">
+                          {to.length === 1 ? shortMsp(to[0]) : `${to.length} holders`}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="whoholds__disclose small"
+                          onClick={() => {
+                            setFailure(null);
+                            setPartial(null);
+                            setOpening(r.record_id);
+                          }}
+                        >
+                          share this one
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {matching.length > shownRecords && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm whoholds__more"
+                  onClick={() => setShownRecords((n) => n + 20)}
+                >
+                  Show {Math.min(20, matching.length - shownRecords)} more
+                </button>
+              )}
+              {matching.length < held.length && (
+                <p className="small whoholds__note">
+                  {commas(matching.length)} of {commas(held.length)} shown. The month is
+                  still closed at {commas(seal ? seal.record_count : held.length)}
+                  {' '}whatever this list is filtered to.
                 </p>
               )}
-            </fieldset>
+            </>
+          );
+        })()}
 
-            <div className="whoholds__pair">
-              <label className="whoholds__field">
-                <span className="stamp-type">What for</span>
-                <select
-                  className="input"
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                >
-                  {Object.entries(PURPOSE_LABEL).map(([code, label]) => (
-                    <option key={code} value={code}>{label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="whoholds__field">
-                <span className="stamp-type">Until</span>
-                <input
-                  className="input"
-                  type="date"
-                  value={until}
-                  onChange={(e) => setUntil(e.target.value)}
-                />
-              </label>
-            </div>
-
-            {parties.length > 0 && fields.length > 0 && (
-              <p className="small whoholds__tally">
-                {parties.length * fields.length} permission
-                {parties.length * fields.length === 1 ? '' : 's'}:{' '}
-                {fields.length} figure{fields.length === 1 ? '' : 's'} to{' '}
-                {parties.length} organisation{parties.length === 1 ? '' : 's'}.
-              </p>
-            )}
-
-            {partial && <p className="small whoholds__partial">{partial}</p>}
-
-            <div className="whoholds__formrow">
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                disabled={busy || !ready}
-                onClick={() => void disclose(opening)}
-              >
-                {busy
-                  ? 'Writing to the ledger…'
-                  : ready
-                    ? `Share ${parties.length * fields.length} permission`
-                      + (parties.length * fields.length === 1 ? '' : 's')
-                    : 'Share'}
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => setOpening(null)}
-              >
-                Cancel
-              </button>
-            </div>
-
-            <p className="small whoholds__note">
-              {sibling
-                ? 'Prefilled from the terms this kind of record was released on before. '
-                : ''}
-              Sharing writes a permission onto the ledger, which is the only thing
-              sharing ever is here.
-              {seal ? (
-                <>
-                  {' '}Closing does not move. It fixed this month at{' '}
-                  {commas(seal.record_count)} before any of it was released, and that is
-                  what makes the buyer's check mean anything.
-                </>
-              ) : (
-                <>
-                  {' '}This period is not closed, so a buyer receiving it has no fixed
-                  count to check the disclosure against. Close it first if that check is
-                  the point.
-                </>
-              )}
-            </p>
-          </div>
-        )}
+        {failure && <Failed error={failure} />}
 
         <p className="small whoholds__note">
           Every record the ledger holds for this period, and who you released each one
@@ -730,6 +709,147 @@ function WhoHolds({
           )}
         </p>
       </div>
+
+      {opening && (
+        <Drawer
+          label={`Share ${opening}`}
+          onClose={() => { setOpening(null); setPartial(null); }}
+        >
+          <DrawerHead
+            eyebrow={`${recordLabel(recordType)} · ${periodName(per)} · ${site}`}
+            title={`Share ${shortRef(opening)}`}
+            onClose={() => { setOpening(null); setPartial(null); }}
+          />
+
+          <div className="whoholds__form">
+            <p className="small">
+              <span className="mono">{opening}</span> · {commas(
+                held.find((r) => r.record_id === opening)?.row_count ?? 0,
+              )} rows. Tick everyone who should get it and every figure they should see.
+              Each figure goes to each organisation as its own permission, which you can
+              withdraw one at a time.
+            </p>
+
+            <fieldset className="whoholds__set">
+              <legend className="stamp-type">Share with</legend>
+              <div className="whoholds__grid">
+                {counterparties.map((o) => (
+                  <label key={o.msp_id} className="whoholds__tick">
+                    <input
+                      type="checkbox"
+                      checked={parties.includes(o.msp_id)}
+                      onChange={() => toggleParty(o.msp_id)}
+                    />
+                    <span>{o.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="whoholds__set">
+              <legend className="stamp-type">Which figures</legend>
+              <div className="whoholds__grid">
+                {shareable.map((f) => (
+                  <label key={f.name} className="whoholds__tick">
+                    <input
+                      type="checkbox"
+                      checked={fields.includes(f.name)}
+                      onChange={() => toggleField(f.name)}
+                    />
+                    <span>{f.label}</span>
+                  </label>
+                ))}
+              </div>
+              {blockedFields.length > 0 && (
+                <p className="small whoholds__blocked">
+                  {blockedFields.map((f) => f.label).join(', ')} cannot be shared with
+                  anyone. Those identify a person.
+                </p>
+              )}
+            </fieldset>
+
+            <div className="whoholds__pair">
+              <label className="whoholds__field">
+                <span className="stamp-type">What for</span>
+                <select
+                  className="input"
+                  value={purpose}
+                  onChange={(e) => setPurpose(e.target.value)}
+                >
+                  {Object.entries(PURPOSE_LABEL).map(([code, label]) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="whoholds__field">
+                <span className="stamp-type">Until</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={until}
+                  onChange={(e) => setUntil(e.target.value)}
+                />
+              </label>
+            </div>
+
+            {parties.length > 0 && fields.length > 0 && (
+              <p className="small whoholds__tally">
+                {parties.length * fields.length} permission
+                {parties.length * fields.length === 1 ? '' : 's'}:{' '}
+                {fields.length} figure{fields.length === 1 ? '' : 's'} to{' '}
+                {parties.length} organisation{parties.length === 1 ? '' : 's'}.
+              </p>
+            )}
+
+            {partial && <p className="small whoholds__partial">{partial}</p>}
+            {failure && <Failed error={failure} />}
+
+            <div className="whoholds__formrow">
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                disabled={busy || !ready}
+                onClick={() => void disclose(opening)}
+              >
+                {busy
+                  ? 'Writing to the ledger…'
+                  : ready
+                    ? `Share ${parties.length * fields.length} permission`
+                      + (parties.length * fields.length === 1 ? '' : 's')
+                    : 'Share'}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => { setOpening(null); setPartial(null); }}
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="small whoholds__note">
+              {sibling
+                ? 'Prefilled from the terms this kind of record was released on before. '
+                : ''}
+              Sharing writes a permission onto the ledger, which is the only thing
+              sharing ever is here.
+              {seal ? (
+                <>
+                  {' '}Closing does not move. It fixed this month at{' '}
+                  {commas(seal.record_count)} before any of it was released, and that is
+                  what makes the buyer&rsquo;s check mean anything.
+                </>
+              ) : (
+                <>
+                  {' '}This period is not closed, so a buyer receiving it has no fixed
+                  count to check the disclosure against. Close it first if that check is
+                  the point.
+                </>
+              )}
+            </p>
+          </div>
+        </Drawer>
+      )}
     </div>
   );
 }

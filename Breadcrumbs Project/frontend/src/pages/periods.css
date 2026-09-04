@@ -275,3 +275,57 @@
   background: var(--ochre-wash);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
+
+/* -- finding one document in a month --------------------------------------
+ * Twenty-eight rows of `doc-ash-w2-008882` with no search is a filing cabinet
+ * with the labels facing the wall. The identifier stays on every row — it is
+ * what the grants and receipts name — but it is now the second line, under
+ * something a person can actually read.
+ */
+
+.whoholds__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.whoholds__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 160px;
+}
+
+.whoholds__search svg {
+  position: absolute;
+  left: 11px;
+  color: var(--thread-type);
+  pointer-events: none;
+}
+
+.whoholds__search .input { height: 36px; padding-left: 31px; font-size: 13px; }
+.whoholds__filter { height: 36px; font-size: 13px; width: auto; min-width: 140px; flex: 0 1 auto; }
+
+.whoholds__doc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.whoholds__docname { font-size: 14px; }
+.whoholds__docmeta { color: var(--thread-type); }
+.whoholds__more { margin-top: var(--s3); }
+
+/* The share form lives in the panel at the right now, so it loses the tint and
+   the border it needed when it was a block inside the list, and lays itself out
+   down a 520px column instead of across the page. */
+.drawer__panel .whoholds__form {
+  display: grid;
+  gap: var(--s4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.drawer__panel .whoholds__set,
+.drawer__panel .whoholds__field,
+.drawer__panel .whoholds__formrow { margin: 0; }
+
+.drawer__panel .whoholds__grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
