@@ -1,4 +1,4 @@
-/* The Bench: a specimen rail, a working surface, and a signing block. */
+/* The Bench: a working surface and a signing block. */
 
 .bench__head {
   display: flex;
@@ -24,51 +24,11 @@
 .tally--wait .tally__n { color: var(--ochre); }
 .tally__l { color: var(--ink-quiet); font-size: 10px; }
 
-/* -- the specimen rail ---------------------------------------------------- */
-.rail-strip { margin-bottom: var(--s6); }
-
-.rail-strip__head {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4);
+/* -- the buttons over the table ----------------------------------------- */
+.bench__bar {
+  display: flex; justify-content: flex-end; gap: var(--s2); flex-wrap: wrap;
+  margin-bottom: var(--s4);
 }
-.rail-strip__head .stamp-type { color: var(--ink-quiet); }
-.rail-strip__actions { display: flex; gap: var(--s2); }
-
-.specimens {
-  list-style: none; margin: 0; padding: var(--s4) 0;
-  display: flex; gap: var(--s2);
-  border-top: 1px solid var(--thread-35);
-  border-bottom: 1px solid var(--thread-35);
-}
-
-.spec {
-  flex: 0 0 178px;
-  display: flex; flex-direction: column; justify-content: space-between; gap: var(--s3);
-  padding: var(--s4);
-  border: 1px solid var(--thread-35);
-  border-radius: var(--r-md);
-  background: var(--calico);
-  /* Work moves left to right along the rail. */
-  transition: transform var(--m-base), border-color var(--m-base), background var(--m-base);
-}
-
-.spec__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.spec__factory { font-size: 13px; font-weight: 500; }
-.spec__type { color: var(--ink-quiet); }
-.spec__id { color: var(--ink-quiet); font-size: 10px; }
-.spec__state { font-size: 9px; color: var(--ink-quiet); }
-
-.spec.is-checking {
-  border-color: var(--ochre); background: var(--ochre-wash);
-  transform: translateY(-4px);
-}
-.spec.is-checking .spec__state { color: var(--ochre); }
-
-.spec.is-passed { border-color: var(--verdigris-30); background: var(--verdigris-wash); }
-.spec.is-passed .spec__state { color: var(--verdigris); }
-
-.spec.is-failed { border-color: var(--madder-30); background: var(--madder-wash); }
-.spec.is-failed .spec__state { color: var(--madder); }
 
 /* -- the working surface -------------------------------------------------- */
 .bench__body {
@@ -77,7 +37,7 @@
   gap: var(--s6);
   align-items: start;
 }
-@media (max-width: 1100px) { .bench__body { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .bench__body { grid-template-columns: minmax(0, 1fr); } }
 
 .benchtable { width: 100%; border-collapse: collapse; font-size: 13px; }
 .benchtable th, .benchtable td {
@@ -92,6 +52,11 @@
 .benchtable tbody th { font-weight: 400; }
 .benchtable td.dim { color: var(--ink-quiet); }
 .benchtable tr.is-fail { background: var(--madder-wash); }
+@media (max-width: 640px) {
+  .benchtable { font-size: 12px; }
+  .benchtable th, .benchtable td { padding-right: 6px; }
+  .benchtable thead th { letter-spacing: 0.04em; }
+}
 
 /* -- the signing block: heavier material than the page -------------------- */
 .signing {

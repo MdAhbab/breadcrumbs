@@ -24,14 +24,8 @@ import './documentcheck.css';
  * proof and writes a real receipt. Nothing here is a summary of the proof
  * screen; it *is* the proof screen.
  *
- * Two things happen on it and they are not the same thing, so the screen says
- * which is which rather than leaving somebody to find out by pressing:
- *
- *   * opening the file is a read. Nothing is proposed to the chain, no receipt
- *     is written, and the ledger cannot tell it happened;
- *   * checking a row is a transaction. It re-derives the fingerprint from what
- *     was released and writes a receipt under your name that the factory, and
- *     anyone you send it to, can see for good.
+ * Opening the file is a read and writes nothing. Checking a row writes a
+ * receipt under your name, so the line over the table says so in one sentence.
  */
 type RowState = 'checking' | 'passed' | 'failed' | undefined;
 
@@ -112,9 +106,8 @@ export function DocumentCheck({
                   <div>
                     <h2 className="doc__title">What you can see, and whether it is real</h2>
                     <p className="small doc__sub">
-                      {commas(p.shown_rows)} row{p.shown_rows === 1 ? '' : 's'} ·{' '}
-                      {p.readable_columns} of {p.total_columns} columns readable by you ·
-                      reading writes nothing to the ledger.
+                      {commas(p.shown_rows)} row{p.shown_rows === 1 ? '' : 's'} · you can
+                      read {p.readable_columns} of {p.total_columns} columns
                     </p>
                   </div>
                   {provable.length > 0 && (
@@ -123,11 +116,7 @@ export function DocumentCheck({
                       className="btn btn--primary btn--sm"
                       onClick={() => void checkAll(p.shown_rows)}
                       disabled={running}
-                      title={
-                        `Re-derives the fingerprint of every one of the ${commas(p.shown_rows)} `
-                        + 'rows from the figures released to you and compares each with what '
-                        + 'the factory published.'
-                      }
+                      title={`Writes ${commas(receipts)} receipt${receipts === 1 ? '' : 's'} to the ledger`}
                     >
                       <Play size={13} />
                       {running
@@ -137,33 +126,19 @@ export function DocumentCheck({
                   )}
                 </header>
 
-                {/* What the two controls on this table actually do. It used to
-                    say "Check all 1,847 rows" and nothing else, so the one
-                    button here that writes to a permanent, shared record looked
-                    exactly like a filter. */}
-                <div className="doc__explain">
-                  {provable.length > 0 ? (
-                    <>
-                      <p className="doc__explainline">
-                        <strong>Checking a row</strong> re-derives the file&rsquo;s fingerprint
-                        from the {provable.length === 1 ? 'figure' : `${provable.length} figures`}
-                        {' '}released to you and compares it with the one the factory published.
-                        A match means nothing has been altered since.
-                      </p>
-                      <p className="small doc__explainnote">
-                        <strong>Check every row</strong> repeats that {commas(p.shown_rows)} times
-                        and writes {commas(receipts)} receipt{receipts === 1 ? '' : 's'} onto the
-                        ledger under your name — permanent, and visible to the factory.
-                      </p>
-                    </>
-                  ) : (
+                {/* What the check button does, before it is pressed: it writes to
+                    the ledger, which a filter would not. The owner has nothing to
+                    check here, and is not told so. */}
+                {p.access !== 'owner' && (
+                  <div className="doc__explain">
                     <p className="doc__explainline">
-                      Nothing here has been released to you to prove, so there is no check on
-                      this document. Reading is not proving: a figure you have only read
-                      carries no receipt with it.
+                      {provable.length > 0
+                        ? 'Each check compares a row with the fingerprint the factory '
+                          + 'published. It leaves a receipt in your name that the factory can see.'
+                        : 'Nothing here was released to you, so there is no check to run.'}
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {(checked > 0 || failed > 0) && (
                   <p className={`doc__tally ${failed ? 'is-bad' : 'is-ok'}`}>
@@ -171,8 +146,7 @@ export function DocumentCheck({
                       ? `${commas(checked)} row${checked === 1 ? '' : 's'} checked against `
                         + 'the ledger. Every one matched.'
                       : `${commas(checked)} matched, ${commas(failed)} did not. `
-                        + 'A row that does not match means the file was altered after it '
-                        + 'was published.'}
+                        + 'A row that does not match was changed after it was published.'}
                   </p>
                 )}
 
@@ -246,10 +220,12 @@ export function DocumentCheck({
                     Showing {commas(p.shown_rows)} of {commas(p.total_rows)} rows.
                   </p>
                 )}
-                <p className="small doc__note">
-                  The columns behind a padlock were never sent to your browser. Anything
-                  naming a person stays closed to everyone but the factory.
-                </p>
+                {p.readable_columns < p.total_columns && (
+                  <p className="small doc__note">
+                    Columns with a padlock are closed to you. Only the factory sees
+                    people&rsquo;s names.
+                  </p>
+                )}
               </>
             );
           }}

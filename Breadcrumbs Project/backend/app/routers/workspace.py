@@ -132,15 +132,15 @@ def require_document_member(msp_id: str, what: str) -> None:
 # this system would use. The feed is the first thing a factory manager reads
 # every morning, and it used to report that they had "folded an epoch".
 FUNCTION_KIND: dict[str, tuple[str, str]] = {
-    "commit_record": ("seal", "published a record"),
-    "supersede_record": ("seal", "corrected a record"),
+    "commit_record": ("seal", "published a document"),
+    "supersede_record": ("seal", "corrected a document"),
     "seal_period": ("seal", "closed a month"),
     "reopen_seal": ("revoke", "reopened a closed month"),
     "amend_seal": ("seal", "corrected a closed month"),
-    "grant_access": ("grant", "gave access to something"),
-    "revoke_access": ("revoke", "took access back"),
-    "record_verification": ("verify", "checked a value"),
-    "open_seed_round": ("request", "started picking who checks records"),
+    "grant_access": ("grant", "gave a permission"),
+    "revoke_access": ("revoke", "withdrew a permission"),
+    "record_verification": ("verify", "checked a figure"),
+    "open_seed_round": ("request", "started picking who counter-signs documents"),
     "commit_seed_share": ("request", "put in its share of the random draw"),
     "reveal_seed_share": ("request", "revealed its share of the random draw"),
     "install_group": ("seal", "set up the tamper check"),

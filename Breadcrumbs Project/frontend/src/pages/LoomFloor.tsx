@@ -7,7 +7,7 @@ import { Tech } from '../components/Tech';
 import { HashChip, Seal } from '../components/ui';
 import {
   ApiError, api, recordLabel, shortMsp,
-  type AccessRequest, type ActivityEvent, type Grant, type LedgerRecord,
+  type AccessRequest, type ActivityEvent, type Grant, type LedgerRecord, type PeriodSeal,
 } from '../lib/api';
 import { commas, dateTime, longDate, period } from '../lib/format';
 import { useSession } from '../lib/session';
@@ -15,7 +15,8 @@ import { useApi } from '../lib/useApi';
 import { useFieldLabel } from '../lib/useFieldLabel';
 import './loom.css';
 
-const STRIP = 12;
+const STRIP = 5;
+const LOG = 6;
 
 /**
  * The factory's overview.
@@ -34,19 +35,29 @@ const STRIP = 12;
 export default function LoomFloor() {
   const { role } = useSession();
   const world = useApi(
-    () => Promise.all([api.records(), api.grants(), api.activity(14), api.requests()]) as
-      Promise<[LedgerRecord[], Grant[], ActivityEvent[], AccessRequest[]]>,
+    () => Promise.all([
+      api.records(), api.grants(), api.activity(24), api.requests(), api.seals(),
+    ]) as Promise<[LedgerRecord[], Grant[], ActivityEvent[], AccessRequest[], PeriodSeal[]]>,
     [],
   );
 
   return (
     <div className="loomfloor">
-      <Result query={world} pendingLabel="Reading your records off the chain">
-        {([records, grants, activity, requests]) => {
+      <Result query={world} pendingLabel="Loading your documents">
+        {([records, grants, activity, requests, seals]) => {
           const sealed = records.filter((r) => r.status === 'committed');
           const active = grants.filter((g) => g.status === 'active');
           const pending = requests.filter((r) => r.status === 'pending');
-          const revoked = grants.filter((g) => g.status === 'revoked');
+          // A month is open while it holds documents and has not been closed.
+          // Closing months is the factory's other standing job, so it is the
+          // second number here rather than a count of withdrawn permissions,
+          // which asked nothing of anybody.
+          const closed = new Set(
+            seals.filter((x) => x.status !== 'reopened').map((x) => x.bucket),
+          );
+          const openMonths = new Set(
+            records.map((r) => r.bucket).filter((b) => !closed.has(b)),
+          ).size;
           const recent = [...records]
             .sort((a, b) => b.committed_at.localeCompare(a.committed_at))
             .slice(0, STRIP);
@@ -55,13 +66,11 @@ export default function LoomFloor() {
             <>
               <header className="lf__head">
                 <div>
-                  <p className="stamp-type lf__eyebrow">
-                    {role?.org} · {[...new Set(records.map((r) => r.site))].join(' · ') || 'no site yet'}
-                  </p>
-                  <h1>Good afternoon, {role?.person.split(' ')[0]}.</h1>
+                  <p className="stamp-type lf__eyebrow">{role?.org}</p>
+                  <h1>Dashboard</h1>
                   <p className="lead lf__lede">
-                    {commas(sealed.length)} records published · {commas(active.length)} people
-                    currently allowed to see something
+                    {commas(sealed.length)} documents published ·{' '}
+                    {commas(active.length)} active permissions
                   </p>
                 </div>
                 {/* Both were figures with nothing behind them: a dashboard
@@ -71,14 +80,14 @@ export default function LoomFloor() {
                   <Count
                     to="/factory/access"
                     n={pending.length}
-                    label="requests waiting on you"
+                    label={pending.length === 1 ? 'request to answer' : 'requests to answer'}
                     tone={pending.length ? 'warn' : 'calm'}
                   />
                   <Count
-                    to="/factory/access"
-                    n={revoked.length}
-                    label="permissions you withdrew"
-                    tone={revoked.length ? 'warn' : 'calm'}
+                    to="/periods"
+                    n={openMonths}
+                    label={openMonths === 1 ? 'month to close' : 'months to close'}
+                    tone={openMonths ? 'warn' : 'calm'}
                   />
                 </div>
               </header>
@@ -88,23 +97,22 @@ export default function LoomFloor() {
                   <Link to="/factory/upload" className="onloom">
                     <div className="onloom__edge" aria-hidden="true" />
                     <div className="onloom__body">
-                      <p className="stamp-type onloom__state">Start here</p>
-                      <h3>Publish a finished record</h3>
+                      <h3>Upload a document</h3>
                       <p className="small onloom__note">
-                        A finished export: payroll, safety, chemicals or maintenance. The
-                        file stays on your machine. Only a fingerprint of it goes to the
-                        ledger, which is enough to prove it later and not enough to read it.
+                        The file stays with you. Only its fingerprint goes on the ledger.
                       </p>
                     </div>
                     <span className="onloom__go" aria-hidden="true"><Plus size={18} /></span>
                   </Link>
 
                   <p className="stamp-type strip__label">
-                    Published · newest first · showing {recent.length} of {commas(records.length)}
+                    Latest documents
                     {records.length > STRIP && (
                       <>
                         {' · '}
-                        <Link to="/factory/records" className="strip__all">see all</Link>
+                        <Link to="/factory/records" className="strip__all">
+                          see all {commas(records.length)}
+                        </Link>
                       </>
                     )}
                   </p>
@@ -141,10 +149,7 @@ export default function LoomFloor() {
                           <Tech><HashChip value={b.merkle_root} /></Tech>
                         </div>
                         {b.superseded_by && (
-                          <p className="small bolt__note">
-                            Corrected by a later version. This one can still be checked.
-                            A correction is added to the history, it does not replace it.
-                          </p>
+                          <p className="small bolt__note">Replaced by a newer version.</p>
                         )}
                       </div>
                       <span className="bolt__date mono">{longDate(b.committed_at)}</span>
@@ -153,7 +158,13 @@ export default function LoomFloor() {
                 </div>
 
                 <aside className="shiftlog">
-                  <div className="shiftlog__head">
+                  <Inbox
+                    requests={pending}
+                    records={records}
+                    onDone={world.reload}
+                  />
+
+                  <div className="shiftlog__head shiftlog__head--after">
                     <p className="stamp-type">Recent activity</p>
                     <Link to="/ledger" className="shiftlog__all">
                       all of it <ArrowUpRight size={12} />
@@ -165,23 +176,18 @@ export default function LoomFloor() {
                     </p>
                   ) : (
                     <ol className="shiftlog__list">
-                      {activity.map((e) => (
+                      {fold(activity).slice(0, LOG).map(({ event: e, times }) => (
                         <li key={e.tx_id} className={`logline logline--${e.kind}`}>
                           <span className="mono logline__at">{dateTime(e.at).split(' · ')[0]}</span>
                           <span className="logline__text">
                             {e.text}
+                            {times > 1 && <span className="dim"> · {times} times</span>}
                             <Tech><span className="dim"> · block #{commas(e.block)}</span></Tech>
                           </span>
                         </li>
                       ))}
                     </ol>
                   )}
-
-                  <Inbox
-                    requests={pending}
-                    records={records}
-                    onDone={world.reload}
-                  />
                 </aside>
               </div>
             </>
@@ -190,6 +196,22 @@ export default function LoomFloor() {
       </Result>
     </div>
   );
+}
+
+/**
+ * Runs of the same line, folded into one.
+ *
+ * Seventeen "gave a permission" in a row is one fact said seven times, and
+ * it pushed everything else off the column.
+ */
+function fold(events: ActivityEvent[]): { event: ActivityEvent; times: number }[] {
+  const out: { event: ActivityEvent; times: number }[] = [];
+  events.forEach((e) => {
+    const last = out[out.length - 1];
+    if (last && last.event.text === e.text && last.event.kind === e.kind) last.times += 1;
+    else out.push({ event: e, times: 1 });
+  });
+  return out;
 }
 
 /**
@@ -227,7 +249,7 @@ function Inbox({
   return (
     <div className="shiftlog__requests">
       <div className="shiftlog__head">
-        <p className="stamp-type">Waiting on you</p>
+        <p className="stamp-type">Requests to answer</p>
         <Link to="/factory/access" className="shiftlog__all">
           all requests <ArrowUpRight size={12} />
         </Link>
@@ -250,12 +272,11 @@ function Inbox({
               </p>
               {candidates.length === 0 ? (
                 <p className="small req__what dim">
-                  You have not published a record of that kind for that month, so there
-                  is nothing to give them yet.
+                  You have no document of that type for that month yet.
                 </p>
               ) : (
                 <label className="req__pick">
-                  <span className="stamp-type">Which record</span>
+                  <span className="stamp-type">Which document</span>
                   <select
                     className="input"
                     value={pick}
@@ -277,7 +298,7 @@ function Inbox({
                   disabled={busy === r.id || !pick}
                   onClick={() => act(r.id, () => api.answerRequest(r.id, pick))}
                 >
-                  {busy === r.id ? 'Writing…' : 'Approve one field'}
+                  {busy === r.id ? 'Approving…' : 'Approve'}
                 </button>
                 {/* Refusing asks for a reason, and a reason wants more room
                     than a sidebar column has. The buyer is told why, so this is

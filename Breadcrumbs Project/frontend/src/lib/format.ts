@@ -40,3 +40,19 @@ export function period(p: string): string {
     'August', 'September', 'October', 'November', 'December'];
   return `${FULL[Number(m[2]) - 1]} ${m[1]}`;
 }
+
+/**
+ * A permission's state, in the words the rest of the screens use.
+ *
+ * The API's own words — "revoked", "pending" — were printed as they came, so
+ * one permission was "revoked" on one screen and "withdrawn" on the next.
+ */
+export function permissionStatus(status: string): string {
+  switch (status) {
+    case 'active': return 'Active';
+    case 'pending': return 'Waiting';
+    case 'revoked': return 'Withdrawn';
+    case 'expired': return 'Ended';
+    default: return status;
+  }
+}

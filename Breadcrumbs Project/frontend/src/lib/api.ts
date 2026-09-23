@@ -395,22 +395,22 @@ export const CHECK_CODES = {
   format_only: {
     label: 'Format only',
     weight: 1,
-    note: 'The witness confirmed the file parses and the columns match the schema. It did not look at a value.',
+    note: 'The counter-signer checked the file opens and the columns are right. It did not read any figure.',
   },
   sample_row_recompute: {
     label: 'Sample row recompute',
     weight: 2,
-    note: 'The witness recomputed a sample of rows against the declared totals.',
+    note: 'The counter-signer added up some rows and matched them to the totals.',
   },
   source_system_readback: {
     label: 'Source system readback',
     weight: 3,
-    note: 'The witness read the same figures back out of the factory\u2019s own payroll system.',
+    note: 'The counter-signer read the same figures from the factory\u2019s own payroll system.',
   },
   physical_presence: {
     label: 'Physical presence',
     weight: 4,
-    note: 'The witness was on site while the record was produced.',
+    note: 'The counter-signer was on site when the document was made.',
   },
 } as const;
 
@@ -1172,15 +1172,15 @@ export const purposeLabel = (code: string): string =>
  * ledger's own transaction rows, which are read straight off the blocks.
  */
 export const FUNCTION_LABEL: Record<string, string> = {
-  commit_record: 'published a record',
-  supersede_record: 'corrected a record',
+  commit_record: 'published a document',
+  supersede_record: 'corrected a document',
   seal_period: 'closed a month',
   reopen_seal: 'reopened a closed month',
   amend_seal: 'corrected a closed month',
-  grant_access: 'gave access to one column',
-  revoke_access: 'took access back',
-  record_verification: 'checked a value',
-  open_seed_round: 'started picking who checks records',
+  grant_access: 'gave a permission',
+  revoke_access: 'withdrew a permission',
+  record_verification: 'checked a figure',
+  open_seed_round: 'started picking who counter-signs documents',
   commit_seed_share: 'put in a share of the random draw',
   reveal_seed_share: 'revealed a share of the random draw',
   install_group: 'set up the tamper check',
@@ -1188,8 +1188,8 @@ export const FUNCTION_LABEL: Record<string, string> = {
   publish_beacon: 'published a proof that time had passed',
   commit_benchmark: 'fixed the tests for a training round',
   open_round: 'opened a training round',
-  evaluate_gate: 'put a model update to the test',
-  attest_record: 'counter-signed a record',
+  evaluate_gate: 'tested an AI model update',
+  attest_record: 'counter-signed a document',
   submit_proposal: 'opened a proposal',
   endorse_proposal: 'agreed to a proposal',
 };

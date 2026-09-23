@@ -155,10 +155,8 @@ export default function Landing() {
                 Reveal nothing else.
               </h1>
               <p className="lead hero__lede">
-                Breadcrumbs lets a factory show that its own paperwork is genuine —
-                a wage sheet, a safety inspection, a chemical inventory — without
-                handing the file over, and without anyone having to take its word,
-                or ours, for any of it.
+                A factory can prove its paperwork is real without handing it over.
+                Nobody has to take its word for it.
               </p>
               {/* The walkthrough is first, and it is the primary button. A
                   visitor who has not seen the product cannot pick one of five
@@ -186,14 +184,12 @@ export default function Landing() {
               <p className="stamp-type beat__num">The problem</p>
               <h2>Nobody believes the paperwork.</h2>
               <p className="lead">
-                A clothing brand cannot tell whether a supplier&rsquo;s wage sheet is the
-                real one, so it sends auditors. The factory pays for audit after audit,
-                shows the same documents again, and the documents can still be edited
-                the day after anyone looks at them.
+                A brand cannot tell if a wage sheet is the real one. So it sends auditors,
+                again and again. The documents can still be edited afterwards.
               </p>
               <p className="lead beat__muted">
-                And the fraud that actually happens is not a forged wage sheet. It is a
-                second one, and a decision about which to show.
+                The usual fraud is not a fake wage sheet. It is a second one, and a choice
+                about which to show.
               </p>
             </div>
           </div>
@@ -206,15 +202,12 @@ export default function Landing() {
               <p className="stamp-type beat__num">The idea</p>
               <h2>Publish a fingerprint. Keep the file.</h2>
               <p className="lead">
-                When a factory files a document here, the file stays in the factory. What
-                goes onto the shared record is a fingerprint of it — a short code that
-                could not be worked back into the document, and could not be produced
-                again by a different one.
+                The file stays in the factory. Only its fingerprint goes on the ledger.
+                A fingerprint cannot be turned back into the file.
               </p>
               <p className="lead beat__accent">
-                Later the factory can release a single figure out of that file and prove
-                it belongs to the original. One line goes across. Everything else stays
-                where it was.
+                Later the factory can share one figure and prove it came from that file.
+                Everything else stays private.
               </p>
             </div>
           </div>
@@ -227,11 +220,10 @@ export default function Landing() {
           <div className="section-head" data-rise>
             <div>
               <p className="stamp-type section-head__eyebrow">How it works</p>
-              <h2>Four steps, and the whole product is in them.</h2>
+              <h2>Four steps.</h2>
               <p className="lead section-head__lede">
-                Nothing is automatic and nothing is hidden. Each step is somebody
-                deciding something, and each one leaves a record the other side can
-                check for itself.
+                Each step is a person deciding something. Each one leaves a record the
+                other side can check.
               </p>
             </div>
           </div>
@@ -257,10 +249,8 @@ export default function Landing() {
               <p className="stamp-type section-head__eyebrow">Why it is different</p>
               <h2 className="on-dark">Being real is not the same as being all of it.</h2>
               <p className="lead on-dark-muted">
-                Plenty of systems can tell you a document is genuine. Hand a brand four
-                wage sheets and every one of them checks out — and the fifth, the bad
-                week, was simply never mentioned. A check that only looks at what it is
-                given can never notice what it was not.
+                Other systems check that a document is real. But show a brand four wage
+                sheets out of five, and all four pass. Breadcrumbs notices the missing one.
               </p>
             </div>
           </div>
@@ -269,25 +259,21 @@ export default function Landing() {
             <div className="claim">
               <h3 className="claim__h">A month gets closed</h3>
               <p className="claim__p">
-                When a factory finishes a month, it closes it: the shared record fixes
-                how many documents that month contained, before anybody asks to see any
-                of them.
+                The factory closes each month. The ledger fixes how many documents it
+                holds, before anyone asks.
               </p>
             </div>
             <div className="claim">
               <h3 className="claim__h">The arithmetic does the accusing</h3>
               <p className="claim__p">
-                A buyer shown four documents for a month closed at five does not need to
-                suspect anything. The numbers do not add up, and that is a fact rather
-                than a complaint.
+                Closed at five, shown four. The numbers do not add up, and anyone can see it.
               </p>
             </div>
             <div className="claim">
               <h3 className="claim__h">Nobody owns the record</h3>
               <p className="claim__p">
-                Factories, brands, auditors and the trade body all hold the same copy.
-                Adding to it takes agreement, and nothing already in it can be edited by
-                anybody — including us.
+                Factories, brands, auditors and the trade body hold the same copy. Nobody
+                can edit it, including us.
               </p>
             </div>
           </div>
@@ -302,8 +288,7 @@ export default function Landing() {
               <p className="stamp-type section-head__eyebrow">Who uses it</p>
               <h2>Five people, one record between them.</h2>
               <p className="lead section-head__lede">
-                Signing in as any of them takes one press, and each sees only what that
-                job is allowed to see. The walkthrough visits all five in order.
+                One press signs you in as any of them. Each sees only what their job allows.
               </p>
             </div>
           </div>
@@ -353,33 +338,29 @@ const STEPS: { who: string; title: string; body: string }[] = [
     who: 'The factory',
     title: 'Files a document',
     body:
-      'A wage sheet or an inspection is uploaded. The file stays in the factory; only '
-      + 'its fingerprint goes onto the shared record, along with what kind of document '
-      + 'it is and which month it covers.',
+      'It uploads a wage sheet or an inspection. The file stays in the factory. '
+      + 'Only its fingerprint goes on the ledger.',
   },
   {
     who: 'A brand or buyer',
     title: 'Asks for one figure',
     body:
-      'Not the file, and not a copy of it. One column of one kind of document for one '
-      + 'month, with a reason attached. The request goes to the factory, which is free '
-      + 'to say no.',
+      'Not the file. One column of one document type for one month, with a reason. '
+      + 'The factory can say no.',
   },
   {
     who: 'The factory',
     title: 'Decides, and can change its mind',
     body:
-      'Saying yes releases that one column of one document, until a date it sets. It '
-      + 'can be withdrawn later, and withdrawing it is recorded with the reason, under '
-      + 'the name of whoever did it.',
+      'Approving shares that one column, until a date. The factory can withdraw it later. '
+      + 'Both are on the ledger.',
   },
   {
     who: 'The buyer, or an auditor',
     title: 'Checks it, and checks nothing is missing',
     body:
-      'The released figure is checked against the fingerprint the factory published '
-      + 'months earlier. Then the month itself is checked: closed at five documents, '
-      + 'shown four, and the shortfall is arithmetic rather than suspicion.',
+      'The figure is checked against the fingerprint on the ledger. Then the month is '
+      + 'checked. Closed at five, shown four, means one is missing.',
   },
 ];
 
@@ -387,33 +368,27 @@ const ROLES: { who: string; what: string }[] = [
   {
     who: 'Factory',
     what:
-      'Files documents, decides who may see which column of them, closes each month, '
-      + 'and can see every use anybody has made of what it released.',
+      'Uploads documents, decides who sees what, and closes each month.',
   },
   {
     who: 'Brand or buyer',
     what:
-      'Asks for the figures it needs, reads what it was given, checks each one against '
-      + 'the record, and confirms a month is complete.',
+      'Asks for figures, checks they are real, and checks each month is complete.',
   },
   {
     who: 'Auditor',
     what:
-      'Reads every document on the network without asking — an audit where the audited '
-      + 'party picks what may be looked at is not an audit — and signs off on what it '
-      + 'examined. Names of workers stay closed to it, as to everyone.',
+      'Reads any document without asking, and signs off. Worker names stay closed.',
   },
   {
     who: 'Trade body',
     what:
-      'Admits and suspends members by vote, and approves the shared fraud detector '
-      + 'before any new version of it can be used.',
+      'Votes on members, and approves each update to the shared AI model.',
   },
   {
     who: 'Regulator',
     what:
-      'Watches. Sees governance and totals, no factory document at all, and can still '
-      + 'check that nothing in the record has been altered.',
+      'Watches votes and totals, and checks nothing was altered. Sees no factory document.',
   },
 ];
 

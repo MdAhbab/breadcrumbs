@@ -36,47 +36,53 @@ export default function Records() {
 
   return (
     <div className="recs">
-      <Result query={records} pendingLabel="Listing what you may see">
+      <Result query={records} pendingLabel="Loading documents">
         {(all) => {
           const facets = {
             types: [...new Set(all.map((r) => r.record_type))].sort(),
             sites: [...new Set(all.map((r) => r.site))].sort(),
             periods: [...new Set(all.map((r) => r.period))].sort().reverse(),
           };
+          // Searched by the words on the row, not only the identifier, and
+          // listed newest first, the same order as the dashboard.
+          const needle = query.trim().toLowerCase();
           // eslint-disable-next-line react-hooks/rules-of-hooks
-          const filtered = all.filter(
-            (r) =>
-              (!type || r.record_type === type)
-              && (!site || r.site === site)
-              && (!per || r.period === per)
-              && (!query || r.record_id.toLowerCase().includes(query.toLowerCase())),
-          );
+          const filtered = all
+            .filter(
+              (r) =>
+                (!type || r.record_type === type)
+                && (!site || r.site === site)
+                && (!per || r.period === per)
+                && (!needle
+                  || [recordLabel(r.record_type), period(r.period), r.site, r.record_id]
+                    .join(' ').toLowerCase().includes(needle)),
+            )
+            .sort((a, b) => b.committed_at.localeCompare(a.committed_at));
 
           return (
             <>
               <header className="recs__head">
                 <div>
-                  <p className="stamp-type recs__eyebrow">Published to the ledger</p>
-                  <h1>{auditor ? 'All documents' : 'Records'}</h1>
+                  <p className="stamp-type recs__eyebrow">{role?.org}</p>
+                  <h1>{auditor ? 'All documents' : 'My documents'}</h1>
                   <p className="lead recs__lede">
-                    {commas(filtered.length)} of {commas(all.length)}. Each one is a document
-                    that never moved. Only a fingerprint of it is on the ledger.
-                    {auditor && ' As an auditor you can open any of them without asking.'}
+                    {commas(filtered.length)} of {commas(all.length)} documents.
+                    {auditor && ' You can open any of them.'}
                   </p>
                 </div>
               </header>
 
               <div className="recs__filters">
-                <Pick label="Type" value={type} onChange={setType} options={facets.types} render={recordLabel} />
+                <Pick label="Document type" value={type} onChange={setType} options={facets.types} render={recordLabel} />
                 <Pick label="Site" value={site} onChange={setSite} options={facets.sites} />
-                <Pick label="Period" value={per} onChange={setPer} options={facets.periods} render={period} />
+                <Pick label="Month" value={per} onChange={setPer} options={facets.periods} render={period} />
                 <label className="recs__search">
-                  <span className="stamp-type">Search by name</span>
+                  <span className="stamp-type">Search</span>
                   <input
                     className="input"
                     type="search"
                     value={query}
-                    placeholder="doc-…"
+                    placeholder="Type, month or site"
                     onChange={(e) => setQuery(e.target.value)}
                   />
                 </label>
@@ -85,7 +91,7 @@ export default function Records() {
               {filtered.length === 0 ? (
                 <Empty
                   title="Nothing matches"
-                  detail="No record on the ledger fits those filters. Widen one of them."
+                  detail="Try fewer filters."
                 />
               ) : (
                 <>
@@ -93,13 +99,12 @@ export default function Records() {
                     <table className="recstable">
                       <thead>
                         <tr>
-                          <th scope="col">Record</th>
-                          <th scope="col">Type</th>
-                          <th scope="col">Period</th>
+                          <th scope="col">Document</th>
+                          <th scope="col">Month</th>
                           <th scope="col">Site</th>
                           <th scope="col">Rows</th>
                           <th scope="col">Counter-signed</th>
-                          <Tech><th scope="col">Root</th></Tech>
+                          <Tech><th scope="col">Fingerprint</th></Tech>
                           <th scope="col">Published</th>
                         </tr>
                       </thead>
@@ -133,11 +138,11 @@ function Row({ r }: { r: LedgerRecord }) {
   return (
     <tr className={r.status === 'superseded' ? 'is-superseded' : ''}>
       <th scope="row">
-        <Link to={`/factory/records/${encodeURIComponent(r.record_id)}`} className="mono">
-          {r.record_id}
+        <Link to={`/factory/records/${encodeURIComponent(r.record_id)}`}>
+          {recordLabel(r.record_type)}
         </Link>
+        <Tech><span className="mono small dim"> {r.record_id}</span></Tech>
       </th>
-      <td>{recordLabel(r.record_type)}</td>
       <td>{period(r.period)}</td>
       <td>{r.site}</td>
       <td className="mono num">{commas(r.row_count)}</td>
@@ -145,7 +150,7 @@ function Row({ r }: { r: LedgerRecord }) {
         {r.witnesses.length > 0 ? (
           <Seal tone="sealed">yes</Seal>
         ) : (
-          <span className="small dim">not sampled</span>
+          <span className="small dim">no</span>
         )}
       </td>
       <Tech><td><HashChip value={r.merkle_root} /></td></Tech>
@@ -163,7 +168,7 @@ function Pick({
   options: string[];
   render?: (v: string) => string;
 }) {
-  const id = useMemo(() => `pick-${label.toLowerCase()}`, [label]);
+  const id = useMemo(() => `pick-${label.toLowerCase().replace(/\s+/g, "-")}`, [label]);
   return (
     <label className="recs__pick" htmlFor={id}>
       <span className="stamp-type">{label}</span>

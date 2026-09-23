@@ -133,9 +133,8 @@ export function SealActions({
         <div className="sealact__warn">
           <AlertTriangle size={15} />
           <p className="small">
-            {reopened.length} period{reopened.length === 1 ? ' is' : 's are'} reopened and
-            not yet re-sealed. Until they are, a completeness check on them reports the
-            membership as mid-revision rather than serving the old count.
+            {reopened.length} month{reopened.length === 1 ? ' is' : 's are'} reopened. Close
+            {reopened.length === 1 ? ' it' : ' them'} again so buyers can check them.
           </p>
         </div>
       )}
@@ -143,7 +142,7 @@ export function SealActions({
       {/* -- reopened, waiting to be closed again --------------------------- */}
       {reopened.length > 0 && (
         <>
-          <p className="stamp-type sealact__head">Reopened, waiting to be re-sealed</p>
+          <p className="stamp-type sealact__head">Reopened months</p>
           <ul className="sealact__list">
             {reopened.map((s) => {
               const late = lateIn(s);
@@ -156,21 +155,16 @@ export function SealActions({
                       {recordLabel(s.record_type)} · {s.site} · {periodName(s.period)}
                     </p>
                     <p className="small sealact__meta">
-                      Sealed at {commas(s.record_count)} record
-                      {s.record_count === 1 ? '' : 's'}, version {s.version}. Reopened
-                      {last && <> on {longDate(last.reopened_at)}</>}
-                      {last?.reason && <>: {last.reason}</>}. The ledger now holds{' '}
-                      {commas(records.filter((r) => r.bucket === s.bucket).length)} for this
-                      period.
+                      Reopened{last && <> on {longDate(last.reopened_at)}</>}
+                      {last?.reason && <>: {last.reason}</>}. Was{' '}
+                      {commas(s.record_count)}, now{' '}
+                      {commas(records.filter((r) => r.bucket === s.bucket).length)} documents.
                     </p>
                   </div>
 
                   {late.length === 0 ? (
                     <p className="small sealact__meta">
-                      Nothing has been committed to this period since it was reopened, and
-                      a correction must add at least one record. Naming one that was
-                      already inside the seal would be a false claim on the chain. Commit
-                      the late record first, then re-seal.{' '}
+                      Upload the late document first.{' '}
                       <Link
                         to={
                           '/factory/upload?type=' + encodeURIComponent(s.record_type)
@@ -188,7 +182,7 @@ export function SealActions({
                       className="btn btn--primary btn--sm"
                       onClick={() => openPanel('amend', s.bucket)}
                     >
-                      <Lock size={13} /> Amend and re-seal
+                      <Lock size={13} /> Add and close again
                     </button>
                   )}
                 </li>
@@ -198,11 +192,9 @@ export function SealActions({
         </>
       )}
 
-      <p className="stamp-type sealact__head">Open periods</p>
+      <p className="stamp-type sealact__head">Months to close</p>
       {open.size === 0 ? (
-        <p className="small sealact__none">
-          Every period the ledger holds records for has been closed.
-        </p>
+        <p className="small sealact__none">Every month is closed.</p>
       ) : (
         <ul className="sealact__list">
           {[...open.entries()].sort().map(([bucket, held]) => {
@@ -214,7 +206,7 @@ export function SealActions({
                     {recordLabel(recordType)} · {site} · {periodName(per)}
                   </p>
                   <p className="small sealact__meta">
-                    {commas(held.length)} records on the ledger, never closed
+                    {commas(held.length)} document{held.length === 1 ? '' : 's'}
                   </p>
                 </div>
                 <button
@@ -223,7 +215,7 @@ export function SealActions({
                   disabled={busy === bucket}
                   onClick={() => openPanel('close', bucket)}
                 >
-                  <Lock size={13} /> Close this period
+                  <Lock size={13} /> Close this month
                 </button>
               </li>
             );
@@ -231,10 +223,9 @@ export function SealActions({
         </ul>
       )}
 
-      <p className="stamp-type sealact__head">Reopen a closed period</p>
+      <p className="stamp-type sealact__head">Reopen a closed month</p>
       <p className="small sealact__meta">
-        Only if a genuinely late record has to come in. Reopening is permanent, it is
-        counted on the seal, and the reason is recorded before anything changes.
+        Only for a late document. Everyone can see that it was reopened.
       </p>
 
       <select
@@ -242,7 +233,7 @@ export function SealActions({
         value=""
         onChange={(e) => e.target.value && openPanel('reopen', e.target.value)}
       >
-        <option value="">Choose a period…</option>
+        <option value="">Choose a month…</option>
         {seals
           .filter((s) => s.status === 'sealed')
           .map((s) => (
@@ -261,7 +252,7 @@ export function SealActions({
             title={
               panel.kind === 'close' ? 'Close this month'
                 : panel.kind === 'reopen' ? 'Reopen this month'
-                  : 'Amend and re-seal'
+                  : 'Add and close again'
             }
             onClose={() => setPanel(null)}
           />
@@ -338,20 +329,19 @@ function ClosePanel({
   return (
     <div className="sealpanel">
       <p className="sealpanel__lede">
-        Closing fixes exactly which records {periodName(per)} contains. After this,
-        nothing can be added to it quietly: a late record has to come in as an open
-        correction, with a reason, and the seal counts how many times that has happened.
+        This fixes how many documents {periodName(per)} holds. A late document will show
+        as a correction.
       </p>
 
       <p className="stamp-type sealpanel__label">
-        {commas(held.length)} record{held.length === 1 ? '' : 's'} will be sealed in
+        {commas(held.length)} document{held.length === 1 ? '' : 's'}
       </p>
       <ul className="sealpanel__ids">
         {held.map((r) => (
           <li key={r.record_id}>
             <span className="mono">{r.record_id}</span>
             <span className="small sealact__meta">
-              {commas(r.row_count)} rows · committed {longDate(r.committed_at)}
+              {commas(r.row_count)} rows · published {longDate(r.committed_at)}
             </span>
           </li>
         ))}
@@ -373,9 +363,7 @@ function ClosePanel({
       </div>
 
       <p className="small sealact__meta">
-        The count and a root over those identifiers go onto the ledger. That is what a
-        buyer later checks its disclosure against, which is why it has to be fixed before
-        anything is released rather than after.
+        Buyers check what they are shown against this count.
       </p>
     </div>
   );
@@ -395,15 +383,14 @@ function ReopenPanel({
     <div className="sealpanel">
       <p className="sealpanel__lede">
         {seal
-          ? `Sealed at ${commas(seal.record_count)} record${seal.record_count === 1 ? '' : 's'}, `
-            + `version ${seal.version}, on ${longDate(seal.sealed_at)}.`
-          : 'This period is closed.'}{' '}
-        Reopening is permanent and is counted on the seal for anyone who looks at it
-        afterwards.
+          ? `Closed at ${commas(seal.record_count)} document${seal.record_count === 1 ? '' : 's'} `
+            + `on ${longDate(seal.sealed_at)}.`
+          : 'This month is closed.'}{' '}
+        Everyone will see that it was reopened.
       </p>
 
       <label className="sealpanel__field">
-        <span className="stamp-type">Why is this period being reopened?</span>
+        <span className="stamp-type">Why are you reopening it?</span>
         <input
           className="input"
           placeholder="A late payroll register for the Ashulia line…"
@@ -428,12 +415,11 @@ function ReopenPanel({
 
       {reason.trim().length < 8 && (
         <p className="small sealact__meta">
-          Write a reason. The contract requires one and it stays on the seal.
+          A reason is required.
         </p>
       )}
       <p className="small sealact__meta">
-        Nothing else changes yet. Reopening records the intent; the period is closed again
-        by committing the late record and amending, both of which stay visible.
+        Next, upload the late document and close the month again.
       </p>
     </div>
   );
@@ -455,12 +441,12 @@ function AmendPanel({
   return (
     <div className="sealpanel">
       <p className="sealpanel__lede">
-        Sealed at {commas(seal.record_count)} record{seal.record_count === 1 ? '' : 's'},
-        version {seal.version}. Tick what is being added and say why it was late.
+        Closed at {commas(seal.record_count)} document{seal.record_count === 1 ? '' : 's'}.
+        Tick what to add and say why it was late.
       </p>
 
       <fieldset className="sealact__adds">
-        <legend className="stamp-type">Records committed since the reopening</legend>
+        <legend className="stamp-type">Uploaded since it was reopened</legend>
         {late.map((r) => (
           <label key={r.record_id} className="sealact__add">
             <input
@@ -475,14 +461,14 @@ function AmendPanel({
             />
             <span className="mono">{r.record_id}</span>
             <span className="small sealact__meta">
-              {commas(r.row_count)} rows · committed {longDate(r.committed_at)}
+              {commas(r.row_count)} rows · published {longDate(r.committed_at)}
             </span>
           </label>
         ))}
       </fieldset>
 
       <label className="sealpanel__field">
-        <span className="stamp-type">Why was this record late?</span>
+        <span className="stamp-type">Why was it late?</span>
         <input
           className="input"
           placeholder="Received from the Ashulia line after the month was closed…"
@@ -498,7 +484,7 @@ function AmendPanel({
           disabled={reason.trim().length < 8 || chosen.length === 0 || busy}
           onClick={onConfirm}
         >
-          <Lock size={13} /> {busy ? 'Amending…' : 'Amend and re-seal'}
+          <Lock size={13} /> {busy ? 'Closing…' : 'Add and close again'}
         </button>
         <button type="button" className="btn btn--ghost btn--sm" onClick={onCancel}>
           Cancel
@@ -506,9 +492,7 @@ function AmendPanel({
       </div>
 
       <p className="small sealact__meta">
-        The seal it has now stays in its own history with its own count and root; this
-        writes the next version over it. A period that has been amended four times says so
-        to anyone who looks, and that visibility is the point rather than a side effect.
+        The old count stays in the history.
       </p>
     </div>
   );

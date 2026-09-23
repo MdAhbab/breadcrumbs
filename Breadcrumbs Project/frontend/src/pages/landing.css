@@ -215,6 +215,12 @@
   text-shadow: 0 2px 30px rgba(12, 20, 37, 0.9);
 }
 
+/* The negative margin lets the scrim bleed past the text on a wide screen. On
+   a phone there is no room to bleed into, and it pushed the page sideways. */
+@media (max-width: 767px) {
+  .beat--copy .beat-copy { margin-inline: 0; }
+}
+
 .beat__num {
   color: var(--brass-type);
   margin-bottom: var(--s4);

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 
 import { Loading } from './components/Loading';
 import { RouteTransition } from './components/RouteTransition';
@@ -37,11 +37,21 @@ function ScrollReset() {
   return null;
 }
 
-function Protected({ children }: { children: React.ReactNode }) {
+/**
+ * The verify screen is public, but somebody signed in reached it from their
+ * own sidebar. Dropping them onto a bare page with no navigation made the one
+ * link that left the shell feel like leaving the product.
+ */
+function ShellIfSignedIn() {
+  const { role } = useSession();
+  return role ? <Shell /> : <Outlet />;
+}
+
+function Protected() {
   const { role } = useSession();
   const location = useLocation();
   if (!role) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  return <>{children}</>;
+  return <Outlet />;
 }
 
 export default function App() {
@@ -55,26 +65,30 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         {/* With a receipt identifier this is a public check that needs no
-            account; without one it is the live prover for whoever holds a grant. */}
-        <Route path="/verify" element={<VerifyResult />} />
-        <Route path="/verify/:id" element={<VerifyResult />} />
+            account; without one it is the live prover for whoever holds a grant.
+            It shares one layout with the workspaces, so moving between them
+            keeps the same sidebar rather than rebuilding it. */}
+        <Route element={<ShellIfSignedIn />}>
+          <Route path="/verify" element={<VerifyResult />} />
+          <Route path="/verify/:id" element={<VerifyResult />} />
 
-        <Route element={<Protected><Shell /></Protected>}>
-          <Route path="/factory/dashboard" element={<LoomFloor />} />
-          <Route path="/factory/upload" element={<Upload />} />
-          <Route path="/factory/records" element={<Records />} />
-          <Route path="/factory/records/:id" element={<RecordDetail />} />
-          <Route path="/factory/access" element={<Access />} />
-          <Route path="/buyer/portal" element={<Lightbox />} />
-          <Route path="/auditor/workspace" element={<AuditorBench />} />
-          <Route path="/governance" element={<Chamber />} />
-          <Route path="/regulator" element={<Observatory />} />
-          <Route path="/model/gate" element={<GateDecisionPage />} />
-          <Route path="/model/gate/:id" element={<GateDecisionPage />} />
-          <Route path="/model/registry" element={<ModelRegistry />} />
-          <Route path="/periods" element={<Periods />} />
-          <Route path="/anchor" element={<Anchor />} />
-          <Route path="/ledger" element={<LedgerExplorer />} />
+          <Route element={<Protected />}>
+            <Route path="/factory/dashboard" element={<LoomFloor />} />
+            <Route path="/factory/upload" element={<Upload />} />
+            <Route path="/factory/records" element={<Records />} />
+            <Route path="/factory/records/:id" element={<RecordDetail />} />
+            <Route path="/factory/access" element={<Access />} />
+            <Route path="/buyer/portal" element={<Lightbox />} />
+            <Route path="/auditor/workspace" element={<AuditorBench />} />
+            <Route path="/governance" element={<Chamber />} />
+            <Route path="/regulator" element={<Observatory />} />
+            <Route path="/model/gate" element={<GateDecisionPage />} />
+            <Route path="/model/gate/:id" element={<GateDecisionPage />} />
+            <Route path="/model/registry" element={<ModelRegistry />} />
+            <Route path="/periods" element={<Periods />} />
+            <Route path="/anchor" element={<Anchor />} />
+            <Route path="/ledger" element={<LedgerExplorer />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

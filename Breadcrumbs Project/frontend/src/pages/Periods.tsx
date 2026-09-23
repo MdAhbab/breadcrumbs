@@ -3,8 +3,8 @@ import { useState } from 'react';
 
 import { AbsenceProof } from '../components/AbsenceProof';
 import { CompletenessChecker } from '../components/CompletenessChecker';
-import { PeriodSealCard } from '../components/PeriodSealCard';
 import { SealActions } from '../components/SealActions';
+import { Tech } from '../components/Tech';
 import { Empty, Failed, Result } from '../components/states';
 import { Drawer, DrawerHead, PageHead } from '../components/ui';
 import {
@@ -48,18 +48,18 @@ export default function Periods() {
           an auditor is confirming a month is complete, and a factory is closing
           one, which is what every finance and compliance team already calls it. */}
       <PageHead
-        eyebrow={verifier ? 'Monthly completeness' : `${role?.org} · month-end closing`}
-        title={verifier ? 'Is this month complete?' : 'Month-end closing'}
+        eyebrow={role?.org ?? ''}
+        title={verifier ? 'Monthly completeness' : 'Month-end closing'}
         lede={
           verifier
-            ? 'Proving one record is real is the easy half. This is the other one. A closed month has its list of records fixed before anybody asks about it, so if you are shown fewer than it says, that is arithmetic, not suspicion.'
-            : 'Closing a month fixes exactly which records it contains. After that nothing can be slipped in quietly. A late record has to be added as an open correction, with a reason attached. Each of these opens its form in a panel at the right, with what it is about to do written out before you press.'
+            ? 'Check that you were shown every document in a closed month.'
+            : 'Closing a month fixes how many documents it holds. A late document shows as a correction.'
         }
       />
 
       <Result
         query={world}
-        pendingLabel="Reading the closed months"
+        pendingLabel="Loading months"
         /* Only a verifier has nothing to do here without a seal. A factory
            with records and no seals has the most to do of anyone — and this
            used to swallow the whole page, SealActions included, so the one
@@ -67,10 +67,8 @@ export default function Periods() {
            already been closed. */
         isEmpty={([seals]) => verifier && seals.length === 0}
         empty={{
-          title: 'No closed months you can see',
-          detail:
-            'A month becomes visible to you once a factory has released something to '
-            + 'you from a record inside it.',
+          title: 'No closed months yet',
+          detail: 'You see a month once a factory shares a document from it.',
         }}
       >
         {([seals, records, grants, orgs]) => {
@@ -127,7 +125,7 @@ export default function Periods() {
             return (
               <Empty
                 title="Nothing to show yet"
-                detail="Seal a record and the period it belongs to appears here."
+                detail="Upload a document and its month shows here."
               />
             );
           }
@@ -148,17 +146,11 @@ export default function Periods() {
 
               <section className="periods__section">
                 <h2 className="periods__h2">
-                  {verifier ? 'Check a month is complete' : 'Who holds a copy'}
+                  {verifier ? 'Check a month' : 'Who can see each month'}
                 </h2>
-                {!verifier && (
-                  <p className="lead periods__lede">
-                    Once a month is closed, this is who has been given something out of
-                    it. Nobody else can see any of it.
-                  </p>
-                )}
                 <div className="periods__picker">
                   <label className="periods__pick">
-                    <span className="stamp-type">Period to check</span>
+                    <span className="stamp-type">Month</span>
                     <select
                       className="input"
                       value={currentBucket}
@@ -172,8 +164,7 @@ export default function Periods() {
                   {verifier && short && (
                     <p className="small periods__hint">
                       {seals.filter((s) => inBucket(s.bucket).length < s.record_count).length} of{' '}
-                      {seals.length} periods you can see disclose fewer records than they
-                      were sealed with.
+                      {seals.length} months are missing documents.
                     </p>
                   )}
 
@@ -231,33 +222,21 @@ export default function Periods() {
               </section>
 
               <section className="periods__section">
-                <h2 className="periods__h2">
-                  {verifier ? 'The closed months behind that check' : 'Already closed'}
-                </h2>
+                <h2 className="periods__h2">Closed months</h2>
                 {seals.length === 0 ? (
                   <Empty title="Nothing closed yet" />
-                ) : verifier ? (
-                  <div className="periods__grid">
-                    {seals.map((s) => (
-                      <PeriodSealCard key={s.bucket} seal={s} />
-                    ))}
-                  </div>
                 ) : (
-                  /* Thirty identical cards is not a list, it is a wall. The
-                     factory scans this for two things: which months are closed,
-                     and which ones it has had to correct. Both are one line. */
+                  /* Thirty identical cards is not a list, it is a wall, and a
+                     buyer or auditor scanned them for the same two things the
+                     factory does: which months are closed, and which ones were
+                     corrected. Both are one line, for everyone. */
                   <ClosedList seals={seals} />
                 )}
               </section>
 
               {role?.id === 'auditor' && (
                 <section className="periods__section">
-                  <h2 className="periods__h2">Proof of absence</h2>
-                  <p className="lead periods__lede">
-                    The operation no Merkle tree can perform. A certificate the ledger
-                    never committed can be shown never to have been committed, rather
-                    than merely not found.
-                  </p>
+                  <h2 className="periods__h2">Check a certificate was never issued</h2>
                   <AbsenceProof />
                 </section>
               )}
@@ -279,7 +258,11 @@ export default function Periods() {
  */
 function ClosedList({ seals }: { seals: PeriodSeal[] }) {
   const [open, setOpen] = useState<string | null>(null);
-  const ordered = [...seals].sort((a, b) => b.bucket.localeCompare(a.bucket));
+  // Newest month first. Sorting the bucket string sorted by site, so a
+  // September sat between two Mays.
+  const ordered = [...seals].sort(
+    (a, b) => b.period.localeCompare(a.period) || a.bucket.localeCompare(b.bucket),
+  );
 
   return (
     <ul className="closed">
@@ -295,7 +278,7 @@ function ClosedList({ seals }: { seals: PeriodSeal[] }) {
               </span>
               <span className="closed__when">{periodName(per)}</span>
               <span className="small closed__count">
-                {commas(seal.record_count)} record{seal.record_count === 1 ? '' : 's'}
+                {commas(seal.record_count)} document{seal.record_count === 1 ? '' : 's'}
               </span>
               {corrections > 0 ? (
                 <button
@@ -307,7 +290,7 @@ function ClosedList({ seals }: { seals: PeriodSeal[] }) {
                   {corrections} correction{corrections === 1 ? '' : 's'}
                 </button>
               ) : (
-                <span className="small closed__clean">no corrections</span>
+                <span className="small closed__clean" />
               )}
             </div>
             {expanded && (
@@ -316,8 +299,8 @@ function ClosedList({ seals }: { seals: PeriodSeal[] }) {
                   <li key={a.version}>
                     <p className="closed__fixreason">{a.reason}</p>
                     <p className="small closed__fixmeta">
-                      {longDate(a.amended_at)} · was {a.previous_count} records ·
-                      added {a.added.join(', ')}
+                      {longDate(a.amended_at)} · was {a.previous_count} documents
+                      <Tech> · added {a.added.join(', ')}</Tech>
                     </p>
                   </li>
                 ))}
@@ -509,8 +492,8 @@ function WhoHolds({
             some of this month went out and this record did not. */}
         <p className="small whoholds__summary">
           {shared === 0
-            ? `${commas(held.length)} record${held.length === 1 ? '' : 's'}, none shared with anyone yet.`
-            : `${commas(held.length)} record${held.length === 1 ? '' : 's'}, ${commas(shared)} shared.`}
+            ? `${commas(held.length)} document${held.length === 1 ? '' : 's'}, none shared yet.`
+            : `${commas(held.length)} document${held.length === 1 ? '' : 's'}, ${commas(shared)} shared.`}
         </p>
 
         <div className="whoholds__tools">
@@ -521,7 +504,7 @@ function WhoHolds({
               className="input"
               type="search"
               value={query}
-              placeholder="Find by reference…"
+              placeholder="Find a document…"
               onChange={(e) => { setQuery(e.target.value); setShownRecords(12); }}
             />
           </label>
@@ -574,10 +557,10 @@ function WhoHolds({
                           {recordLabel(r.record_type)} {shortRef(r.record_id)}
                         </span>
                         <span className="small whoholds__docmeta">
-                          <span className="mono">{r.record_id}</span> ·{' '}
                           {commas(r.row_count)} rows
                           {r.witnesses.length > 0 && ' · counter-signed'}
-                          {r.status === 'superseded' && ' · corrected by a later version'}
+                          {r.status === 'superseded' && ' · replaced by a newer version'}
+                          <Tech> · <span className="mono">{r.record_id}</span></Tech>
                         </span>
                       </span>
                       {to.length > 0 ? (
@@ -613,9 +596,7 @@ function WhoHolds({
               )}
               {matching.length < held.length && (
                 <p className="small whoholds__note">
-                  {commas(matching.length)} of {commas(held.length)} shown. The month is
-                  still closed at {commas(seal ? seal.record_count : held.length)}
-                  {' '}whatever this list is filtered to.
+                  {commas(matching.length)} of {commas(held.length)} shown.
                 </p>
               )}
             </>
@@ -624,26 +605,21 @@ function WhoHolds({
 
         {failure && <Failed error={failure} />}
 
-        <p className="small whoholds__note">
-          Every record the ledger holds for this period, and who you released each one
-          to. This list is yours alone. A buyer sees only what it was given, which is
-          why it can prove a record is missing without ever learning which.
-        </p>
       </div>
 
       <div className="whoholds__panel">
-        <p className="stamp-type whoholds__head">Who holds this period</p>
+        <p className="stamp-type whoholds__head">Who can see this month</p>
         <p className="whoholds__count">
           <span className="whoholds__n">{commas(seal ? seal.record_count : held.length)}</span>
           <span className="small">
             {seal ? (
               <>
-                sealed into {recordLabel(recordType)}, {periodName(per)} · {site} ·{' '}
-                version {seal.version}
+                documents in {recordLabel(recordType)}, {periodName(per)} · {site}
+                <Tech> · version {seal.version}</Tech>
               </>
             ) : (
               <>
-                records in {recordLabel(recordType)}, {periodName(per)} · {site} ·{' '}
+                documents in {recordLabel(recordType)}, {periodName(per)} · {site} ·{' '}
                 <strong>not closed yet</strong>
               </>
             )}
@@ -652,22 +628,12 @@ function WhoHolds({
 
         {!seal && (
           <p className="small whoholds__note">
-            This period holds records and has never been closed, so there is no count
-            fixed for anyone to check a disclosure against. Until it is closed a record
-            can still be added to it quietly. Closing it is at the foot of this page,
-            under <em>Open periods</em>.
+            Not closed yet, so buyers cannot check it is complete. Close it above.
           </p>
         )}
 
         {holders.length === 0 ? (
-          <p className="small whoholds__note">
-            No counterparty holds a grant against anything in this period.
-            {seal
-              ? ' It is closed and nothing was released, which is a complete answer. The '
-                + 'exists so a disclosure can be checked against it later, not because '
-                + 'one has to be made.'
-              : ' Nothing has been released from it and it has not been closed.'}
-          </p>
+          <p className="small whoholds__note">Nobody can see anything from this month yet.</p>
         ) : (
           <ul className="whoholds__list">
             {holders.map((msp) => {
@@ -685,9 +651,9 @@ function WhoHolds({
                   </span>
                   <span className="small whoholds__gap">
                     {short > 0
-                      ? `${commas(short)} never disclosed to them`
-                      : 'holds the whole period'}
-                    {revoked > 0 && ` · ${commas(revoked)} revoked`}
+                      ? `${commas(short)} not shared with them`
+                      : 'can see the whole month'}
+                    {revoked > 0 && ` · ${commas(revoked)} withdrawn`}
                   </span>
                 </li>
               );
@@ -695,19 +661,12 @@ function WhoHolds({
           </ul>
         )}
 
-        <p className="small whoholds__note">
-          A buyer checking this period has the ledger recompute the root over what it
-          was given, and compares it to the count you fixed when you closed it.
-          Where it is short, the two roots differ and the shortfall is arithmetic rather
-          than an accusation. That is the same fact as this screen, seen from the other
-          end.
-          {undisclosed.length > 0 && undisclosed.length < held.length && (
-            <>
-              {' '}Here that shortfall is{' '}
-              <span className="mono">{undisclosed.join(', ')}</span>.
-            </>
-          )}
-        </p>
+        {undisclosed.length > 0 && undisclosed.length < held.length && (
+          <p className="small whoholds__note">
+            A buyer checking this month will see {commas(undisclosed.length)} missing.
+            <Tech> <span className="mono">{undisclosed.join(', ')}</span></Tech>
+          </p>
+        )}
       </div>
 
       {opening && (
@@ -723,11 +682,8 @@ function WhoHolds({
 
           <div className="whoholds__form">
             <p className="small">
-              <span className="mono">{opening}</span> · {commas(
-                held.find((r) => r.record_id === opening)?.row_count ?? 0,
-              )} rows. Tick everyone who should get it and every figure they should see.
-              Each figure goes to each organisation as its own permission, which you can
-              withdraw one at a time.
+              Tick who should get it and which figures they see.
+              <Tech> <span className="mono">{opening}</span></Tech>
             </p>
 
             <fieldset className="whoholds__set">
@@ -762,8 +718,8 @@ function WhoHolds({
               </div>
               {blockedFields.length > 0 && (
                 <p className="small whoholds__blocked">
-                  {blockedFields.map((f) => f.label).join(', ')} cannot be shared with
-                  anyone. Those identify a person.
+                  {blockedFields.map((f) => f.label).join(', ')} name a person and cannot
+                  be shared.
                 </p>
               )}
             </fieldset>
@@ -812,7 +768,7 @@ function WhoHolds({
                 onClick={() => void disclose(opening)}
               >
                 {busy
-                  ? 'Writing to the ledger…'
+                  ? 'Sharing…'
                   : ready
                     ? `Share ${parties.length * fields.length} permission`
                       + (parties.length * fields.length === 1 ? '' : 's')
@@ -827,26 +783,12 @@ function WhoHolds({
               </button>
             </div>
 
-            <p className="small whoholds__note">
-              {sibling
-                ? 'Prefilled from the terms this kind of record was released on before. '
-                : ''}
-              Sharing writes a permission onto the ledger, which is the only thing
-              sharing ever is here.
-              {seal ? (
-                <>
-                  {' '}Closing does not move. It fixed this month at{' '}
-                  {commas(seal.record_count)} before any of it was released, and that is
-                  what makes the buyer&rsquo;s check mean anything.
-                </>
-              ) : (
-                <>
-                  {' '}This period is not closed, so a buyer receiving it has no fixed
-                  count to check the disclosure against. Close it first if that check is
-                  the point.
-                </>
-              )}
-            </p>
+            {(sibling || !seal) && (
+              <p className="small whoholds__note">
+                {sibling ? 'Filled in from the last time you shared this type. ' : ''}
+                {!seal && 'This month is not closed yet, so buyers cannot check it is complete.'}
+              </p>
+            )}
           </div>
         </Drawer>
       )}

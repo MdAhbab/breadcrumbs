@@ -57,7 +57,7 @@
 
 .role {
   display: grid;
-  grid-template-columns: 44px 1fr;
+  grid-template-columns: 44px 1fr auto;
   gap: var(--s4);
   align-items: center;
   width: 100%;
@@ -113,6 +113,29 @@
 
 .role__body { display: block; min-width: 0; }
 
+/* The press is the sign-in, so every row says so rather than leaving the
+   visitor to find out by trying. */
+.role__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--brass-type);
+  opacity: 0.75;
+  transition: opacity var(--m-fast), transform var(--m-fast);
+}
+
+.role:hover .role__go,
+.role:focus-visible .role__go,
+.role.is-picked .role__go {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.role:disabled { cursor: progress; }
+.role:disabled:not(.is-picked) { opacity: 0.55; }
+
 .role__label {
   display: block;
   font-size: 16px;
@@ -162,8 +185,9 @@
 
 @media (max-width: 640px) {
   .role {
-    grid-template-columns: 30px 1fr;
+    grid-template-columns: 30px 1fr auto;
   }
+  .role__go { font-size: 0; gap: 0; }
 }
 
 /* -- the way past the choice ----------------------------------------------

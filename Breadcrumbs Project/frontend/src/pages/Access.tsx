@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { Empty, Failed, Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { PageHead, Seal } from '../components/ui';
 import {
   ApiError, api, purposeLabel, recordLabel, shortMsp,
   type AccessRequest, type Grant, type LedgerRecord, type VerificationRow,
 } from '../lib/api';
-import { commas, dateTime, longDate, period } from '../lib/format';
+import { commas, longDate, period, permissionStatus } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './access.css';
@@ -55,7 +56,7 @@ export default function Access() {
 
   return (
     <div className="acc">
-      <Result query={world} pendingLabel="Reading your grants off the chain">
+      <Result query={world} pendingLabel="Loading permissions">
         {([requests, grants, records, verifications]) => {
           const pending = requests.filter((r) => r.status === 'pending');
           const answered = requests.filter((r) => r.status !== 'pending');
@@ -64,16 +65,13 @@ export default function Access() {
           return (
             <>
               <PageHead
-                eyebrow={`${role?.org} · sharing & permissions`}
-                title="Who can see what"
-                lede={
-                  'Everything you have shared, and everything anyone has asked you for. '
-                  + 'A permission covers one column of one document, until a date you set.'
-                }
+                eyebrow={role?.org ?? ''}
+                title="Sharing & permissions"
+                lede="Answer requests, and see who can see what. Each permission covers one column of one document."
                 aside={
                   <div className="acc__counts">
                     <Tally n={pending.length} label="to answer" tone={pending.length ? 'warn' : 'calm'} />
-                    <Tally n={active.length} label="live now" tone="calm" />
+                    <Tally n={active.length} label="active" tone="calm" />
                     <Tally n={grants.length - active.length} label="ended" tone="calm" />
                     <Tally n={verifications.length} label="checks run" tone="calm" />
                   </div>
@@ -179,11 +177,7 @@ function Awaiting({
   return (
     <section className="acc__section">
       <h2 className="acc__h2">Requests to answer</h2>
-      <p className="acc__lede">
-        A request names a month; what you release names one document. Pick which one,
-        then release or refuse — each column separately, even when several were asked
-        for at once.
-      </p>
+      <p className="acc__lede">Pick the document, then approve or refuse.</p>
       {failure && <Failed error={failure} />}
 
       {groups.length === 0 ? (
@@ -195,10 +189,8 @@ function Awaiting({
           title="Nothing to answer"
           detail={
             <>
-              Every request you have been sent has an answer. You can also share a
-              document without being asked — from{' '}
-              <Link to="/periods">Month-end closing</Link>, where you can see who holds
-              what for each month.
+              You can also share without a request, from{' '}
+              <Link to="/periods">Month-end closing</Link>.
             </>
           }
         />
@@ -231,12 +223,12 @@ function Awaiting({
                       <span>{purposeLabel(first.purpose_code)}</span>
                     </p>
                     <p className="small areq__when">
-                      asked {longDate(first.requested_at)} · access would run to{' '}
+                      asked {longDate(first.requested_at)} · until{' '}
                       {longDate(first.expires_at)}
                     </p>
                   </div>
                   <Seal tone="pending">
-                    {group.length === 1 ? 'pending' : `${group.length} pending`}
+                    {group.length === 1 ? 'Waiting' : `${group.length} waiting`}
                   </Seal>
                 </div>
 
@@ -260,13 +252,12 @@ function Awaiting({
 
                 {candidates.length === 0 ? (
                   <p className="small areq__none">
-                    You have not published a {recordLabel(first.record_type).toLowerCase()}{' '}
-                    for {period(first.period)}, so there is nothing to release. Refuse it,
-                    or publish the record first.
+                    You have no {recordLabel(first.record_type).toLowerCase()} for{' '}
+                    {period(first.period)} yet. Upload it first, or refuse.
                   </p>
                 ) : (
                   <label className="areq__pick">
-                    <span className="stamp-type">From which record</span>
+                    <span className="stamp-type">Which document</span>
                     <select
                       className="input"
                       value={pick}
@@ -279,18 +270,15 @@ function Awaiting({
                         </option>
                       ))}
                     </select>
-                    <span className="small areq__pickmeta">
-                      {commas(candidates.length)} record
-                      {candidates.length === 1 ? '' : 's'} match this month.
-                      {pick && group.length === 1 && (
-                        <> They receive {labelOf(first.record_type, first.field_name)} from
-                          {' '}this one, and nothing else.</>
-                      )}
-                      {pick && group.length > 1 && (
-                        <> They receive those {group.length} figures from this one, each as
-                          {' '}its own permission you can withdraw separately.</>
-                      )}
-                    </span>
+                    {pick && (
+                      <span className="small areq__pickmeta">
+                        They see only{' '}
+                        {group.length === 1
+                          ? labelOf(first.record_type, first.field_name)
+                          : `these ${group.length} figures`}{' '}
+                        from this document.
+                      </span>
+                    )}
                   </label>
                 )}
 
@@ -340,10 +328,7 @@ function Awaiting({
                         Cancel
                       </button>
                     </div>
-                    <p className="small areq__note">
-                      Refusing is not final. You can reconsider it from the section below,
-                      and nothing is written to the ledger either way. Only a release is.
-                    </p>
+                    <p className="small areq__note">You can change your mind later.</p>
                   </div>
                 ) : (
                   <div className="areq__actions">
@@ -371,10 +356,10 @@ function Awaiting({
                     >
                       <KeyRound size={13} />
                       {working
-                        ? 'Writing to the ledger…'
+                        ? 'Approving…'
                         : group.length === 1
-                          ? 'Release this figure'
-                          : `Release all ${group.length}`}
+                          ? 'Approve'
+                          : `Approve all ${group.length}`}
                     </button>
                     {group.length === 1 && (
                       <button
@@ -422,14 +407,10 @@ function Answered({
   return (
     <section className="acc__section">
       <h2 className="acc__h2">What you decided</h2>
-      <p className="acc__lede">
-        The state on the right is read off the ledger, not from the answer you gave —
-        access can be withdrawn long after the request that produced it was closed.
-      </p>
       {failure && <Failed error={failure} />}
 
       {requests.length === 0 ? (
-        <Empty title="Nothing decided yet" detail="Requests you release or refuse collect here." />
+        <Empty title="Nothing decided yet" detail="Requests you approve or refuse show here." />
       ) : (
         <ul className="acc__list">
           {requests.map((r) => {
@@ -460,14 +441,13 @@ function Answered({
                     </p>
                     {r.grant_record_id && (
                       <p className="small areq__when">
-                        granted against{' '}
-                        <Link
-                          to={`/factory/records/${encodeURIComponent(r.grant_record_id)}`}
-                          className="mono"
-                        >
-                          {r.grant_record_id}
-                        </Link>{' '}
-                        as <span className="mono">{r.grant_id}</span>
+                        <Link to={`/factory/records/${encodeURIComponent(r.grant_record_id)}`}>
+                          Open the document
+                        </Link>
+                        <Tech>
+                          {' · '}<span className="mono">{r.grant_record_id}</span>
+                          {' · '}<span className="mono">{r.grant_id}</span>
+                        </Tech>
                       </p>
                     )}
                     {declined && r.decline_reason && (
@@ -482,7 +462,7 @@ function Answered({
                   <Seal
                     tone={declined ? 'inert' : withdrawn ? 'broken' : 'sealed'}
                   >
-                    {declined ? 'declined' : withdrawn ? 'withdrawn' : 'live'}
+                    {declined ? 'Refused' : withdrawn ? 'Withdrawn' : 'Active'}
                   </Seal>
                 </div>
 
@@ -494,7 +474,7 @@ function Answered({
                     <div className="areq__reason">
                       <input
                         className="input"
-                        placeholder="Why is this access being withdrawn?"
+                        placeholder="Why are you withdrawing it? The buyer is told."
                         value={draft(r.id)}
                         onChange={(e) => setDraft(r.id, e.target.value)}
                       />
@@ -512,7 +492,7 @@ function Answered({
                               });
                           }}
                         >
-                          {busy === r.id ? 'Revoking…' : 'Revoke, permanently'}
+                          {busy === r.id ? 'Withdrawing…' : 'Withdraw, permanently'}
                         </button>
                         <button
                           type="button"
@@ -523,8 +503,7 @@ function Answered({
                         </button>
                       </div>
                       <p className="small areq__note">
-                        The reason goes on the ledger with your identity and is shown to
-                        the buyer. Access can be issued again afterwards, as a new grant.
+                        You can give a new permission later.
                       </p>
                     </div>
                   ) : (
@@ -534,7 +513,7 @@ function Answered({
                         className="btn btn--ghost btn--sm"
                         onClick={() => setRevoking(r.id)}
                       >
-                        Revoke this access
+                        Withdraw permission
                       </button>
                     </div>
                   )
@@ -551,10 +530,7 @@ function Answered({
                       <Undo2 size={13} />
                       {busy === r.id ? 'Reopening…' : 'Reconsider'}
                     </button>
-                    <p className="small areq__note">
-                      Puts it back in <em>Awaiting you</em> as an open decision. Off the
-                      ledger, like the request itself.
-                    </p>
+                    <p className="small areq__note">Moves it back to Requests to answer.</p>
                   </div>
                 )}
 
@@ -562,7 +538,7 @@ function Answered({
                   reissuing === r.id ? (
                     <div className="areq__reason">
                       <label className="areq__pick">
-                        <span className="stamp-type">Grant against</span>
+                        <span className="stamp-type">Which document</span>
                         <select
                           className="input"
                           value={pick}
@@ -570,7 +546,8 @@ function Answered({
                         >
                           {candidates.map((c) => (
                             <option key={c.record_id} value={c.record_id}>
-                              {c.record_id} · {c.site} · {commas(c.row_count)} rows
+                              {c.site} · {commas(c.row_count)} rows · published{' '}
+                              {longDate(c.committed_at)}
                             </option>
                           ))}
                         </select>
@@ -586,7 +563,7 @@ function Answered({
                           }}
                         >
                           <KeyRound size={13} />
-                          {busy === r.id ? 'Writing to the chain…' : 'Issue a new grant'}
+                          {busy === r.id ? 'Approving…' : 'Approve again'}
                         </button>
                         <button
                           type="button"
@@ -597,9 +574,7 @@ function Answered({
                         </button>
                       </div>
                       <p className="small areq__note">
-                        The revoked grant stays where it is. This writes a second one, with
-                        its own identifier, so the record shows access being given, taken
-                        away and given again rather than a history that was tidied up.
+                        This adds a new permission. The old one stays in the history.
                       </p>
                     </div>
                   ) : (
@@ -610,7 +585,7 @@ function Answered({
                         disabled={candidates.length === 0}
                         onClick={() => setReissuing(r.id)}
                       >
-                        <KeyRound size={13} /> Grant access again
+                        <KeyRound size={13} /> Give permission again
                       </button>
                     </div>
                   )
@@ -649,16 +624,21 @@ function Issued({
 
   const byId = new Map(records.map((r) => [r.record_id, r]));
   const buyers = [...new Set(grants.map((g) => g.requester_msp))].sort();
+  // The words on the row, so a search for "net pay" or "March" finds it.
+  const haystack = (g: Grant) => {
+    const r = byId.get(g.record_id);
+    return [
+      g.record_id, g.grant_id, g.field_name, labelOf(r?.record_type ?? '', g.field_name),
+      r ? recordLabel(r.record_type) : '', r ? period(r.period) : '', r?.site ?? '',
+    ].join(' ').toLowerCase();
+  };
 
   const filtered = grants
     .filter(
       (g) =>
         (!status || g.status === status)
         && (!who || g.requester_msp === who)
-        && (!query
-          || g.record_id.toLowerCase().includes(query.toLowerCase())
-          || g.field_name.toLowerCase().includes(query.toLowerCase())
-          || g.grant_id.toLowerCase().includes(query.toLowerCase())),
+        && (!query || haystack(g).includes(query.toLowerCase())),
     )
     // Newest first. The ledger returns key order, which puts the grant you
     // wrote a minute ago last — the one place a factory is certain to look for
@@ -668,10 +648,7 @@ function Issued({
   return (
     <section className="acc__section">
       <h2 className="acc__h2">Who can see what</h2>
-      <p className="acc__lede">
-        Press an organisation to see only theirs. Revoking takes effect at the
-        contract — a check against a revoked permission is refused, not merely hidden.
-      </p>
+      <p className="acc__lede">Press a buyer to see only theirs.</p>
       {failure && <Failed error={failure} />}
 
       {/* Who can see what, per organisation, before the three hundred rows
@@ -692,7 +669,7 @@ function Issued({
           >
             <span className="aholder__who">Everyone</span>
             <span className="aholder__n">{commas(grants.filter((g) => g.status === 'active').length)}</span>
-            <span className="small aholder__meta">live permissions in total</span>
+            <span className="small aholder__meta">active permissions</span>
           </button>
         </li>
         {buyers.map((msp) => {
@@ -711,8 +688,7 @@ function Issued({
                 <span className="aholder__who">{shortMsp(msp)}</span>
                 <span className="aholder__n">{commas(liveOnes.length)}</span>
                 <span className="small aholder__meta">
-                  live {liveOnes.length === 1 ? 'permission' : 'permissions'} across{' '}
-                  {commas(docs)} document{docs === 1 ? '' : 's'}
+                  across {commas(docs)} document{docs === 1 ? '' : 's'}
                   {ended > 0 && ` · ${commas(ended)} ended`}
                 </span>
               </button>
@@ -729,31 +705,18 @@ function Issued({
             value={status}
             onChange={(e) => { setStatus(e.target.value); setShown(PAGE); }}
           >
-            <option value="active">Live</option>
-            <option value="revoked">Revoked</option>
+            <option value="active">Active</option>
+            <option value="revoked">Withdrawn</option>
             <option value="">All</option>
           </select>
         </label>
-        <label className="acc__pick">
-          <span className="stamp-type">Holder</span>
-          <select
-            className="input"
-            value={who}
-            onChange={(e) => { setWho(e.target.value); setShown(PAGE); }}
-          >
-            <option value="">Everyone</option>
-            {buyers.map((b) => (
-              <option key={b} value={b}>{shortMsp(b)}</option>
-            ))}
-          </select>
-        </label>
         <label className="acc__search">
-          <span className="stamp-type">Record, field or grant</span>
+          <span className="stamp-type">Search</span>
           <input
             className="input"
             type="search"
             value={query}
-            placeholder="doc-… · net_pay_bdt · g-…"
+            placeholder="Document, figure or month"
             onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }}
           />
         </label>
@@ -769,10 +732,8 @@ function Issued({
           title="Nothing matches"
           detail={
             who
-              ? `${shortMsp(who)} holds nothing that fits those filters. Try "All" under `
-                + 'Status — access that has been withdrawn is still a fact about what they '
-                + 'were once given.'
-              : 'No grant you have issued fits those filters.'
+              ? `${shortMsp(who)} has nothing that fits. Try "All" under Status.`
+              : 'Try fewer filters.'
           }
         />
       ) : (
@@ -781,13 +742,12 @@ function Issued({
             <table className="acctable">
               <thead>
                 <tr>
-                  <th scope="col">Record</th>
-                  <th scope="col">Holder</th>
-                  <th scope="col">Field</th>
+                  <th scope="col">Document</th>
+                  <th scope="col">Who</th>
+                  <th scope="col">Figure</th>
                   <th scope="col">Purpose</th>
-                  <th scope="col">Granted</th>
                   <th scope="col">Until</th>
-                  <th scope="col">State</th>
+                  <th scope="col">Status</th>
                   <th scope="col"><span className="visually-hidden">Action</span></th>
                 </tr>
               </thead>
@@ -798,27 +758,23 @@ function Issued({
                   return (
                     <tr key={g.grant_id} className={g.status === 'active' ? '' : 'is-ended'}>
                       <th scope="row">
-                        <Link
-                          to={`/factory/records/${encodeURIComponent(g.record_id)}`}
-                          className="mono"
-                        >
-                          {g.record_id}
+                        <Link to={`/factory/records/${encodeURIComponent(g.record_id)}`}>
+                          {record ? recordLabel(record.record_type) : g.record_id}
                         </Link>
                         {record && (
                           <span className="small dim acctable__sub">
-                            {recordLabel(record.record_type)} · {period(record.period)} ·{' '}
-                            {record.site}
+                            {period(record.period)} · {record.site}
+                            <Tech> · <span className="mono">{g.record_id}</span></Tech>
                           </span>
                         )}
                       </th>
                       <td>{shortMsp(g.requester_msp)}</td>
                       <td>{labelOf(record?.record_type ?? '', g.field_name)}</td>
                       <td className="small">{purposeLabel(g.purpose_code)}</td>
-                      <td className="mono dim">{longDate(g.granted_at)}</td>
-                      <td className="mono dim">{longDate(g.expires_at)}</td>
+                      <td className="dim">{longDate(g.expires_at)}</td>
                       <td>
                         <Seal tone={g.status === 'active' ? 'sealed' : 'broken'}>
-                          {g.status}
+                          {permissionStatus(g.status)}
                         </Seal>
                         {g.revoked_reason && (
                           <span className="small dim acctable__sub">{g.revoked_reason}</span>
@@ -829,7 +785,7 @@ function Issued({
                           <div className="acctable__revoke">
                             <input
                               className="input"
-                              placeholder="Why? This goes on the ledger."
+                              placeholder="Why? The buyer is told."
                               value={draft(g.grant_id)}
                               onChange={(e) => setDraft(g.grant_id, e.target.value)}
                             />
@@ -849,7 +805,7 @@ function Issued({
                                   });
                               }}
                             >
-                              {busy === g.grant_id ? 'Revoking…' : 'Revoke, permanently'}
+                              {busy === g.grant_id ? 'Withdrawing…' : 'Withdraw, permanently'}
                             </button>
                             <button
                               type="button"
@@ -865,7 +821,7 @@ function Issued({
                             className="btn btn--ghost btn--sm"
                             onClick={() => setRevoking(g.grant_id)}
                           >
-                            Revoke
+                            Withdraw
                           </button>
                         )}
                       </td>
@@ -919,15 +875,12 @@ function Verifications({ rows }: { rows: VerificationRow[] }) {
   return (
     <section className="acc__section">
       <h2 className="acc__h2">What they have checked</h2>
-      <p className="acc__lede">
-        Permission is one thing, use is another. Every check anyone has run against a
-        document of yours, and whether it still matches what the ledger holds.
-      </p>
+      <p className="acc__lede">Every check run on your documents.</p>
 
       {rows.length === 0 ? (
         <Empty
           title="Nothing checked yet"
-          detail="A receipt appears here the first time somebody proves a figure against one of your documents."
+          detail="Checks show here when a buyer or auditor checks a figure."
         />
       ) : (
         <>
@@ -935,11 +888,10 @@ function Verifications({ rows }: { rows: VerificationRow[] }) {
             <table className="acctable">
               <thead>
                 <tr>
-                  <th scope="col">Record</th>
-                  <th scope="col">Verified by</th>
-                  <th scope="col">Field</th>
+                  <th scope="col">Document</th>
+                  <th scope="col">Checked by</th>
+                  <th scope="col">Figure</th>
                   <th scope="col">Result</th>
-                  <th scope="col">Root</th>
                   <th scope="col">When</th>
                   <th scope="col">Receipt</th>
                 </tr>
@@ -948,33 +900,27 @@ function Verifications({ rows }: { rows: VerificationRow[] }) {
                 {rows.slice(0, shown).map((r) => (
                   <tr key={r.receipt_id}>
                     <th scope="row">
-                      <Link
-                        to={`/factory/records/${encodeURIComponent(r.record_id)}`}
-                        className="mono"
-                      >
-                        {r.record_id}
+                      <Link to={`/factory/records/${encodeURIComponent(r.record_id)}`}>
+                        {recordLabel(r.record_type)}
                       </Link>
                       <span className="small dim acctable__sub">
-                        {recordLabel(r.record_type)} · {period(r.period)} · {r.site}
+                        {period(r.period)} · {r.site}
+                        <Tech> · <span className="mono">{r.record_id}</span></Tech>
                       </span>
                     </th>
                     <td>{shortMsp(r.verifier_msp)}</td>
                     <td>{labelOf(r.record_type, r.field_name)}</td>
                     <td>
                       <Seal tone={r.result === 'match' ? 'sealed' : 'broken'}>
-                        {r.result === 'match' ? 'matched' : 'no match'}
+                        {r.result === 'match' ? 'Matched' : 'No match'}
                       </Seal>
-                    </td>
-                    <td>
-                      {r.root_matches ? (
-                        <span className="small dim">unchanged since</span>
-                      ) : (
-                        <span className="small acctable__drift">
-                          differs from the ledger now
+                      {!r.root_matches && (
+                        <span className="small acctable__drift acctable__sub">
+                          The document has changed since
                         </span>
                       )}
                     </td>
-                    <td className="mono dim">{dateTime(r.verified_at)}</td>
+                    <td className="dim">{longDate(r.verified_at)}</td>
                     <td>
                       <Link
                         to={`/verify/${encodeURIComponent(r.receipt_id)}`}

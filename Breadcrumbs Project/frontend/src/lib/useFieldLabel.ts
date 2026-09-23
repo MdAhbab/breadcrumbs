@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { api, type RequestableField } from './api';
+import { api, storedRole, type RequestableField } from './api';
 
 /**
  * A column's name, as a person would say it.
@@ -26,7 +26,9 @@ let started = false;
 const listeners = new Set<() => void>();
 
 function load() {
-  if (started) return;
+  // Signed out, the request can only come back 401. Not asking at all keeps a
+  // public page from logging a failure it was always going to get.
+  if (started || !storedRole()) return;
   started = true;
   api.recordFields()
     .then((t) => {

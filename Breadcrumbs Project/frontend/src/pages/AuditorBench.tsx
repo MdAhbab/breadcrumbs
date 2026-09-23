@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Failed, Result } from '../components/states';
 import { Tech } from '../components/Tech';
 import { Field, Seal } from '../components/ui';
+import { OUTCOME_WORD } from '../components/ReviewSignoff';
 import {
   ApiError, api, recordLabel, shortMsp,
   type AuditQueue, type QueueItem, type ReviewConfirmation,
@@ -24,9 +25,8 @@ type Running = Record<string, 'checking' | 'passed' | 'failed' | undefined>;
  * The auditor's workspace.
  *
  * Batch work, in sequence, ending in a signature a professional puts their name
- * to. So the layout follows that: the queue across the top where work visibly
- * moves left to right, the full table below it, and the signing block along the
- * right in a heavier material than the rest of the page.
+ * to. So the layout follows that: one table of checks with the Run button over
+ * it, and the signing block along the right in a heavier material.
  *
  * "Run" runs. Each check is a real disclosure proved against the fingerprint on
  * the chain, and each success writes a receipt the factory can see. The
@@ -91,25 +91,24 @@ export default function AuditorBench() {
                   <p className="stamp-type bench__eyebrow">
                     {role?.org} · {commas(items.length)} to check
                   </p>
-                  <h1>Checks to run</h1>
+                  <h1>My audit checks</h1>
                   <p className="lead bench__lede">
-                    Each one re-derives a figure's fingerprint and compares it to what the
-                    factory published. A pass leaves a receipt the factory can see.
+                    Run each check against the ledger, then sign off. Each check leaves a
+                    receipt the factory can see.
                   </p>
                 </div>
                 <div className="bench__tally">
                   <Tally n={passed} label="passed" tone="ok" />
                   <Tally n={failed} label="failed" tone="bad" />
-                  <Tally n={queued.length} label="not yet run" tone="wait" />
+                  <Tally n={queued.length} label="not run" tone="wait" />
                 </div>
               </header>
 
               {failure && <Failed error={failure} />}
 
-              <section className="rail-strip">
-                <div className="rail-strip__head">
-                  <p className="stamp-type">The queue</p>
-                  <div className="rail-strip__actions">
+              <div className="bench__body">
+                <section className="surface">
+                  <div className="bench__bar">
                     <button
                       type="button"
                       className="btn btn--secondary btn--sm"
@@ -125,42 +124,18 @@ export default function AuditorBench() {
                       disabled={!queued.length || running}
                     >
                       <Play size={13} />
-                      {running ? 'Checking…' : `Run all ${queued.length}`}
+                      {running ? 'Checking…' : `Run all ${commas(queued.length)}`}
                     </button>
                   </div>
-                </div>
-
-                <ol className="specimens scroll-x">
-                  {items.slice(0, 40).map((it) => (
-                    <li key={it.grant_id} className={`spec is-${stateOf(it)}`}>
-                      <span className="spec__body">
-                        <span className="spec__factory">{shortMsp(it.owner_msp)}</span>
-                        <span className="small spec__type">{recordLabel(it.record_type)}</span>
-                        <Tech><span className="mono spec__id">{it.record_id}</span></Tech>
-                      </span>
-                      <span className="spec__state stamp-type">{stateOf(it)}</span>
-                    </li>
-                  ))}
-                </ol>
-                {items.length > 40 && (
-                  <p className="small dim">
-                    Showing the first 40 of {commas(items.length)}. The table below has all
-                    of them, and Run covers the whole set.
-                  </p>
-                )}
-              </section>
-
-              <div className="bench__body">
-                <section className="surface">
                   <div className="scroll-x">
                     <table className="benchtable">
                       <thead>
                         <tr>
                           <th scope="col">Factory</th>
-                          <th scope="col">Record</th>
+                          <th scope="col">Document</th>
                           <th scope="col">Month</th>
                           <th scope="col">Which figure</th>
-                          <Tech><th scope="col">Record id</th></Tech>
+                          <Tech><th scope="col">Document id</th></Tech>
                           <th scope="col">Result</th>
                         </tr>
                       </thead>
@@ -170,15 +145,15 @@ export default function AuditorBench() {
                           return (
                             <tr key={it.grant_id} className={state === 'failed' ? 'is-fail' : ''}>
                               <th scope="row">{shortMsp(it.owner_msp)}</th>
-                              <td>{recordLabel(it.record_type)}</td>
-                              <td className="mono">{period(it.period)}</td>
+                              <td>
+                                <Link to={`/factory/records/${encodeURIComponent(it.record_id)}`}>
+                                  {recordLabel(it.record_type)}
+                                </Link>
+                              </td>
+                              <td>{period(it.period)}</td>
                               <td>{labelOf(it.record_type, it.field_name)}</td>
                               <Tech>
-                                <td className="mono dim">
-                                  <Link to={`/factory/records/${encodeURIComponent(it.record_id)}`}>
-                                    {it.record_id}
-                                  </Link>
-                                </td>
+                                <td className="mono dim">{it.record_id}</td>
                               </Tech>
                               <td>
                                 <Seal
@@ -188,7 +163,7 @@ export default function AuditorBench() {
                                         : state === 'checking' ? 'pending' : 'inert'
                                   }
                                 >
-                                  {state}
+                                  {STATE_WORD[state]}
                                 </Seal>
                               </td>
                             </tr>
@@ -216,6 +191,14 @@ export default function AuditorBench() {
     </div>
   );
 }
+
+const STATE_WORD: Record<QueueItem['state'] | 'checking', string> = {
+  queued: 'Not run',
+  checking: 'Checking…',
+  passed: 'Passed',
+  failed: 'Failed',
+  revoked: 'Withdrawn',
+};
 
 /**
  * The signing block, in a different material from the rest of the page.
@@ -255,15 +238,14 @@ function Signing({
 
   return (
     <aside className={`signing grain ${signed ? 'is-signed' : ''}`}>
-      <p className="stamp-type signing__head">Attestation</p>
+      <p className="stamp-type signing__head">Sign off</p>
 
       {signed ? (
         <div className="wax">
           <div className="wax__seal" aria-hidden="true"><PenLine size={22} /></div>
           <h3 className="wax__head">Signed and submitted.</h3>
           <p className="small wax__body">
-            What you sign is recorded against your certificate, and against the checks it
-            rests on are on the ledger. It cannot be quietly amended later.
+            It is saved on the ledger with the checks it rests on. It cannot be changed later.
           </p>
           <button
             type="button"
@@ -275,20 +257,21 @@ function Signing({
         </div>
       ) : (
         <>
-          <Field label="Claim code" id="claim">
+          <Field label="Certificate code" id="claim">
             <input
               id="claim" className="input mono" value={claim}
               onChange={(e) => setClaim(e.target.value)}
             />
           </Field>
-          <Field label="Evidence scope" id="scope">
+          {/* The values are what the API stores, so only the labels are reworded. */}
+          <Field label="Which documents" id="scope">
             <select id="scope" className="input" value={scope} onChange={(e) => setScope(e.target.value)}>
-              <option>All records in this batch</option>
-              <option>Passed records only</option>
-              <option>Selected records</option>
+              <option value="All records in this batch">All documents in this batch</option>
+              <option value="Passed records only">Only documents that passed</option>
+              <option value="Selected records">Selected documents</option>
             </select>
           </Field>
-          <Field label="Findings, in plain language" id="stmt">
+          <Field label="Your findings" id="stmt">
             <textarea
               id="stmt"
               className="input"
@@ -311,17 +294,17 @@ function Signing({
           </button>
           <p className="small signing__why">
             {!allRun
-              ? `${queued} check${queued === 1 ? '' : 's'} still to run. You cannot sign off on a record that has not been checked. The API refuses it.`
+              ? `Run the last ${commas(queued)} check${queued === 1 ? '' : 's'} first.`
               : statement.trim().length < 12
                 ? 'Write your findings before signing.'
-                : 'This will be recorded against your certificate.'}
+                : 'This is saved against your certificate code.'}
           </p>
         </>
       )}
 
       {existing.length > 0 && (
         <div className="signing__past">
-          <p className="stamp-type">Previously signed</p>
+          <p className="stamp-type">Signed before</p>
           <ul>
             {existing.map((a) => (
               <li key={a.id}>
@@ -355,9 +338,7 @@ function Confirmations() {
       <p className="stamp-type confirms__head">Confirmations of review</p>
       {rows.length === 0 ? (
         <p className="small confirms__none">
-          None yet. Open any document and sign one at the foot of it. A confirmation
-          names that document alone, and is generated once — signing the same document
-          again would be the same claim with a later date on it.
+          None yet. Sign one at the foot of any document.
         </p>
       ) : (
         <>
@@ -371,19 +352,14 @@ function Confirmations() {
                   {r.record_id}
                 </Link>
                 <span className="small confirms__meta">
-                  {r.id} · {r.outcome} · {longDate(r.signed_at)}
-                  {r.checks_cited.length > 0
-                    ? ` · on ${r.checks_cited.length} receipt${r.checks_cited.length === 1 ? '' : 's'}`
-                    : ' · on no receipt'}
+                  {r.id} · {OUTCOME_WORD[r.outcome]} · {longDate(r.signed_at)} ·{' '}
+                  {r.checks_cited.length === 1 ? '1 check' : `${commas(r.checks_cited.length)} checks`}
                 </span>
               </li>
             ))}
           </ul>
           {rows.length > 8 && (
-            <p className="small confirms__none">
-              Showing 8 of {rows.length}. The rest are on the documents they were signed
-              against.
-            </p>
+            <p className="small confirms__none">Showing 8 of {commas(rows.length)}.</p>
           )}
         </>
       )}

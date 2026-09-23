@@ -28,22 +28,24 @@ import './login.css';
  * someone who has not yet seen the thing work.
  */
 export default function Login() {
-  const [picked, setPicked] = useState<RoleOption | null>(null);
-  const [entering, setEntering] = useState(false);
+  // One press signs in. The earlier pick-then-Enter pair put the Enter button
+  // below the fold on a laptop screen, so choosing a role appeared to do
+  // nothing until the visitor thought to scroll.
+  const [entering, setEntering] = useState<RoleOption['role'] | null>(null);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const { signIn } = useSession();
   const navigate = useNavigate();
   const roles = useApi(() => api.roles(), []);
 
-  const enter = async () => {
-    if (!picked) return;
-    setEntering(true);
+  const enter = async (picked: RoleOption) => {
+    if (entering) return;
+    setEntering(picked.role);
     setFailure(null);
     try {
       navigate(await signIn(picked), { replace: true });
     } catch (err) {
       setFailure(err instanceof ApiError ? err : new ApiError(0, 'sign-in failed'));
-      setEntering(false);
+      setEntering(null);
     }
   };
 
@@ -57,10 +59,8 @@ export default function Login() {
 
         <h1 className="login__title">Who are you signing in as?</h1>
         <p className="lead login__lede">
-          Five people, one ledger, and a different view of it for each. Signing in is
-          simulated, so no password is asked for. What is not simulated is everything
-          after it. Each role gets a real token, and the contract refuses anything that
-          role may not do, instead of the screen just hiding a button.
+          Pick a person to see the product through their eyes. There is no password:
+          one press signs you in, and each person only sees what their job allows.
         </p>
 
         <div className="login__tour">
@@ -84,16 +84,21 @@ export default function Login() {
                 <li key={r.role}>
                   <button
                     type="button"
-                    className={`role ${picked?.role === r.role ? 'is-picked' : ''}`}
-                    onClick={() => setPicked(r)}
-                    aria-pressed={picked?.role === r.role}
+                    className={`role ${entering === r.role ? 'is-picked' : ''}`}
+                    onClick={() => enter(r)}
+                    disabled={entering !== null}
+                    aria-busy={entering === r.role}
                     style={{ animationDelay: `${i * 55}ms` }}
                   >
                     <span className="role__n mono">{String(i + 1).padStart(2, '0')}</span>
                     <span className="role__body">
                       <span className="role__label">{r.label}</span>
-                      <span className="role__org">{r.org}</span>
+                      <span className="role__org">{r.person} · {r.org}</span>
                       <span className="role__summary">{r.summary}</span>
+                    </span>
+                    <span className="role__go" aria-hidden="true">
+                      {entering === r.role ? 'Signing in…' : 'Sign in'}
+                      <ArrowRight size={15} />
                     </span>
                   </button>
                 </li>
@@ -105,17 +110,8 @@ export default function Login() {
         {failure && <div className="login__failure"><Failed error={failure} /></div>}
 
         <div className="login__actions">
-          <button
-            type="button"
-            className="btn btn--primary btn--lg"
-            onClick={enter}
-            disabled={!picked || entering}
-          >
-            {entering ? 'Signing in…' : `Enter${picked ? ` as ${picked.person}` : ''}`}
-            <ArrowRight size={16} />
-          </button>
           <Link to="/verify" className="login__nolink">
-            Verify a document without signing in
+            Have a receipt link? Check it without signing in
           </Link>
         </div>
       </div>

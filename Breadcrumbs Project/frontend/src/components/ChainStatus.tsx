@@ -157,14 +157,14 @@ export function ChainStatus({ variant = 'nav' }: { variant?: 'nav' | 'bar' }) {
                 })}
               </ul>
             ) : (
-              <p className="chainstat__note">Reading the chain…</p>
+              <p className="chainstat__note">Loading…</p>
             )}
           </div>
           <footer className="modal__foot">
             <span className="small chainstat__note">
               {verified
-                ? 'Every entry was re-checked against the one before it, and they all match.'
-                : 'The re-check did not pass on every channel.'}
+                ? 'Every entry was re-checked. Nothing was altered.'
+                : 'The re-check failed. Something may have been altered.'}
             </span>
             <Link to="/ledger" className="btn btn--primary btn--sm" onClick={() => setOpen(false)}>
               Open the transaction history <ArrowUpRight size={14} />

@@ -13,7 +13,7 @@ import {
   ApiError, api, purposeLabel, recordLabel, shortMsp,
   type Grant, type RecordDetail as Detail,
 } from '../lib/api';
-import { commas, dateTime, longDate, period } from '../lib/format';
+import { commas, dateTime, longDate, period, permissionStatus } from '../lib/format';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import { useFieldLabel } from '../lib/useFieldLabel';
@@ -49,7 +49,7 @@ export default function RecordDetail() {
         <ArrowLeft size={14} /> Back
       </Link>
 
-      <Result query={main} pendingLabel="Reading the record off the chain">
+      <Result query={main} pendingLabel="Loading the document">
         {([detail, allGrants]) => {
           const b = detail.record;
           const grants = allGrants.filter((g) => g.record_id === b.record_id);
@@ -59,7 +59,9 @@ export default function RecordDetail() {
             <>
               <header className="rec__head">
                 <div>
-                  <p className="stamp-type rec__eyebrow">{b.record_id} · {b.site}</p>
+                  <p className="stamp-type rec__eyebrow">
+                    {b.site}<Tech> · {b.record_id}</Tech>
+                  </p>
                   <h1>{recordLabel(b.record_type)}</h1>
                   <p className="lead rec__lede">
                     {period(b.period)} · {shortMsp(b.owner_msp)}
@@ -73,7 +75,6 @@ export default function RecordDetail() {
               <div className="rec__figures">
                 <Fig n={commas(b.row_count)} l="rows in the file" />
                 <Fig n={longDate(b.committed_at)} l="published on" />
-                <Fig n="0" l="rows the ledger can read" />
                 <Tech><Fig n={b.schema_version} l="schema" /></Tech>
               </div>
 
@@ -103,7 +104,7 @@ export default function RecordDetail() {
                         <span className={`tl__dot ${g.status === 'revoked' ? 'is-bad' : ''}`} />
                         <div>
                           <p className="tl__what">
-                            {g.status === 'revoked' ? 'Access withdrawn from' : 'Access given to'}{' '}
+                            {g.status === 'revoked' ? 'Permission withdrawn from' : 'Permission given to'}{' '}
                             {shortMsp(g.requester_msp)}
                           </p>
                           <p className="small tl__when">
@@ -138,25 +139,15 @@ export default function RecordDetail() {
                       <li className="tl__item">
                         <span className="tl__dot is-bad" />
                         <div>
-                          <p className="tl__what">Corrected by a later version</p>
-                          <p className="small tl__when">
-                            This version is not deleted, and it stays checkable.
-                          </p>
+                          <p className="tl__what">Replaced by a newer version</p>
+                          <p className="small tl__when">This version stays on the ledger.</p>
                         </div>
                       </li>
                     )}
                   </ol>
 
-                  <h2 className="rec__h2 rec__h2--spaced">
-                    Who counter-signed it when it was filed
-                  </h2>
-                  <p className="small rec__note">
-                    Assigned by the consortium&rsquo;s draw, before the file was
-                    published, and not chosen by the factory. Separate from a confirmation
-                    of review, which is signed afterwards by somebody who read the
-                    document — those are at the foot of the table above.
-                  </p>
-                  <Result query={witness} pendingLabel="Asking who was assigned">
+                  <h2 className="rec__h2 rec__h2--spaced">Counter-signed</h2>
+                  <Result query={witness} pendingLabel="Loading">
                     {(req) => (
                       <WitnessPanel
                         req={req}
@@ -170,14 +161,14 @@ export default function RecordDetail() {
                     {(result) => <ThreeChecks result={result} />}
                   </Result>
 
-                  <h2 className="rec__h2 rec__h2--spaced">What the detector thinks</h2>
-                  <p className="small rec__note">
-                    Everything above this line is proof: anyone can check it, and it
-                    settles the question. Everything below it is a guess. Keeping the two
-                    apart is the point of the heading.
-                  </p>
+                  <h2 className="rec__h2 rec__h2--spaced">AI model score</h2>
+                  <p className="small rec__note">A guess, not proof. The checks above are the proof.</p>
                   <Screening recordId={b.record_id} />
 
+                  {/* Already one switch away, in the sidebar. A second, local
+                      "Technical detail" made the reader learn two controls for
+                      one idea. */}
+                  <Tech>
                   <Disclosure summary="Technical detail">
                     <LedgerRow label="Record id"><span className="mono">{b.record_id}</span></LedgerRow>
                     <LedgerRow label="Merkle root"><HashChip value={b.merkle_root} /></LedgerRow>
@@ -194,14 +185,13 @@ export default function RecordDetail() {
                       Off the chain. The API never serves a document body.
                     </LedgerRow>
                   </Disclosure>
+                  </Tech>
                 </section>
 
                 <aside>
-                  <h2 className="rec__h2">Who can read part of this</h2>
+                  <h2 className="rec__h2">Who can see this</h2>
                   {grants.length === 0 ? (
-                    <p className="small rec__none">
-                      Nobody yet. It is published, and shared with no one.
-                    </p>
+                    <p className="small rec__none">Nobody yet.</p>
                   ) : (
                     <ul className="grants">
                       {grants.map((g) => (
@@ -215,10 +205,7 @@ export default function RecordDetail() {
                       ))}
                     </ul>
                   )}
-                  <p className="small rec__note">
-                    Access covers exactly one column. Anything wider is refused by the
-                    contract itself, so it cannot be given away by mistake.
-                  </p>
+                  <p className="small rec__note">Each permission covers one column.</p>
                 </aside>
               </div>
             </>
@@ -278,7 +265,7 @@ function GrantRow({
                 : grant.status === 'revoked' ? 'broken' : 'inert'
           }
         >
-          {grant.status}
+          {permissionStatus(grant.status)}
         </Seal>
       </div>
       <p className="grant__field">{label}</p>
@@ -297,8 +284,7 @@ function GrantRow({
             autoFocus
           />
           <p className="small grant__asknote">
-            Permanent, and written to the ledger under your name. You can give access
-            again afterwards; it will be a new, separate permission.
+            This is permanent. You can give a new permission later.
           </p>
           <div className="grant__askrow">
             <button
