@@ -1185,17 +1185,21 @@ export const FUNCTION_LABEL: Record<string, string> = {
   reveal_seed_share: 'revealed a share of the random draw',
   install_group: 'set up the tamper check',
   advance_epoch: 'updated the tamper check',
-  publish_beacon: 'published a proof that time had passed',
-  commit_benchmark: 'fixed the tests for a training round',
-  open_round: 'opened a training round',
+  publish_beacon: 'added a time check',
+  commit_benchmark: 'fixed the tests for the AI model',
+  open_round: 'opened an AI model update',
   evaluate_gate: 'tested an AI model update',
   attest_record: 'counter-signed a document',
-  submit_proposal: 'opened a proposal',
-  endorse_proposal: 'agreed to a proposal',
+  submit_proposal: 'opened a vote',
+  endorse_proposal: 'voted yes',
 };
 
 export const functionLabel = (fn: string): string =>
   FUNCTION_LABEL[fn] ?? fn.replace(/_/g, ' ');
 
 export const shortMsp = (msp: string): string =>
-  msp.replace(/MSP$/, '').replace(/([a-z])([A-Z])/g, '$1 $2');
+  msp
+    .replace(/MSP$/, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    // An acronym followed by a word: "BGMEAConsortium" → "BGMEA Consortium".
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');

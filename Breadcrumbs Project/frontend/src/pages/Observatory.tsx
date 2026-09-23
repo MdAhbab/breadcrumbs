@@ -2,30 +2,20 @@ import { Eye } from 'lucide-react';
 import { useState } from 'react';
 
 import { Failed, Result } from '../components/states';
+import { Tech } from '../components/Tech';
 import { Frosted, Seal } from '../components/ui';
 import { ApiError, api, type RegulatorOverview, type Sla } from '../lib/api';
 import { commas, longDate } from '../lib/format';
+import { channelLabel } from '../lib/plainReason';
 import { useApi } from '../lib/useApi';
 import './observatory.css';
 
 /**
- * The Observatory — the regulator's view.
+ * The regulator's dashboard: votes, totals, and whether anything was altered.
  *
- * The most interesting design problem in the product, because a regulator's
- * defining characteristic is what they may *not* see.
- *
- * Most software treats permissions as absence: it hides what you cannot access,
- * and you learn nothing. Here the restricted regions stay on the page behind
- * glass — the shape of the data is visible, the content is not, and the exact
- * lawful basis required is stated on each one. Absence teaches nothing; a drawn
- * boundary teaches the rule.
- *
- * The glass now covers a real refusal. The panels below actually call the
- * endpoints they describe, and what they show is the 403 the server returned,
- * with the capability table's own sentence. The previous version drew frosted
- * glass over a copy of the factory's records held in the frontend — the one
- * screen in the product whose entire subject is a boundary was rendering data
- * from the far side of it.
+ * What the regulator may not see stays on the page behind glass, with the
+ * reason on it, so the boundary is visible rather than silently missing. The
+ * panels really call the endpoints they describe and show the server's refusal.
  */
 export default function Observatory() {
   const world = useApi(
@@ -39,10 +29,9 @@ export default function Observatory() {
       <div className="obs__condition grain">
         <Eye size={16} />
         <div>
-          <p className="obs__condition-head">Read-only observer access</p>
+          <p className="obs__condition-head">Read-only access</p>
           <p className="small obs__condition-body">
-            You are seeing aggregate governance statistics and events. Factory-level
-            records and personal data require a separate lawful-basis access grant.
+            You can see totals and votes. You cannot change anything.
           </p>
         </div>
       </div>
@@ -52,39 +41,38 @@ export default function Observatory() {
           <>
             <header className="obs__head">
               <p className="stamp-type obs__eyebrow">Dept. of Labour, Bangladesh</p>
-              <h1>Overview</h1>
+              <h1>Dashboard</h1>
+              <p className="lead obs__lede">
+                Votes, totals, and whether anything on the ledger was altered.
+              </p>
             </header>
 
             <section className="obs__section">
               <p className="stamp-type obs__label">Visible to you</p>
               <div className="figures">
-                <Figure n={overview.kpis.active_factories} label="active factories" />
-                <Figure n={overview.kpis.total_organisations} label="organisations in the consortium" />
-                <Figure n={overview.kpis.open_proposals} label="proposals open" />
+                <Figure n={commas(overview.kpis.active_factories)} label="active factories" />
+                <Figure n={commas(overview.kpis.total_organisations)} label="members" />
+                <Figure n={commas(overview.kpis.open_proposals)} label="votes open" />
                 <Figure n={commas(sla.kpis.total_verifications)} label="checks recorded" />
                 <Figure
-                  n={overview.chain.reduce((a, c) => a + c.height, 0)}
+                  n={commas(overview.chain.reduce((a, c) => a + c.height, 0))}
                   label="entries on the ledger"
                 />
                 <Figure
-                  n={overview.chain.every((c) => c.integrity_ok) ? 'passing' : 'FAILING'}
-                  label="chain integrity re-check"
+                  n={overview.chain.every((c) => c.integrity_ok) ? 'Nothing' : 'Something'}
+                  label="altered on the ledger"
                 />
               </div>
-              <p className="small obs__explain">
-                {sla.unmeasured.reason}
-              </p>
             </section>
 
             <section className="obs__section">
-              <p className="stamp-type obs__label">Governance events</p>
+              <p className="stamp-type obs__label">Votes</p>
               {overview.governance_events.length === 0 ? (
-                <p className="small obs__explain">No proposals have been opened.</p>
+                <p className="small obs__explain">Nothing has been put to a vote.</p>
               ) : (
                 <ol className="events">
                   {overview.governance_events.map((e, i) => (
                     <li key={i} className="event">
-                      <span className="mono event__case">{String(i + 1).padStart(3, '0')}</span>
                       <span className="event__body">
                         <span className="event__title">{e.title}</span>
                         <span className="small event__meta">
@@ -92,7 +80,8 @@ export default function Observatory() {
                         </span>
                       </span>
                       <Seal tone={e.status === 'approved' ? 'sealed' : 'pending'}>
-                        {e.status}
+                        {e.status === 'approved' ? 'Approved'
+                          : e.status === 'pending' ? 'Waiting' : e.status}
                       </Seal>
                     </li>
                   ))}
@@ -101,33 +90,34 @@ export default function Observatory() {
             </section>
 
             <section className="obs__section">
-              <p className="stamp-type obs__label">Channels</p>
-              <div className="scroll-x">
-                <table className="ghosttable">
-                  <thead>
-                    <tr>
-                      <th scope="col">Channel</th>
-                      <th scope="col">Height</th>
-                      <th scope="col">Members</th>
-                      <th scope="col">Integrity</th>
+              <p className="stamp-type obs__label">The ledger</p>
+              <table className="ghosttable ghosttable--ledger">
+                <thead>
+                  <tr>
+                    <th scope="col">Holds</th>
+                    <th scope="col" className="num">Entries</th>
+                    <th scope="col" className="num">Members</th>
+                    <th scope="col">Altered?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overview.chain.map((c) => (
+                    <tr key={c.channel}>
+                      <td>
+                        {channelLabel(c.channel)}
+                        <Tech><span className="mono small dim ghosttable__raw">{c.channel}</span></Tech>
+                      </td>
+                      <td className="mono num">{commas(c.height)}</td>
+                      <td className="mono num">{commas(c.members.length)}</td>
+                      <td>
+                        <Seal tone={c.integrity_ok ? 'sealed' : 'broken'}>
+                          {c.integrity_ok ? 'No' : 'Yes'}
+                        </Seal>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {overview.chain.map((c) => (
-                      <tr key={c.channel}>
-                        <td className="mono">{c.channel}</td>
-                        <td className="mono">{commas(c.height)}</td>
-                        <td>{c.members.length}</td>
-                        <td>
-                          <Seal tone={c.integrity_ok ? 'sealed' : 'broken'}>
-                            {c.integrity_ok ? 'verified' : 'failed'}
-                          </Seal>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </section>
 
             <section className="obs__section">
@@ -135,34 +125,31 @@ export default function Observatory() {
                 Present, but closed to you
               </p>
               <p className="small obs__explain">
-                These views exist and hold data. Your role does not carry the capability
-                to read them, and the server refuses the request, not merely the
-                interface. Each panel below made the call.
+                These hold data you cannot open. The server refuses, not just this screen.
               </p>
 
               <div className="obs__closed">
                 <Refused
-                  title="Committed records"
+                  title="Factory documents"
                   call={() => api.records()}
-                  fallback="Factory records require a separate lawful-basis access grant."
+                  fallback="Factory documents need a separate legal permission."
                 />
                 <Refused
-                  title="Period seals"
+                  title="Closed months"
                   call={() => api.seals()}
-                  fallback="A seal is a statement about a named factory's bookkeeping."
+                  fallback="A closed month is about one named factory."
                 />
                 <Refused
-                  title="Access grants"
+                  title="Permissions"
                   call={() => api.grants()}
-                  fallback="Grant-level detail names individual counterparties and is out of scope."
+                  fallback="Permissions name the buyers involved."
                 />
               </div>
 
               <div className="obs__request">
                 <p className="small">
-                  Giving a regulator lawful-basis access is itself a proposal the members vote on,
-                  recorded on the ledger like any other. Requesting one leaves a trail;
-                  so does approving it.
+                  To get access, the members must vote on it. The request and the vote both
+                  go on the ledger.
                 </p>
               </div>
             </section>
@@ -215,8 +202,8 @@ function Refused({
         {result === 'denied' && error && <Failed error={error} />}
         {result === 'open' && (
           <p className="small">
-            The server returned {rows} row{rows === 1 ? '' : 's'}. The capability table
-            no longer refuses this role, and the boundary this panel describes is gone.
+            The server sent {commas(rows)} row{rows === 1 ? '' : 's'}. This is no longer
+            closed to you.
           </p>
         )}
       </div>

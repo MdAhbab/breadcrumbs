@@ -9,13 +9,12 @@ import { Seal } from './ui';
 import './mechanisms.css';
 
 /**
- * The accumulator over time: one integer, and how it got there.
+ * The tamper check over time: one fingerprint, and each update to it.
  *
- * Two honest states are drawn rather than hidden. An epoch with no beacon has
- * proved its order and nothing about elapsed time. An epoch whose beacon claims
- * fewer iterations than the consortium agreed has proved less work than the
- * rule asks for, and saying "verified" over it would be the interface inventing
- * a guarantee the ledger never made.
+ * Two honest states are drawn rather than hidden. An update with no time check
+ * (beacon) says nothing about elapsed time. One whose beacon claims fewer
+ * iterations than the consortium agreed has done less work than the rule asks
+ * for, and "checked" over it would invent a guarantee the ledger never made.
  *
  * The agreed minimum comes from the API rather than being a constant here, and
  * that matters more than it looks: `publish_beacon` reads the minimum out of the
@@ -59,7 +58,7 @@ export function EpochTimeline({
       <section className="epochs epochs--off">
         <p className="epochs__title">The tamper check is not set up here yet</p>
         <p className="small">
-          {state.reason ?? 'Nothing has been set up on this part of the network, so there is nothing to add records to.'}
+          {state.reason ?? 'Nothing has been set up on this part of the network yet.'}
         </p>
       </section>
     );
@@ -71,12 +70,12 @@ export function EpochTimeline({
     <section className="epochs">
       <div className="epochs__state">
         <div className="epochs__figure">
-          <span className="epochs__n">{state.epoch}</span>
-          <span className="stamp-type">times updated</span>
+          <span className="epochs__n">{commas(state.epoch ?? 0)}</span>
+          <span className="stamp-type">updates</span>
         </div>
         <div className="epochs__figure">
           <span className="epochs__n">{commas(state.size ?? 0)}</span>
-          <span className="stamp-type">things it covers</span>
+          <span className="stamp-type">documents and months covered</span>
         </div>
         <Tech>
           <div className="epochs__figure">
@@ -84,25 +83,21 @@ export function EpochTimeline({
             <span className="stamp-type">bit modulus</span>
           </div>
         </Tech>
-        <div className="epochs__value">
-          <span className="stamp-type">The number itself</span>
-          <span className="mono">{shortHash(state.value_hex ?? '')}</span>
-          <span className="small">
-            This single number stands for everything listed above. Checking whether one
-            record is inside it takes the same work whether there are ten of them or
-            ten million.
-          </span>
-        </div>
       </div>
 
-      {group.transcript && (
-        <p className="small epochs__dealer">
-          The starting numbers were set up by {group.transcript.dealer}, using randomness
-          contributed by {group.transcript.contributors.join(', ')}. Whoever held the
-          original secret from that setup could fake one of the three checks, which is
-          exactly why nothing here relies on that check by itself.
-        </p>
-      )}
+      <Tech>
+        <div className="epochs__value">
+          <span className="stamp-type">Fingerprint</span>
+          <span className="mono">{shortHash(state.value_hex ?? '')}</span>
+        </div>
+        {group.transcript && (
+          <p className="small epochs__dealer">
+            Set up by {group.transcript.dealer}, with randomness from{' '}
+            {group.transcript.contributors.join(', ')}. Whoever held the setup secret
+            could fake one of the three checks, so nothing relies on that check alone.
+          </p>
+        )}
+      </Tech>
 
       {failure && <Failed error={failure} />}
 
@@ -114,7 +109,7 @@ export function EpochTimeline({
               <span className="etl__dot" aria-hidden="true" />
               <div className="etl__body">
                 <div className="etl__head">
-                  <span className="etl__epoch mono">update {e.epoch}</span>
+                  <span className="etl__epoch">Update {commas(e.epoch)}</span>
                   <span className="small etl__when">{dateTime(e.sealed_at)}</span>
                 </div>
 
@@ -136,24 +131,19 @@ export function EpochTimeline({
                       <span className="small">sequential squarings</span>
                     </Tech>
                     <Plain>
-                      <span className="small">
-                        Proof that real time passed before this update
-                      </span>
+                      <span className="small">Real time passed before this update</span>
                     </Plain>
                     {short ? (
                       <Seal tone="broken">less work than agreed</Seal>
                     ) : (
-                      <Seal tone="sealed">checked</Seal>
+                      <Seal tone="sealed">Checked</Seal>
                     )}
                   </div>
                 ) : (
                   <>
                     <div className="etl__beacon is-absent">
                       <Clock size={12} />
-                      <span className="small">
-                        No time proof yet. The order these were added in is proved.
-                        How much time passed before it is not.
-                      </span>
+                      <span className="small">Time not checked yet</span>
                     </div>
                     {canPublish && minimum > 0 && (
                       <div className="etl__publish">
@@ -163,12 +153,10 @@ export function EpochTimeline({
                           disabled={busy !== null}
                           onClick={() => void publish(e.epoch, minimum)}
                         >
-                          {busy === e.epoch ? 'Working…' : 'Publish a time proof'}
+                          {busy === e.epoch ? 'Working…' : 'Add a time check'}
                         </button>
                         <p className="small">
-                          This really does the work: a calculation that cannot be
-                          hurried, even with more machines. It takes a couple of seconds
-                          to produce and about two milliseconds for anyone to check.
+                          Takes a few seconds.
                           <Tech> {commas(minimum)} sequential squarings.</Tech>
                         </p>
                       </div>

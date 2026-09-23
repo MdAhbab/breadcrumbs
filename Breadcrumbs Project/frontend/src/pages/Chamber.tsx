@@ -4,22 +4,18 @@ import { ConsortiumMesh } from '../components/ConsortiumMesh';
 import { Failed, Result } from '../components/states';
 import { Tech } from '../components/Tech';
 import { ApiError, api, shortMsp, type Org, type Proposal } from '../lib/api';
-import { longDate } from '../lib/format';
+import { commas, longDate } from '../lib/format';
+import { channelLabel } from '../lib/plainReason';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
 import './chamber.css';
 
 /**
- * The Chamber — the consortium administrator's console.
+ * Members & voting — the consortium administrator's console.
  *
- * These are decisions of record, not settings, so the grammar is a docket:
- * motions set as readable prose rather than truncated card text, and
- * endorsement shown as seal impressions being affixed rather than as a progress
- * bar. When a motion carries, a stamp rotates in at an angle, the way a rubber
- * stamp lands on paper.
- *
- * Affixing a seal writes to the server. It used to update local state, which
- * meant the one page in the product about decisions of record recorded nothing.
+ * Proposals are set as readable prose, and each vote shows as a seal
+ * impression rather than a progress bar. When a proposal is approved, a stamp
+ * lands on it. Agreeing writes to the server, not to local state.
  */
 export default function Chamber() {
   const { role } = useSession();
@@ -31,16 +27,16 @@ export default function Chamber() {
 
   return (
     <div className="chamber">
-      <Result query={world} pendingLabel="Reading the proposals">
+      <Result query={world} pendingLabel="Reading the votes">
         {([motions, orgs]) => (
           <>
             <header className="ch__head">
               <div>
-                <p className="stamp-type ch__eyebrow">{role?.org} · governance</p>
-                <h1>Members &amp; proposals</h1>
+                <p className="stamp-type ch__eyebrow">{role?.org}</p>
+                <h1>Members &amp; voting</h1>
                 <p className="lead ch__lede">
-                  {motions.filter((m) => m.status === 'pending').length} proposals open ·{' '}
-                  {orgs.length} member organisations
+                  {commas(motions.filter((m) => m.status === 'pending').length)} votes open ·{' '}
+                  {commas(orgs.length)} members
                 </p>
               </div>
               <div className="ch__tabs" role="tablist">
@@ -52,7 +48,7 @@ export default function Chamber() {
                     className={`ch__tab ${tab === t ? 'is-on' : ''}`}
                     onClick={() => setTab(t)}
                   >
-                    {{ motions: 'Proposals', network: 'Who is connected', register: 'Members' }[t]}
+                    {{ motions: 'Votes', network: 'Who is connected', register: 'Members' }[t]}
                   </button>
                 ))}
               </div>
@@ -76,7 +72,6 @@ export default function Chamber() {
 
             {tab === 'register' && (
               <div className="register">
-                <p className="stamp-type register__cap">Member organisations</p>
                 <div className="scroll-x">
                   <table className="regtable">
                     <thead>
@@ -100,8 +95,8 @@ export default function Chamber() {
                           <td>{o.country}</td>
                           <td className="mono dim">
                             {o.channels.length === 0
-                              ? 'none'
-                              : o.channels.map((c) => c.replace('-apex-primark', '')).join(', ')}
+                              ? 'nothing'
+                              : o.channels.map(channelLabel).join(', ')}
                           </td>
                         </tr>
                       ))}
@@ -109,9 +104,8 @@ export default function Chamber() {
                   </table>
                 </div>
                 <p className="small register__note">
-                  Who is a member, and what each member can see, comes from the network&rsquo;s
-                  own configuration. Admitting or suspending anyone takes a proposal the
-                  others vote on. Whoever runs the servers cannot do it alone.
+                  Adding or suspending a member takes a vote. Whoever runs the servers
+                  cannot do it alone.
                 </p>
               </div>
             )}
@@ -143,7 +137,7 @@ function Motion({
       await api.endorse(m.id);
       onEndorsed();
     } catch (err) {
-      setFailure(err instanceof ApiError ? err : new ApiError(0, 'the endorsement failed'));
+      setFailure(err instanceof ApiError ? err : new ApiError(0, 'your vote was not recorded'));
     } finally {
       setBusy(false);
     }
@@ -152,12 +146,16 @@ function Motion({
   return (
     <li className={`motion ${carried ? 'is-carried' : ''}`}>
       <div className="motion__margin">
-        <p className="mono motion__case">BGMEA/M-{String(index + 41).padStart(3, '0')}</p>
+        <Tech>
+          <p className="mono motion__case">
+            BGMEA/M-{String(index + 41).padStart(3, '0')} · {m.id}
+          </p>
+        </Tech>
         <p className="stamp-type motion__kind">{m.kind.replace(/_/g, ' ')}</p>
         <p className="small motion__dates">
           opened {longDate(m.opened_at)}
           <br />
-          {carried ? 'resolved' : `closes ${longDate(m.closes_at)}`}
+          {carried ? 'decided' : `closes ${longDate(m.closes_at)}`}
         </p>
       </div>
 
@@ -169,7 +167,7 @@ function Motion({
             named organisations, not a percentage of something. */}
         <div className="seals">
           <p className="stamp-type seals__label">
-            {m.endorsement_count} of {m.required} members have agreed
+            {commas(m.endorsement_count)} of {commas(m.required)} members have agreed
           </p>
           <div className="seals__row">
             {Array.from({ length: m.required }, (_, i) => {
@@ -196,10 +194,9 @@ function Motion({
 
         {carried ? (
           <div className="carried">
-            <span className="carried__stamp stamp-type">Passed</span>
+            <span className="carried__stamp stamp-type">Approved</span>
             <p className="small carried__note">
-              Enough members agreed. Who agreed, and what was decided, are on the ledger
-              and cannot be quietly revised afterwards.
+              Enough members agreed. The vote is on the ledger and cannot be changed.
             </p>
           </div>
         ) : (

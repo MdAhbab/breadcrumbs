@@ -50,7 +50,7 @@
 .seg--docs .seg__weft span { background: var(--brass); opacity: 0.5; }
 .seg--model .seg__weft span { background: var(--indigo-mid); opacity: 0.5; }
 
-.seg__n { font-size: 9px; color: var(--ink-quiet); text-align: center; }
+.seg__n { font-size: 9px; color: var(--ink-quiet); text-align: center; letter-spacing: -0.02em; }
 
 .seg.is-on {
   border-color: var(--ink); background: var(--unbleached);
@@ -82,7 +82,7 @@
   display: flex; align-items: center; gap: var(--s4);
   margin-bottom: var(--s5); flex-wrap: wrap;
 }
-.blockcard__n { font-family: var(--font-mono); font-size: 20px; letter-spacing: 0; }
+.blockcard__n { font-size: 20px; letter-spacing: 0; }
 
 .blockcard__grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--s7);
@@ -107,13 +107,21 @@
 .tx__sub, .tx__end { color: var(--ink-quiet); }
 .tx__why { color: var(--madder); max-width: 48ch; margin-top: 4px; }
 
-/* Paging, because the chain is now a thousand blocks rather than a fixed 24. */
+/* Paging, because the ledger is a thousand entries rather than a fixed 24.
+   Both buttons look the same; the one with nowhere to go is only fainter,
+   not filled. */
 .led__paging {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   margin: 12px 0 4px;
+}
+.led__paging .btn:disabled {
+  background: transparent;
+  border-color: var(--thread-20);
+  color: var(--ink-quiet);
+  opacity: 0.6;
 }
 
 .led__integrity.is-bad { color: var(--madder); border-color: var(--madder); }

@@ -102,10 +102,9 @@ export function GateSimulator({
           })}
         </div>
         <p className="stamp-type gate__mech-label">
-          {phase === 'idle' && 'seven checks'}
           {phase === 'running' && GATE_STEPS[Math.min(step, GATE_STEPS.length - 1)]}
-          {phase === 'promote' && 'all seven aligned'}
-          {phase === 'reject' && 'one tumbler jammed'}
+          {phase === 'promote' && 'All checks passed'}
+          {phase === 'reject' && 'One check failed'}
         </p>
       </div>
 
@@ -113,8 +112,8 @@ export function GateSimulator({
         {phase === 'idle' && !decision && (
           <>
             <p className="lead on-dark-muted gate__prompt">
-              Submit a model update and watch the contract decide. One of these has
-              quietly forgotten something the network already knew.
+              Try an update and watch the checks run. One of these forgets something
+              the AI model already knew.
             </p>
             <div className="gate__actions">
               <button
@@ -123,7 +122,7 @@ export function GateSimulator({
                 disabled={!about.data?.promoted}
                 onClick={() => about.data?.promoted && run(about.data.promoted)}
               >
-                Submit a good update
+                Try a good update
               </button>
               <button
                 type="button"
@@ -131,13 +130,12 @@ export function GateSimulator({
                 disabled={!about.data?.rejected}
                 onClick={() => about.data?.rejected && run(about.data.rejected)}
               >
-                Submit a forgetful update
+                Try an update that forgets old skills
               </button>
             </div>
             {about.error && (
               <p className="small on-dark-muted">
-                The gate decisions live on the model channel and the API is not
-                answering, so there is nothing real to replay here.
+                The server is not answering, so there is nothing to replay.
               </p>
             )}
           </>
@@ -192,8 +190,7 @@ export function GateSimulator({
 
             {phase === 'reject' && (
               <p className="outcome__closer">
-                The contract refused it. No single participant, including whoever runs
-                the server, could overrule that.
+                No single member can overrule this, not even whoever runs the servers.
               </p>
             )}
 

@@ -333,20 +333,29 @@
   max-width: 68ch;
 }
 
+/* -- tamper check page ------------------------------------------------------ */
+/* Text holds a readable measure; the timeline and the form sit under it. */
+.tamper { max-width: 880px; }
+.tamper__head { margin-bottom: var(--s6); }
+.tamper__lede { color: var(--ink-60); margin-top: var(--s3); max-width: 65ch; }
+.tamper__section {
+  margin-top: var(--s7);
+  padding-top: var(--s6);
+  border-top: 1px solid var(--thread-20);
+}
+.tamper__h2 { font-size: 22px; margin-bottom: var(--s4); }
+
 /* -- epochs --------------------------------------------------------------- */
 .epochs--off { border: 1px dashed var(--thread-35); border-radius: var(--r-md); padding: var(--s5); }
 
 .epochs__state {
-  display: grid;
-  grid-template-columns: repeat(3, auto) minmax(0, 1fr);
-  gap: var(--s6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s5) var(--s7);
   align-items: end;
   padding-bottom: var(--s5);
+  margin-bottom: var(--s6);
   border-bottom: 1px solid var(--thread-20);
-}
-@media (max-width: 900px) {
-  .epochs__state { grid-template-columns: repeat(3, 1fr); }
-  .epochs__value { grid-column: 1 / -1; }
 }
 
 .epochs__figure { display: flex; flex-direction: column; gap: 3px; }
@@ -360,12 +369,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.epochs__value { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.epochs__value { display: flex; flex-direction: column; gap: 4px; min-width: 0; margin-bottom: var(--s4); }
 .epochs__value .stamp-type { color: var(--ink-quiet); }
 .epochs__value .mono { font-size: 13px; overflow-wrap: anywhere; }
 .epochs__value .small { color: var(--ink-quiet); max-width: 48ch; }
 
-.epochs__dealer { color: var(--ink-quiet); margin: var(--s4) 0 var(--s6); max-width: 70ch; }
+.epochs__dealer { color: var(--ink-quiet); margin: 0 0 var(--s6); max-width: 65ch; }
 
 .etl { list-style: none; margin: 0; padding: 0; }
 
@@ -453,6 +462,8 @@
 /* -- narrow ---------------------------------------------------------------- */
 @media (max-width: 640px) {
   .absence__row { flex-direction: column; align-items: stretch; }
+  /* flex: 1 in a column squashes the input to its text height. */
+  .absence__row .input { flex: none; }
   .absence__r { flex-direction: column; align-items: flex-start; gap: 5px; }
   .absence__r .stamp-type { min-width: 0; }
 
@@ -463,7 +474,7 @@
   .cchk__counts { gap: var(--s4); }
   .cchk__n { font-size: 36px; }
 
-  .epochs__state { grid-template-columns: 1fr 1fr; gap: var(--s5); }
+  .epochs__state { gap: var(--s5); }
   .etl__item { grid-template-columns: 14px minmax(0, 1fr); gap: var(--s3); }
 
   .tcheck__row { grid-template-columns: 18px 18px minmax(0, 1fr); gap: 8px; }
