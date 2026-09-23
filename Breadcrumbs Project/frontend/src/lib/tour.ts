@@ -50,31 +50,27 @@ export const TOUR: TourStep[] = [
     who: 'the factory',
     title: 'A factory files its documents',
     body:
-      'Every line here is a real document, like a wage sheet or a safety check, '
-      + 'and none of them left the factory. What went onto the shared record is only a '
-      + 'fingerprint of each file. That is enough to prove the file later, and not '
-      + 'enough to read it.',
+      'Each line is a real document, like a wage sheet or a safety check. '
+      + 'The files stay in the factory. Only a fingerprint of each one goes on the ledger.',
   },
   {
     role: 'factory',
     to: '/factory/upload',
     who: 'the factory',
-    title: 'Watch one being filed',
+    title: 'Upload a document',
     body:
-      'The file is fingerprinted here in the browser, and only the fingerprint is sent. '
-      + 'You can see how much stays behind: thousands of rows, none of which the shared '
-      + 'record ever sees.',
+      'Your browser makes the fingerprint. Only the fingerprint is sent. '
+      + 'The rows stay with the factory.',
     todo: 'Upload a document, or just carry on.',
   },
   {
     role: 'buyer',
     to: '/buyer/portal',
     who: 'a buyer',
-    title: 'A buyer asks for one figure',
+    title: 'A buyer asks for a figure',
     body:
-      'The buyer cannot browse the factory. It can only ask a narrow question: one '
-      + 'column, one kind of document, one month, and a reason. That question goes to '
-      + 'the factory, which is free to say no.',
+      'A buyer cannot browse the factory. It asks for one figure, from one document type '
+      + 'and one month, and says why. The factory can say no.',
     todo: 'Send a request.',
   },
   {
@@ -83,10 +79,8 @@ export const TOUR: TourStep[] = [
     who: 'the factory',
     title: 'The factory decides',
     body:
-      'The request is waiting here, under "Sharing & permissions". Saying yes releases '
-      + 'one column of one document. Not the document, not the other rows, and not '
-      + 'forever. The tiles at the top of the page are the other half of the same '
-      + 'question: what each buyer can see in total, right now.',
+      'The request waits here. Approving shares one column of one document, until a date. '
+      + 'Nothing else is shared.',
     todo: 'Approve the request.',
   },
   {
@@ -95,24 +89,19 @@ export const TOUR: TourStep[] = [
     who: 'a buyer',
     title: 'The buyer opens what it was given',
     body:
-      'The permission is in the list now. "Open the file" goes straight into that '
-      + 'document — the columns released to you, padlocks over everything else. '
-      + 'Opening it is a read: nothing is written to the shared record, and nobody is '
-      + 'told you looked.',
-    todo: 'Press "Open the file" on the newest permission.',
+      'The new permission is in the list. Open it to see the shared column. '
+      + 'Everything else in the file stays locked.',
+    todo: 'Open the newest permission.',
   },
   {
     role: 'buyer',
     to: '/verify',
     who: 'a buyer',
-    title: 'The buyer checks the answer',
+    title: 'The buyer checks the figure',
     body:
-      'This is the point of the whole system. Checking a row rebuilds the fingerprint '
-      + 'from what was sent. If it matches the one the factory published months ago, '
-      + 'those figures are real, and the buyer did not have to trust anyone to know it, '
-      + 'not the factory and not whoever runs the servers. Each check leaves a receipt '
-      + 'on the record, which is the difference between reading a figure and proving one.',
-    todo: 'Press "Check every row against the ledger" and watch each row turn green.',
+      'This is the point of the system. A check rebuilds the fingerprint and compares it '
+      + 'with the one on the ledger. If they match, the figure is real. Each check leaves a receipt.',
+    todo: 'Check every row and watch each one turn green.',
   },
   {
     role: 'auditor',
@@ -120,9 +109,8 @@ export const TOUR: TourStep[] = [
     who: 'an auditor',
     title: 'An auditor checks a whole batch',
     body:
-      'The same check, run over everything an auditor holds. Each one is real, and each '
-      + 'pass leaves a receipt the factory can see. So the audit is itself evidence, not '
-      + 'a document that anybody could have typed.',
+      'The same check, run on many documents at once. Each pass leaves a receipt the '
+      + 'factory can see.',
     todo: 'Run the batch.',
   },
   {
@@ -131,22 +119,17 @@ export const TOUR: TourStep[] = [
     who: 'an auditor',
     title: 'Is the month complete?',
     body:
-      'Checking what you were shown is the easy half. This screen answers the hard one. '
-      + 'Did the factory file everything for the month, or quietly leave out the bad '
-      + 'week? Once a month is closed, nothing can be added to it without the correction '
-      + 'being visible to everyone.',
+      'A closed month has a fixed count of documents. If you were shown fewer, the count '
+      + 'does not add up. Nobody has to be trusted to notice.',
   },
   {
     role: 'consortium',
     to: '/model/gate',
     who: 'the consortium',
-    title: 'The part worth staying for',
+    title: 'The AI model is checked too',
     body:
-      'The members share one fraud detector that learns from all of them. A new version '
-      + 'is better at this month\u2019s problem and quietly worse at one it had already '
-      + 'solved. On the numbers a review committee looks at, it looks like an '
-      + 'improvement. The contract checks the old problems too, finds the damage, and '
-      + 'refuses it, with the reason attached.',
+      'The members share one AI model. An update that gets worse at an old task is refused, '
+      + 'with the reason on the ledger.',
   },
   {
     role: 'consortium',
@@ -154,9 +137,8 @@ export const TOUR: TourStep[] = [
     who: 'the consortium',
     title: 'All of it is on here',
     body:
-      'The document, the request, the approval, the checks and the refusal. Written by '
-      + 'five different organisations, held by all of them, and editable by none of them '
-      + 'afterwards. That includes the refusal that made somebody look bad.',
+      'The upload, the request, the approval, the checks and the refusal. Five organisations '
+      + 'hold a copy. None of them can change it later.',
   },
 ];
 
@@ -174,46 +156,38 @@ export const TOUR_MORE: TourStep[] = [
     who: 'the factory',
     title: 'Look inside a document',
     body:
-      'Open any document and you can see what is actually in the file, with anything you '
-      + 'are not allowed to read blacked out and the reason next to it. The factory sees '
-      + 'all of it. A buyer sees only the columns it was given. Nobody outside the '
-      + 'factory ever sees a worker\u2019s name, and no permission opens that.',
-    todo: 'Open a document and look at the table near the top.',
+      'Open any document to see its rows. The factory sees everything. A buyer sees only '
+      + 'the columns it was given. Nobody outside the factory sees a worker\u2019s name.',
+    todo: 'Open a document.',
   },
   {
     role: 'buyer',
     to: '/buyer/portal',
     who: 'a buyer',
-    title: 'Asking for several figures at once',
+    title: 'Ask for several figures at once',
     body:
-      'A net wage on its own tells you very little. To check one you need the basic pay, '
-      + 'the overtime and the deductions too. So a buyer can tick several figures and '
-      + 'send them as one request. Each one still becomes its own separate permission, '
-      + 'which the factory can refuse or withdraw one at a time.',
+      'Tick several figures and send them together. Each one is still its own permission. '
+      + 'The factory can refuse any of them.',
     todo: 'Tick two or three figures and send them.',
   },
   {
     role: 'factory',
     to: '/factory/access',
     who: 'the factory',
-    title: 'Answering several at once, or one at a time',
+    title: 'Answer them together, or one by one',
     body:
-      'The factory sees them grouped the way they were asked for, and can release the '
-      + 'whole set in one press or refuse any single one of them with a reason. If the '
-      + 'contract refuses one, the rest still go through: what was released stays '
-      + 'released rather than being undone.',
-    todo: 'Release a set, or refuse one figure out of it.',
+      'Approve the whole set with one press, or refuse one figure with a reason. '
+      + 'If one fails, the rest still go through.',
+    todo: 'Approve a set, or refuse one figure.',
   },
   {
     role: 'buyer',
     to: '/buyer/portal',
     who: 'a buyer',
-    title: 'Coming back for more later',
+    title: 'Come back for more',
     body:
-      'Holding one figure is usually when you find out you need the next one. Any item '
-      + 'in the list has "ask for more from this", which points the form back at the '
-      + 'same factory, the same kind of document and the same month, so nothing has to '
-      + 'be filled in twice.',
+      'Any permission can start a new request for the same factory, document type and month. '
+      + 'Nothing has to be typed twice.',
   },
   {
     role: 'auditor',
@@ -221,107 +195,81 @@ export const TOUR_MORE: TourStep[] = [
     who: 'an auditor',
     title: 'An auditor does not have to ask',
     body:
-      'An auditor can open any document on the network without asking permission. An '
-      + 'audit where the audited party chooses what the auditor may look at is not an '
-      + 'audit. What stays closed is anything naming a person, because checking whether '
-      + 'wages are right never requires knowing whose wages they are.',
-    todo: 'Open any document and look at how much of it you can read.',
+      'An auditor can open any document without asking. Columns that name a person stay closed.',
+    todo: 'Open any document.',
   },
   {
     role: 'auditor',
     to: '/factory/records',
     who: 'an auditor',
-    title: 'Reading is not the same as proving',
+    title: 'Reading is not checking',
     body:
-      'Reading a figure is open to an auditor and writes nothing anywhere. Proving one '
-      + 'writes a receipt onto the shared record, and a receipt names the exact figure '
-      + 'it covers, so that still needs a permission from the factory. Open any document '
-      + 'and you can check every row in one press; the panel above the table says what '
-      + 'each of the two buttons does before you press either.',
-    todo: 'Open a document and press "Check every row against the ledger".',
+      'Reading writes nothing. A check writes a receipt on the ledger. So a check still needs '
+      + 'a permission from the factory.',
+    todo: 'Open a document and check every row.',
   },
   {
     role: 'auditor',
     to: '/factory/records',
     who: 'an auditor',
-    title: 'Putting your name to what you read',
+    title: 'Sign off on what you read',
     body:
-      'At the foot of any document is a confirmation of review: you say what you '
-      + 'concluded, and it is generated as a document of its own, with its own '
-      + 'reference, your name on it, and the receipts on the record that it rests on. '
-      + 'It can be handed to somebody who cannot open the register itself. One is '
-      + 'generated per reviewer per document — signing the same one twice would be the '
-      + 'same claim with a later date on it, and the API refuses it.',
-    todo: 'Open a document, scroll to the foot, and sign one.',
+      'At the foot of any document you can confirm your review. It becomes its own document, '
+      + 'with your name on it.',
+    todo: 'Open a document, scroll down, and sign.',
   },
   {
     role: 'factory',
     to: '/periods',
     who: 'the factory',
-    title: 'Closing a month, and sharing out of it',
+    title: 'Close a month',
     body:
-      'Closing a month fixes exactly which documents it contains. Nothing can be '
-      + 'slipped in afterwards, and a late document has to be added as an open '
-      + 'correction with a reason. Each of these opens a panel at the right that says '
-      + 'what it is about to do first — closing a month lists every document it is about '
-      + 'to seal in. Below that is the other half: who holds a copy of each document, '
-      + 'and sharing any of them with several organisations at once.',
-    todo: 'Press "Close this period" and read the panel before confirming.',
+      'Closing fixes how many documents a month holds. A late document shows as a correction. '
+      + 'You can also share documents from here.',
+    todo: 'Press "Close this month" and read the panel first.',
   },
   {
     role: 'consortium',
     to: '/governance',
     who: 'the consortium',
-    title: 'Admitting a member actually admits them',
+    title: 'Members vote',
     body:
-      'Adding a member takes a vote by the others, and when the vote carries the member '
-      + 'is written onto the shared record there and then. They appear in the register, '
-      + 'in the network map and in the regulator\u2019s totals, with the motion that '
-      + 'admitted them attached. Whoever runs the servers cannot do any of it alone.',
-    todo: 'Agree to the membership proposal and watch the register change.',
+      'A new member needs the others to agree. When the vote passes, the member is added '
+      + 'to the ledger straight away.',
+    todo: 'Agree to the membership proposal.',
   },
   {
     role: 'consortium',
     to: '/anchor',
     who: 'the consortium',
-    title: 'Proving something is not there',
+    title: 'Prove something is not there',
     body:
-      'Showing that a document is on the record is easy. Showing that one is not there '
-      + 'at all is the hard direction, and this does it. It is the difference between '
-      + '"we have no record of that certificate" and something the other side can check '
-      + 'for itself.',
-    todo: 'Try a certificate reference that was never filed.',
+      'You can prove a certificate was never issued. The other side can check it for itself.',
+    todo: 'Try a certificate that was never filed.',
   },
   {
     role: 'consortium',
     to: '/model/registry',
     who: 'the consortium',
-    title: 'Every version of the shared model',
+    title: 'Every version of the AI model',
     body:
-      'Approved and refused, in order, each one tested against problems that were fixed '
-      + 'and published before that round opened. Nobody could pick the tests after '
-      + 'seeing the result.',
+      'Approved and refused, in order. Each was tested on problems fixed before the round began.',
   },
   {
     role: 'regulator',
     to: '/regulator',
     who: 'a regulator',
-    title: 'What an observer can see',
+    title: 'What a regulator sees',
     body:
-      'The regulator gets counts and governance events, and no factory document at all. '
-      + 'Notice that the blocked parts are still drawn, with the reason written on them. '
-      + 'Hiding them entirely would teach you nothing about where the line sits.',
+      'Counts and votes, and no factory document. The closed parts are still shown, with the reason.',
   },
   {
     role: 'regulator',
     to: '/anchor',
     who: 'a regulator',
-    title: 'What an observer can still check',
+    title: 'What a regulator can check',
     body:
-      'An observer that has to take the network\u2019s word for things is not much of '
-      + 'an observer. So the regulator can still check that nothing on the shared record '
-      + 'has been altered, and can still prove that a document was never filed, without '
-      + 'ever being able to read one.',
+      'A regulator can check that nothing was altered. It can do this without reading any document.',
   },
 ];
 

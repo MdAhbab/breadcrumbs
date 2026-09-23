@@ -14,6 +14,7 @@
 
 .obs__head { margin-bottom: var(--s6); }
 .obs__eyebrow { color: var(--brass-type); margin-bottom: 10px; }
+.obs__lede { color: var(--ink-60); margin-top: var(--s3); max-width: 65ch; }
 
 .obs__section { margin-bottom: clamp(40px, 6vw, 72px); }
 .obs__label {
@@ -58,15 +59,15 @@
 .events { list-style: none; margin: 0; padding: 0; }
 .event {
   display: grid;
-  grid-template-columns: 170px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--s4); align-items: center;
   padding: var(--s4) 0;
   border-bottom: 1px solid var(--thread-20);
 }
-@media (max-width: 760px) {
+@media (max-width: 520px) {
   .event { grid-template-columns: 1fr; gap: 6px; }
+  .event .seal { justify-self: start; }
 }
-.event__case { color: var(--ink-quiet); font-size: 11px; }
 .event__body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .event__title { font-size: 15px; }
 .event__meta { color: var(--ink-quiet); text-transform: capitalize; }
@@ -77,11 +78,26 @@
 .ghost { padding: var(--s5); background: var(--calico); }
 .ghost__head { color: var(--ink-quiet); margin-bottom: var(--s4); }
 .ghosttable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ghosttable th,
 .ghosttable td {
   padding: 10px 12px 10px 0;
   border-bottom: 1px solid var(--thread-20);
   white-space: nowrap;
+  text-align: left;
 }
+.ghosttable th {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-quiet);
+}
+/* Numbers line up on the right, header and cells alike. */
+.ghosttable .num { text-align: right; padding-right: var(--s5); }
+.ghosttable__raw { display: block; margin-top: 2px; }
+/* Four short columns read as one row only when they sit close together. */
+.ghosttable--ledger { max-width: 640px; }
 
 .obs__request {
   display: flex; justify-content: space-between; align-items: center;

@@ -11,11 +11,11 @@ import { useSession } from '../lib/session';
 import './upload.css';
 
 const STEPS = [
-  { label: 'Check the columns', note: 'The column names and types are checked against the expected shape. This happens here, in your browser.' },
-  { label: 'Fingerprint each row', note: 'Every row gets its own random number mixed in before it is fingerprinted, so a short or predictable row still cannot be guessed at.' },
-  { label: 'Combine into one', note: 'The row fingerprints are combined in pairs, and again, until the whole file is a single number.' },
-  { label: 'Keep the file here', note: 'The rows stay in your own storage. The ledger never receives them.' },
-  { label: 'Publish the fingerprint', note: 'Only that single number, plus the kind of record, the month and the site, goes to the ledger.' },
+  { label: 'Check the columns', note: 'Your browser checks the column names and types.' },
+  { label: 'Fingerprint each row', note: 'Each row gets its own fingerprint. Nobody can guess a row from it.' },
+  { label: 'Combine into one', note: 'The row fingerprints become one fingerprint for the whole file.' },
+  { label: 'Keep the file here', note: 'The rows stay with you. The ledger never gets them.' },
+  { label: 'Publish the fingerprint', note: 'Only the fingerprint, the document type, the month and the site go on the ledger.' },
 ];
 
 interface Parsed {
@@ -130,14 +130,13 @@ export default function Upload() {
     return (
       <div className="up up--done">
         <Seal tone="sealed">Published</Seal>
-        <h1 className="up__donehead">The record is on the ledger.</h1>
+        <h1 className="up__donehead">Your document is published.</h1>
         <p className="lead up__donebody">
-          {commas(receipt.row_count)} rows were fingerprinted and combined into one
-          number. The file itself never left your machine.
+          {commas(receipt.row_count)} rows went into one fingerprint. The file stayed with you.
         </p>
         <div className="up__receipt">
           <div className="up__rrow">
-            <span className="stamp-type">Record</span>
+            <span className="stamp-type">Document</span>
             <span className="mono">{receipt.record_id}</span>
           </div>
           <Tech>
@@ -156,7 +155,7 @@ export default function Upload() {
             to={`/factory/records/${encodeURIComponent(receipt.record_id)}`}
             className="btn btn--primary btn--md"
           >
-            Open the record
+            Open the document
           </Link>
           <button
             type="button"
@@ -165,7 +164,7 @@ export default function Upload() {
               setPhase('idle'); setStep(-1); setFile(null); setReceipt(null); setRecordId('');
             }}
           >
-            Publish another
+            Upload another
           </button>
         </div>
       </div>
@@ -176,17 +175,16 @@ export default function Upload() {
     <div className="up">
       <header className="up__head">
         <p className="stamp-type up__eyebrow">{role?.org}</p>
-        <h1>Publish a record</h1>
+        <h1>Upload a document</h1>
         <p className="lead up__lede">
-          A finished export. Once it is published, any single figure in it can be proved
-          on its own, and none of it can be quietly changed later.
+          Choose a finished CSV export. Once published, it cannot be changed quietly.
         </p>
       </header>
 
       <div className="up__body">
         <div className="up__form">
           <div className="up__pair">
-            <Field label="Record type" id="rtype">
+            <Field label="Document type" id="rtype">
               <select
                 id="rtype"
                 className="input"
@@ -198,7 +196,7 @@ export default function Upload() {
                 ))}
               </select>
             </Field>
-            <Field label="Period" id="per">
+            <Field label="Month" id="per">
               <input
                 id="per" className="input" type="month" value={period}
                 onChange={(e) => setPeriod(e.target.value)}
@@ -206,46 +204,43 @@ export default function Upload() {
             </Field>
           </div>
 
-          <div className="up__pair">
-            <Field label="Site" id="site">
-              <input
-                id="site" className="input" value={site}
-                onChange={(e) => setSite(e.target.value)}
-              />
-            </Field>
-            <Field
-              label="Record id"
-              id="rid"
-              hint="Leave blank to derive one from the period and type."
-            >
-              <input
-                id="rid" className="input mono" value={recordId} placeholder={id}
-                onChange={(e) => setRecordId(e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <Field label="Schema version" id="schema" hint="Recorded on the ledger alongside the root.">
+          <Field label="Site" id="site">
             <input
-              id="schema" className="input mono" value={schema}
-              onChange={(e) => setSchema(e.target.value)}
+              id="site" className="input" value={site}
+              onChange={(e) => setSite(e.target.value)}
             />
           </Field>
+
+          {/* Both have working defaults. Asking every upload to look at them
+              made two fields nobody fills in the loudest part of the form. */}
+          <Tech>
+            <div className="up__pair">
+              <Field label="Document id" id="rid" hint="Leave blank to make one from the month and type.">
+                <input
+                  id="rid" className="input mono" value={recordId} placeholder={id}
+                  onChange={(e) => setRecordId(e.target.value)}
+                />
+              </Field>
+              <Field label="Schema version" id="schema">
+                <input
+                  id="schema" className="input mono" value={schema}
+                  onChange={(e) => setSchema(e.target.value)}
+                />
+              </Field>
+            </div>
+          </Tech>
 
           {witness?.in_force && witness.required && (
             <div className="up__witness">
               <ShieldAlert size={16} />
               <div>
                 <p className="up__witness-head">
-                  This record must be counter-signed by {witness.witnesses.join(', ')}
+                  This document must be counter-signed by {witness.witnesses.join(', ')}
                 </p>
                 <p className="small">
-                  The witness rule is in force under round {witness.round_id} and this
-                  record was drawn into the sample. The counter-signature is made with the
-                  witnessing organisation&rsquo;s own key, so it cannot be produced from
-                  this browser. Publishing here will be refused by the contract, and that
-                  refusal is the mechanism working. Choose a record type outside the
-                  sample to seal one end to end.
+                  They sign with their own key, so this browser cannot publish it. Choose
+                  another document type to publish one here.
+                  <Tech> Round {witness.round_id}.</Tech>
                 </p>
               </div>
             </div>
@@ -276,7 +271,7 @@ export default function Upload() {
                 <FileUp size={20} />
                 <span className="drop__name">Choose a CSV export</span>
                 <span className="small drop__meta">
-                  Parsed here. The rows are sent to your own store; only a root is committed.
+                  Only its fingerprint goes on the ledger.
                 </span>
               </>
             )}
@@ -290,7 +285,7 @@ export default function Upload() {
             disabled={!file || phase === 'weaving'}
             onClick={() => void seal()}
           >
-            {phase === 'weaving' ? 'Weaving…' : 'Seal to the ledger'}
+            {phase === 'weaving' ? 'Publishing…' : 'Publish'}
           </button>
 
           {phase === 'weaving' && (
@@ -312,8 +307,8 @@ export default function Upload() {
               <p className="stamp-type">First row, as parsed</p>
               <pre className="mono">{JSON.stringify(file.rows[0], null, 1)}</pre>
               <p className="small">
-                <AlertTriangle size={12} /> Check this before sealing. The root is computed
-                over exactly these values, and a sealed root cannot be revised.
+                <AlertTriangle size={12} /> Check this first. It cannot be changed after
+                you publish.
               </p>
             </div>
           )}
@@ -327,19 +322,18 @@ export default function Upload() {
               <li>The file itself</li>
               <li>Every row and every value</li>
               <li>Worker references and names</li>
-              <li>The salts, until a proof needs one</li>
+
             </ul>
-            <p className="small leaves__note">Deletable. Nothing above is on the ledger.</p>
+            <p className="small leaves__note">You can delete it.</p>
           </div>
           <div className="leaves__col leaves__col--go">
             <p className="leaves__title">Goes to the ledger</p>
             <ul>
-              <li>One root hash</li>
-              <li>Record type and period</li>
-              <li>Site</li>
-              <li>Row count and schema version</li>
+              <li>One fingerprint</li>
+              <li>Document type and month</li>
+              <li>Site and row count</li>
             </ul>
-            <p className="small leaves__note">Permanent. None of it identifies a person.</p>
+            <p className="small leaves__note">Permanent. None of it names a person.</p>
           </div>
         </aside>
       </div>

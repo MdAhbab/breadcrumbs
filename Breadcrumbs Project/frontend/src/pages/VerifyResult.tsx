@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, Search, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { DocumentCheck } from '../components/DocumentCheck';
 import { Result } from '../components/states';
@@ -62,18 +62,76 @@ function useWayBack(): { to: string; label: string } {
     : { to: '/', label: 'Breadcrumbs' };
 }
 
+/**
+ * The strip above the page, with the way back.
+ *
+ * Signed in, the sidebar is already on screen and already says where "back"
+ * is, so a second navigation bar would be two answers to one question.
+ */
+function Bar({ children }: { children?: React.ReactNode }) {
+  const { role } = useSession();
+  const back = useWayBack();
+  if (role) return null;
+  return (
+    <header className="lb__bar">
+      <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
+      {children}
+    </header>
+  );
+}
+
+/**
+ * Where a receipt gets typed in.
+ *
+ * "If somebody gave you a receipt link, you can check it" used to be followed
+ * by a sign-in button and nothing else, so the one thing this screen offered a
+ * visitor without an account could not be done from it. A whole pasted link
+ * works as well as the bare identifier.
+ */
+function ReceiptLookup() {
+  const navigate = useNavigate();
+  const [value, setValue] = useState('');
+  const receipt = value.trim().replace(/\/+$/, '').split('/').pop() ?? '';
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (receipt) navigate(`/verify/${encodeURIComponent(receipt)}`);
+  };
+
+  return (
+    <form className="receiptbox" onSubmit={submit}>
+      <label className="receiptbox__label" htmlFor="receipt">Receipt number or link</label>
+      <div className="receiptbox__row">
+        <input
+          id="receipt"
+          className="input mono"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="vr-001"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button type="submit" className="btn btn--primary btn--md" disabled={!receipt}>
+          <Search size={15} /> Check it
+        </button>
+      </div>
+      <p className="small receiptbox__note">
+        You get a receipt when you check a figure. It shows the result, not the figure.
+      </p>
+    </form>
+  );
+}
+
 /* -- the public path ------------------------------------------------------ */
 function FromReceipt({ id }: { id: string }) {
   const query = useApi(() => api.receipt(id), [id]);
-  const back = useWayBack();
   const labelOf = useFieldLabel();
 
   return (
     <div className="lb">
-      <header className="lb__bar">
-        <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
+      <Bar>
         <Link to="/verify" className="lb__toggle small">check something else</Link>
-      </header>
+      </Bar>
 
       <main className="lb__main">
         <Result query={query} pendingLabel="Looking the receipt up on the ledger">
@@ -89,7 +147,7 @@ function FromReceipt({ id }: { id: string }) {
                     <h1 className="verdictbar__head">
                       {ok
                         ? 'Checked. This value is real.'
-                        : 'The check failed. Do not rely on this record.'}
+                        : 'The check failed. Do not rely on this document.'}
                     </h1>
                     <p className="lead verdictbar__body">
                       {ok ? (
@@ -102,8 +160,8 @@ function FromReceipt({ id }: { id: string }) {
                       ) : (
                         <>
                           The fingerprint on this receipt is not the one on the ledger.
-                          Either the record or the receipt was altered after it was made.
-                          Ask for it to be issued again, and do not treat this as evidence.
+                          The document or the receipt was changed. Do not treat this as
+                          evidence.
                         </>
                       )}
                     </p>
@@ -122,12 +180,10 @@ function FromReceipt({ id }: { id: string }) {
                 </section>
 
                 <div className="lb__detail">
-                  <Disclosure summary="How this was checked" open>
+                  <Disclosure summary="How this was checked">
                     <p className="small lb__explain">
-                      The factory released one row, the random number it was mixed with,
-                      and a handful of numbers from the tree above it. Whoever ran the
-                      check worked the fingerprint out again from only those. This page
-                      compares the answer they got with what is on the ledger now.
+                      The fingerprint was worked out again from the released row. This
+                      page compares it with the one on the ledger now.
                     </p>
 
                     <div className={`proof ${ok ? '' : 'is-bad'}`}>
@@ -159,26 +215,28 @@ function FromReceipt({ id }: { id: string }) {
                       <LedgerRow label="Checked at">{dateTime(data.receipt.verified_at)}</LedgerRow>
                       <LedgerRow label="Result">
                         {data.receipt.result === 'match'
-                          ? 'They match. The record is real.'
+                          ? 'They match. The document is genuine.'
                           : 'They do not match. The check failed.'}
                       </LedgerRow>
                       {data.record && (
                         <>
-                          <LedgerRow label="Record">
+                          <LedgerRow label="Document">
                             <span className="mono">{data.record.record_id}</span>
                           </LedgerRow>
                           <LedgerRow label="What it is">
                             {recordLabel(data.record.record_type)} · {period(data.record.period)} ·{' '}
                             {data.record.site}
                           </LedgerRow>
-                          <LedgerRow label="Rows in the record">
+                          <LedgerRow label="Rows in the document">
                             {commas(data.record.row_count)}, of which one was released
                           </LedgerRow>
                         </>
                       )}
-                      <LedgerRow label="Grant">
-                        <span className="mono">{data.receipt.grant_id}</span>
-                      </LedgerRow>
+                      <Tech>
+                        <LedgerRow label="Permission">
+                          <span className="mono">{data.receipt.grant_id}</span>
+                        </LedgerRow>
+                      </Tech>
                     </div>
                   </Disclosure>
 
@@ -267,24 +325,19 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
   if (!signedIn) {
     return (
       <div className="lb">
-        <header className="lb__bar">
-          <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
-        </header>
+        <Bar />
         <main className="lb__main">
           <div className="verdictbar">
             <div>
-              <h1 className="verdictbar__head">Check a document.</h1>
+              <h1 className="verdictbar__head">Check a receipt.</h1>
               <p className="lead verdictbar__body">
-                Opening a document needs an account, because what you can see depends on
-                who you are. If somebody gave you a receipt link, you can check that one
-                without signing in.
+                If somebody gave you a receipt, paste it here. To open a document,
+                sign in.
               </p>
             </div>
           </div>
           <section className="specimen">
-            <div className="lb__after-actions">
-              <Link to="/login" className="btn btn--primary btn--md">Sign in</Link>
-            </div>
+            <ReceiptLookup />
           </section>
           <div className="lb__detail"><Afterword /></div>
         </main>
@@ -294,9 +347,7 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div className="lb">
-      <header className="lb__bar">
-        <Link to={back.to} className="lb__back"><ArrowLeft size={15} /> {back.label}</Link>
-      </header>
+      <Bar />
 
       <main className="lb__main lb__main--wide">
         <Result query={records} pendingLabel="Reading what you can open">
@@ -370,17 +421,13 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
 
             return (
               <>
-                {/* One sentence. The three that were here explained the
-                    Merkle check twice over before the reader had seen a single
-                    row of the document they came to look at — and the same
-                    explanation is on the table itself, where somebody deciding
-                    whether to press the button is actually looking. */}
+                {/* One sentence. What the check does is said once, over the
+                    table, where somebody deciding to press it is looking. */}
                 <div className="verdictbar">
                   <div>
-                    <h1 className="verdictbar__head">Verify a document.</h1>
+                    <h1 className="verdictbar__head">Verify a document</h1>
                     <p className="lead verdictbar__body">
-                      Read what was released to you, and check any row of it against the
-                      fingerprint the factory published.
+                      Open a document and check its rows against the ledger.
                     </p>
                   </div>
                 </div>
@@ -388,11 +435,8 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                 <div className="lb__detail">
                   {missed && (
                     <p className="lb__missed">
-                      The link you followed names something you cannot open now. The usual
-                      reason is that the permission behind it has been withdrawn — access
-                      ends at the contract, so a link that worked yesterday stops working
-                      rather than quietly showing you the file anyway. The document below
-                      is one you do still hold.
+                      You cannot open the document in that link any more. Its permission
+                      was probably withdrawn. Below is one you can open.
                     </p>
                   )}
 
@@ -435,17 +479,10 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                             </span>
                           </li>
                         ))}
-                        <li className="small docbar__note">
-                          Released to you, and provable. Everything else in the file is
-                          readable at most.
-                        </li>
+                        <li className="small docbar__note">Released to you. You can check these.</li>
                       </ul>
                     ) : (
-                      <p className="small docbar__note">
-                        Read only. Nothing in this document has been released to you, so
-                        there is no row to prove — proving a figure writes a receipt naming
-                        it, and that needs a permission.
-                      </p>
+                      <p className="small docbar__note">Read only.</p>
                     )}
 
                     {picking && (
@@ -458,7 +495,7 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                               className="input"
                               type="search"
                               value={query}
-                              placeholder="Month, site, kind of document, or identifier…"
+                              placeholder="Month, site or document type…"
                               onChange={(e) => setQuery(e.target.value)}
                               autoFocus
                             />
@@ -488,8 +525,8 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                         {matching.length === 0 ? (
                           <p className="small docpick__none">
                             Nothing matches. {scope === 'held' && readOnly.length > 0
-                              ? 'You may be looking at one you can read but hold nothing on — try "read only".'
-                              : 'Try a month, a site, or part of an identifier.'}
+                              ? 'Try "Read only".'
+                              : 'Try a month or a site.'}
                           </p>
                         ) : (
                           <>
@@ -515,9 +552,8 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                                       {r.site}
                                     </span>
                                     <span className="small docpick__rowmeta">
-                                      <span className="mono">{r.record_id}</span> ·{' '}
-                                      {commas(r.row_count)} rows ·{' '}
-                                      {shortMsp(r.owner_msp)}
+                                      <Tech><span className="mono">{r.record_id}</span> · </Tech>
+                                      {commas(r.row_count)} rows · {shortMsp(r.owner_msp)}
                                     </span>
                                     <span className={`docpick__tag ${
                                       held.has(r.record_id) ? 'is-held' : ''}`}
@@ -551,17 +587,12 @@ function LiveProof({ signedIn }: { signedIn: boolean }) {
                   <DocumentCheck key={record.record_id} recordId={record.record_id} />
                 </div>
 
-                {/* 4 — what checking leaves behind. Stated only where it is
-                    true: with nothing released, nothing here writes a receipt,
-                    and the page used to promise one either way. */}
+                {/* What checking leaves behind. Said only where it is true: with
+                    nothing released, nothing here writes a receipt. */}
                 <footer className="lb__after">
-                  <p className="lb__after-lede">
-                    {mine.length > 0
-                      ? 'A check writes a receipt anyone can verify without an account. Opening '
-                        + 'the file writes nothing.'
-                      : 'Opening a file writes nothing to the ledger. Only checking a released '
-                        + 'figure does, and nothing here has been released to you.'}
-                  </p>
+                  {mine.length > 0 && (
+                    <p className="lb__after-lede">Anyone can look up the receipt a check leaves.</p>
+                  )}
                   <div className="lb__after-actions">
                     <Link to={back.to} className="btn btn--primary btn--md">
                       Back to {back.label}
@@ -582,8 +613,7 @@ function Afterword() {
   return (
     <footer className="lb__after">
       <p className="lb__after-lede">
-        Anyone with the link can run this check. It needs no account, and it asks the
-        factory for nothing.
+        Anyone with the link can run this check. No account is needed.
       </p>
       <div className="lb__after-actions">
         {role ? (

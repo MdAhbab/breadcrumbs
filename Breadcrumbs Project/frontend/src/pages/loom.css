@@ -220,7 +220,8 @@
 .logline__at { color: var(--ink-quiet); font-size: 10px; }
 .logline__text { font-size: 13px; color: var(--ink-80); line-height: 1.45; }
 
-.shiftlog__requests { margin-top: var(--s6); }
+.shiftlog__requests { margin-top: 0; }
+.shiftlog__head--after { margin-top: var(--s6); }
 .shiftlog__requests .stamp-type { color: var(--ink-quiet); margin-bottom: var(--s3); }
 .shiftlog__none { color: var(--ink-quiet); }
 

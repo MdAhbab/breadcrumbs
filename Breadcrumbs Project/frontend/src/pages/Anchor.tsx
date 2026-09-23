@@ -4,14 +4,15 @@ import { Result } from '../components/states';
 import { api, type AnchorGroup, type AnchorState, type Epoch } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useApi } from '../lib/useApi';
-import './periods.css';
+import '../components/mechanisms.css';
 
 /**
- * The accumulator: one integer that commits the whole record set.
+ * Tamper check: one fingerprint that covers every document and closed month.
  *
- * Open to the regulator as well as the consortium, because the accumulator is a
- * fact about the network rather than about any factory's documents — and an
- * observer that can see nothing at all cannot observe.
+ * Open to the regulator as well as the consortium, because it is a fact about
+ * the network rather than about any factory's documents. An observer that can
+ * see nothing at all cannot observe. Page layout lives in mechanisms.css
+ * under "tamper check page".
  */
 export default function Anchor() {
   const { role } = useSession();
@@ -22,21 +23,16 @@ export default function Anchor() {
   );
 
   return (
-    <div className="periods">
-      <header className="per__head">
-        <div>
-          <p className="stamp-type per__eyebrow">Has anything been tampered with?</p>
-          <h1>One number that covers everything</h1>
-          <p className="lead per__lede">
-            Every record and every closed month folds into a single number. Asking
-            whether something is inside it takes the same amount of work whether there
-            are ten of them or ten million. Unusually, you can also prove that
-            something is <em>not</em> in there.
-          </p>
-        </div>
+    <div className="tamper">
+      <header className="tamper__head">
+        <h1>Tamper check</h1>
+        <p className="lead tamper__lede">
+          One fingerprint covers every document and closed month on the ledger. If
+          anything had been changed, this check would fail.
+        </p>
       </header>
 
-      <Result query={world} pendingLabel="Reading the check number">
+      <Result query={world} pendingLabel="Reading the tamper check">
         {([state, epochs, group]) => (
           <>
             <EpochTimeline
@@ -47,15 +43,8 @@ export default function Anchor() {
               onPublished={world.reload}
             />
 
-            <section className="per__section">
-              <h2 className="per__h2">Proving something does not exist</h2>
-              <p className="per__note">
-                Showing that a document <em>is</em> on the ledger is the easy direction.
-                Showing that one is not there, that a certificate was never issued or
-                that a month has nothing hidden in it, is the hard one. This does it. It is
-                the difference between &ldquo;we have no record of that&rdquo; and
-                something the other side can check for themselves.
-              </p>
+            <section className="tamper__section">
+              <h2 className="tamper__h2">Check that something was never filed</h2>
               <AbsenceProof />
             </section>
           </>

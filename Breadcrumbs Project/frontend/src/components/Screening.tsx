@@ -3,13 +3,14 @@ import { useState } from 'react';
 
 import { ApiError, api, type Screening as Result } from '../lib/api';
 import { Failed } from './states';
+import { Tech } from './Tech';
 import './mechanisms.css';
 
 const pct = (v: number | null | undefined) =>
   v === null || v === undefined ? 'n/a' : `${(v * 100).toFixed(1)}%`;
 
 /**
- * What the detector thinks of this record.
+ * What the shared AI model thinks of this document.
  *
  * The hardest panel in the product to get right, because it sits a few
  * centimetres below a cryptographic proof and the two are not the same kind of
@@ -35,7 +36,7 @@ export function Screening({ recordId }: { recordId: string }) {
       setResult(await api.screen(recordId));
     } catch (err) {
       setResult(null);
-      setError(err instanceof ApiError ? err : new ApiError(0, 'the detector failed'));
+      setError(err instanceof ApiError ? err : new ApiError(0, 'the AI model failed'));
     } finally {
       setBusy(false);
     }
@@ -47,11 +48,9 @@ export function Screening({ recordId }: { recordId: string }) {
         <div className="screen__ask">
           <Brain size={16} />
           <div>
-            <p className="screen__title">Ask the detector</p>
+            {/* The page heading already names this panel and says it is a guess. */}
             <p className="small screen__sub">
-              The shared model reads this document and scores how unusual it looks. It
-              runs here, on the CPU, in about a millisecond. Nothing it says goes on the
-              ledger.
+              Scores how unusual this document looks. The score is not saved on the ledger.
             </p>
           </div>
           <button
@@ -60,7 +59,7 @@ export function Screening({ recordId }: { recordId: string }) {
             onClick={() => void run()}
             disabled={busy}
           >
-            <Search size={13} /> {busy ? 'Scoring…' : 'Score this record'}
+            <Search size={13} /> {busy ? 'Scoring…' : 'Get the score'}
           </button>
         </div>
       )}
@@ -71,8 +70,8 @@ export function Screening({ recordId }: { recordId: string }) {
         <div className="screen__ask">
           <TriangleAlert size={16} />
           <div>
-            <p className="screen__title">No detector is deployed</p>
-            <p className="small screen__sub">{result.reason}</p>
+            <p className="screen__title">No AI model is in use</p>
+            <Tech><p className="small screen__sub">{result.reason}</p></Tech>
           </div>
         </div>
       )}
@@ -83,9 +82,9 @@ export function Screening({ recordId }: { recordId: string }) {
             <div>
               <p className="screen__verdict">{result.verdict}</p>
               <p className="small screen__sub">
-                Score {result.score?.toFixed(3)} against a threshold of{' '}
-                {result.threshold?.toFixed(3)}
-                {result.likely_kind && <> · closest family: {result.likely_kind}</>}
+                Score {result.score?.toFixed(3)}. It flags {result.threshold?.toFixed(3)} or
+                more.
+                {result.likely_kind && <> Looks most like: {result.likely_kind}.</>}
               </p>
             </div>
             <span className="screen__bar" aria-hidden="true">
@@ -105,8 +104,10 @@ export function Screening({ recordId }: { recordId: string }) {
           <div className="screen__rates">
             <Rate label="catches" value={pct(result.measured?.detection)} />
             <Rate label="flags clean documents" value={pct(result.measured?.false_positive)} />
-            <Rate label="balanced accuracy" value={pct(result.measured?.balanced_accuracy)} />
-            <Rate label="over seeds" value={String(result.measured?.seeds ?? 'n/a')} />
+            <Tech>
+              <Rate label="balanced accuracy" value={pct(result.measured?.balanced_accuracy)} />
+              <Rate label="over seeds" value={String(result.measured?.seeds ?? 'n/a')} />
+            </Tech>
           </div>
 
           {result.blind_to && (

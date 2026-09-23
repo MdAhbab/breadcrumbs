@@ -37,12 +37,10 @@ export function WitnessPanel({
         <header className="wit__head">
           <ShieldOff size={16} />
           <div>
-            <p className="wit__title">The witness rule is not in force</p>
+            <p className="wit__title">No counter-signature needed</p>
             <p className="small wit__sub">
-              {req.reason
-                ?? 'the consortium has not adopted the witness rule on this channel'}
-              . No counter-signature was required for this record, so its absence
-              is not a finding.
+              Counter-signing is not switched on here, so nothing is missing.
+              <Tech> {req.reason}</Tech>
             </p>
           </div>
         </header>
@@ -57,13 +55,13 @@ export function WitnessPanel({
         <header className="wit__head">
           <ShieldQuestion size={16} />
           <div>
-            <p className="wit__title">Committed before the rule came into force</p>
+            <p className="wit__title">Filed before counter-signing started</p>
             <p className="small wit__sub">
-              This record was committed on {dateTime(req.committed_at ?? '')}, and the
-              consortium adopted the witness rule under round {req.round_id} on{' '}
-              {dateTime(req.round_opened_at ?? '')}. No counter-signature was required of
-              it, and its absence is not a finding. The contract answers for the round
-              that is active now, so the dates are what separate these two cases.
+              No counter-signature was needed, so nothing is missing.
+              <Tech>
+                {' '}Filed {dateTime(req.committed_at ?? '')}. Round {req.round_id} opened{' '}
+                {dateTime(req.round_opened_at ?? '')}.
+              </Tech>
             </p>
           </div>
         </header>
@@ -78,10 +76,10 @@ export function WitnessPanel({
         <header className="wit__head">
           <ShieldQuestion size={16} />
           <div>
-            <p className="wit__title">Not selected for counter-signature</p>
+            <p className="wit__title">Not picked for counter-signing</p>
             <p className="small wit__sub">
-              The rule is in force under round {req.round_id}, and the sample did
-              not draw this record. Nothing is missing.
+              Only some documents are picked at random, so nothing is missing.
+              <Tech> Round {req.round_id}.</Tech>
             </p>
           </div>
         </header>
@@ -100,14 +98,12 @@ export function WitnessPanel({
         <div>
           <p className="wit__title">
             {outstanding.length
-              ? `${req.attestations.length} of ${req.witnesses.length} chosen checkers signed this`
-              : `Counter-signed by ${req.witnesses.length} independent ${
-                req.witnesses.length === 1 ? 'checker' : 'checkers'}`}
+              ? `${req.attestations.length} of ${req.witnesses.length} picked organisations counter-signed`
+              : `Counter-signed by ${req.witnesses.length} ${
+                req.witnesses.length === 1 ? 'organisation' : 'organisations'}`}
           </p>
           <p className="small wit__sub">
-            Picked at random from {req.pool_size}. The factory did not choose who
-            checks its own records, and could not have: the draw was set up so that no
-            single member controls the outcome.
+            Picked at random from {req.pool_size}, not by the factory.
             <Tech> Round {req.round_id}.</Tech>
           </p>
         </div>
@@ -124,7 +120,7 @@ export function WitnessPanel({
                 {att ? (
                   <span className="small wit__when">{dateTime(att.attested_at)}</span>
                 ) : (
-                  <span className="small wit__when">nothing signed on the ledger</span>
+                  <span className="small wit__when">not signed</span>
                 )}
               </div>
 
@@ -139,7 +135,7 @@ export function WitnessPanel({
                   <span className="small wit__note">{code.note}</span>
                 </div>
               ) : (
-                <Seal tone="broken">did not sign</Seal>
+                <Seal tone="broken">Did not sign</Seal>
               )}
             </li>
           );
@@ -148,9 +144,8 @@ export function WitnessPanel({
 
       {outstanding.length > 0 && (
         <p className="small wit__warn">
-          {outstanding.join(', ')} was asked to counter-sign this and did not. The
-          record is still published, and the ledger does not refuse it, but it carries
-          less evidence behind it than the rule asks for.
+          {outstanding.map(shortMsp).join(', ')} did not counter-sign. The document is
+          still published, with less evidence behind it.
         </p>
       )}
 
@@ -177,12 +172,7 @@ function AlsoReviewed({ n }: { n: number }) {
   if (n === 0) return null;
   return (
     <p className="small wit__also">
-      <ReviewedMark n={n} /> signed after this document was published, by
-      organisations that read it. That is a different signature from the one
-      above and is not counted towards it: it is held off the ledger, and it says
-      the document was read rather than that anybody witnessed it being made. The
-      confirmations themselves are at the foot of the document, further up this
-      page.
+      <ReviewedMark n={n} /> signed later by readers. They are listed under the document.
     </p>
   );
 }

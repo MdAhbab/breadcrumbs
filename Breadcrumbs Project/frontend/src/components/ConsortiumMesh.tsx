@@ -79,11 +79,7 @@ function storyFor(
       body: (
         <>
           <p className="story__lede">
-            {org.name} holds a {org.kind_label.toLowerCase()} identity issued by its own
-            certificate authority, and is a member of{' '}
-            {org.channels.length === 0
-              ? 'no channel on this network'
-              : `${org.channels.length} channel${org.channels.length === 1 ? '' : 's'}`}.
+            {org.name} is a {org.kind_label.toLowerCase()} on the network.
           </p>
           <div className="story__rows">
             <Row k="Country" v={org.country} />
@@ -100,13 +96,13 @@ function storyFor(
       ),
     },
     {
-      label: org.kind === 'factory' ? 'Records published' : 'Records reached',
+      label: org.kind === 'factory' ? 'Documents filed' : 'Permissions',
       body:
         org.kind === 'factory' ? (
           owned.length ? (
             <>
               <p className="story__lede">
-                {commas(owned.length)} records published,{' '}
+                {commas(owned.length)} document{owned.length === 1 ? '' : 's'} filed,{' '}
                 {commas(owned.reduce((a, b) => a + b.row_count, 0))} rows in total.
               </p>
               <div className="story__rows">
@@ -121,16 +117,15 @@ function storyFor(
             </>
           ) : (
             <p className="story__lede">
-              Nothing published yet. This member is on the network but has not put
-              anything on the ledger.
+              Nothing filed yet.
             </p>
           )
         ) : (
           <>
             <p className="story__lede">
               {asRequester.length
-                ? `Has been given access to ${commas(asRequester.length)} things. Each one covers exactly one column.`
-                : 'Has been given access to nothing. This member only observes.'}
+                ? `Holds ${commas(asRequester.length)} permission${asRequester.length === 1 ? '' : 's'}. Each one opens one column.`
+                : 'Holds no permissions. This member only watches.'}
             </p>
             <div className="story__rows">
               {asRequester.slice(0, 4).map((g) => (
@@ -141,7 +136,7 @@ function storyFor(
         ),
     },
     {
-      label: 'Governance',
+      label: 'Votes',
       body: (
         <>
           <p className="story__lede">
@@ -270,8 +265,7 @@ function Mesh({
       <div className="mesh__side">
         <p className="stamp-type mesh__sidehead">The network from above</p>
         <p className="small mesh__note">
-          BGMEA sits at the centre because it is the only member on every channel. Select
-          an organisation to read its record.
+          Select a member to see what it does on the network.
         </p>
         <ul className="mesh__legend">
           {(['factory', 'buyer', 'auditor', 'regulator', 'consortium'] as const).map((k) => (

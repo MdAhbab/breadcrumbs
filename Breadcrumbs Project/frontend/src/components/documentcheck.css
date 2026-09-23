@@ -10,6 +10,8 @@
   border-radius: var(--r-md);
   background: var(--paper-2);
   overflow: hidden;
+  /* The table scrolls inside; its width must not widen the page column. */
+  contain: inline-size;
 }
 
 .doc__head {
@@ -152,12 +154,6 @@
   margin: 0;
   font-size: 13.5px;
   color: var(--ink-80);
-  max-width: 88ch;
-}
-
-.doc__explainnote {
-  margin: 6px 0 0;
-  color: var(--thread-type);
   max-width: 88ch;
 }
 

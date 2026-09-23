@@ -10,10 +10,19 @@
   min-height: 100vh;
 }
 
+/* The dark ground bleeds to the edges, so it cancels exactly the padding the
+   shell gives the page at each width (see shell.css). */
 @media (max-width: 1023px) {
   .gatepage {
-    margin: calc((var(--s7) + 22px) * -1) calc(var(--s5) * -1) calc(var(--s7) * -1);
-    padding: calc(var(--s7) + 22px) var(--s5) var(--s7);
+    margin: calc((var(--topbar) + var(--s6)) * -1) calc(var(--s5) * -1) calc(var(--s7) * -1);
+    padding: calc(var(--topbar) + var(--s6)) var(--s5) var(--s7);
+  }
+}
+
+@media (max-width: 767px) {
+  .gatepage {
+    margin: calc((var(--topbar) + var(--s5)) * -1) calc(var(--pad) * -1) calc(var(--s7) * -1);
+    padding: calc(var(--topbar) + var(--s5)) var(--pad) var(--s7);
   }
 }
 
@@ -24,6 +33,7 @@
 }
 
 .gatepage__eyebrow { color: var(--brass-type); margin-bottom: var(--s5); }
+.gatepage__eyebrow a { color: inherit; }
 
 /* -- the verdict ---------------------------------------------------------- */
 .gv {
@@ -81,7 +91,6 @@
 
 .gptable {
   width: 100%;
-  min-width: 860px;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -159,21 +168,16 @@
 }
 
 /* -- the rule strip ------------------------------------------------------- */
-/* Four rules across, or two by two — never three with a hole where the fourth
-   should be. The rules are drawn by the cells so a short row ends cleanly. */
+/* Five rules: one row when there is room, then as many as fit. The rules
+   are drawn by the cells so a short row ends cleanly. */
 .rules {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1px;
   border-radius: var(--r-md);
   overflow: hidden;
 }
 
-@media (max-width: 1180px) {
-  .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-/* Two 175px columns turn "Minimum gain on the new task" into four lines. */
 @media (max-width: 560px) {
   .rules { grid-template-columns: 1fr; }
 }
@@ -275,13 +279,44 @@
 .endorser--out { border-style: dashed; opacity: 0.82; }
 .endorser__foot { margin: 6px 0 0; }
 
-/* The decision index reuses the per-task table; its reason column is prose. */
-.gptable__reason { white-space: normal; text-align: left; }
+/* -- the decision index --------------------------------------------------- */
+/* The reason is the most important cell, so it takes the spare width and
+   wraps. Nothing in this table scrolls sideways. Selectors carry both classes
+   so they outrank the per-task table's nowrap cells above. */
+.gptable.gptable--index th,
+.gptable.gptable--index td { text-align: left; vertical-align: top; }
+.gptable.gptable--index tbody th { min-width: 0; width: 1%; white-space: nowrap; }
+.gptable--index tbody th a { color: var(--raw-cotton); font-weight: 500; }
+.gptable__id { display: block; margin-top: 4px; font-size: 11px; color: var(--slub-type); }
+.gptable.gptable--index td.gptable__date { color: var(--slub-type); }
+.gptable.gptable--index td.gptable__reason { white-space: normal; width: 100%; line-height: 1.5; }
 
-/* A max-width on a table cell is advisory at best, so the constraint goes on a
-   block inside it. Without this the reason column stretches the table until the
-   sentence that explains the refusal is the part scrolled off the screen. */
-.gptable__reason span { display: block; max-width: 46ch; }
+/* On a phone each update becomes a card: name and outcome, then the date,
+   then the reason in full. Column headers mean nothing once the columns go. */
+@media (max-width: 640px) {
+  .gptable--index thead { display: none; }
+  .gptable.gptable--index tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px var(--s3);
+    padding: var(--s4) var(--s3);
+    border-bottom: 1px solid rgba(61, 78, 107, 0.32);
+  }
+  .gptable.gptable--index tbody th,
+  .gptable.gptable--index td { display: block; padding: 0; border: 0; width: auto; }
+  .gptable.gptable--index tbody th { white-space: normal; box-shadow: none; }
+  .gptable.gptable--index tr.is-fail { box-shadow: inset 2px 0 0 var(--madder-lit); }
+  .gptable.gptable--index td:nth-of-type(1) { grid-column: 1; grid-row: 2; }
+  .gptable.gptable--index td:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+  .gptable.gptable--index td.gptable__reason { grid-column: 1 / -1; margin-top: 6px; }
+}
+
+/* The per-task table keeps its columns and may scroll on a phone; the task
+   name no longer holds a 220px minimum there. */
+@media (max-width: 640px) {
+  .gptable tbody th { min-width: 0; }
+  .gptable th, .gptable td { padding: 12px 8px; }
+}
 
 /* A task with no promoted history behind it. Not a zero, and it must not read
    as one: there is nothing to have drifted from yet. */

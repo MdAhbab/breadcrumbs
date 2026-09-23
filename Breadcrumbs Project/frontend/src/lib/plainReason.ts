@@ -50,3 +50,31 @@ export function plainReason(reason: string): string {
   // Nothing matched. Say it as stored rather than guess.
   return reason;
 }
+
+/**
+ * AI model updates by name: "Update 4" for m-v8-alt.
+ *
+ * Numbered in the order they were decided, oldest first, so the same update has
+ * the same name on every page. The stored id stays on the technical view.
+ */
+export function updateNumbers(
+  rows: { model_id: string; decided_at: string }[],
+): Map<string, number> {
+  const order = [...rows].sort((a, b) => a.decided_at.localeCompare(b.decided_at));
+  return new Map(order.map((m, i) => [m.model_id, i + 1]));
+}
+
+/** "Update 4", or the stored id when it is not in the list. */
+export const updateName = (id: string, numbers: Map<string, number>): string =>
+  numbers.has(id) ? `Update ${numbers.get(id)}` : id;
+
+/**
+ * A ledger channel by what it holds: "Documents" for documents-apex-primark,
+ * "AI model" for model-channel. The raw name stays on the technical view.
+ */
+export function channelLabel(channel: string): string {
+  if (channel.startsWith('documents')) return 'Documents';
+  if (channel.startsWith('model')) return 'AI model';
+  return channel;
+}
+

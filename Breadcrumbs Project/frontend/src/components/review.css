@@ -65,7 +65,6 @@
 }
 
 .rev__why { color: var(--thread-type); max-width: 46ch; }
-.rev__none { color: var(--thread-type); margin: var(--s3) 0 0; max-width: 70ch; }
 
 .rev__others { margin-top: var(--s5); display: grid; gap: var(--s3); }
 .rev__othershead { color: var(--ink-quiet); }
@@ -135,17 +134,3 @@
 @media (max-width: 640px) {
   .rev { padding: var(--s4); }
 }
-
-/* The one case where this line is a finding rather than a footnote: there is
-   no check available on this document, and the reader is looking for one. */
-.rev__rests strong { color: var(--ink); }
-
-/* Naming the other counter-signature, before somebody signs this one and goes
-   looking for it in the wrong panel. */
-.rev__vswitness {
-  color: var(--thread-type);
-  margin: var(--s3) 0 0;
-  max-width: 72ch;
-}
-.rev__vswitness strong { color: var(--ink); }
-.rev__rests a { color: var(--brass-ink); }

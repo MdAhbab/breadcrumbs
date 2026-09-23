@@ -18,13 +18,8 @@ import './lightbox.css';
 /**
  * The buyer's screen.
  *
- * A buyer's whole job here is to ask one narrow question. So the screen is one
- * column on a wide empty field: nothing to scan, nothing to choose between,
- * just the question being composed.
- *
- * The constraint is stated before the first input rather than after the last,
- * because it is the reassurance that makes the request acceptable to the
- * factory on the other end.
+ * A buyer's whole job here is to ask a factory for figures and see the
+ * answers. So the screen is the form, with what was asked for along the side.
  *
  * Sending it writes a real request the factory sees on its own dashboard and
  * can answer. It used to set a boolean and show a confirmation for something
@@ -85,10 +80,7 @@ export default function Lightbox() {
             <aside className="lbx__side">
               <p className="stamp-type lbx__side-head">What you asked for</p>
               {items.length === 0 ? (
-                <p className="small lbx__side-note">
-                  You have not asked for anything yet. Use the form to ask a factory
-                  for one figure.
-                </p>
+                <p className="small lbx__side-note">You have not asked for anything yet.</p>
               ) : (
                 <ul className="reqlist">
                   {items.slice(0, shown).map((it) => (
@@ -106,13 +98,6 @@ export default function Lightbox() {
                   Show {Math.min(8, items.length - shown)} more
                 </button>
               )}
-
-              <p className="small lbx__side-note">
-                Each one covers a single column of a single record, until the date on
-                it. Anything wider is refused by the contract itself, not by this
-                screen. Opening a file you hold is a read: it writes nothing to the
-                ledger and leaves no trace on it. Only checking a figure does.
-              </p>
             </aside>
           </>
           );
@@ -143,10 +128,10 @@ interface Asked {
 }
 
 const STAGE_WORD: Record<Stage, string> = {
-  waiting: 'Waiting for the factory',
-  open: 'You can see this',
+  waiting: 'Waiting',
+  open: 'Active',
   refused: 'Refused',
-  ended: 'Access ended',
+  ended: 'Ended',
 };
 
 const STAGE_TONE: Record<Stage, 'sealed' | 'pending' | 'broken' | 'inert'> = {
@@ -266,16 +251,9 @@ function AskedRow({
         {item.reason && <span className="small reqrow__reason">{item.reason}</span>}
 
         <span className="reqrow__acts">
-          {/* Straight into the file this permission was written against.
-              The link carries the grant rather than the document, because a
-              buyer holds permissions and not documents — the verify screen
-              resolves one to the other. It used to carry the grant to a screen
-              that read only `?record=`, so every one of these opened whichever
-              document happened to sort first.
-
-              Opening it is a read. Nothing is proposed to the chain and no
-              receipt is written until a figure is actually checked, which is
-              why this says "open" and not "prove". */}
+          {/* Straight into the file this permission was written against. The
+              link carries the grant, and the verify screen resolves it to the
+              document. Opening is a read, so this says "open" and not "check". */}
           {item.grantId && (
             <Link
               to={`/verify?grant=${encodeURIComponent(item.grantId)}`}
@@ -283,11 +261,6 @@ function AskedRow({
             >
               Open the file <ArrowRight size={12} />
             </Link>
-          )}
-          {item.grantId && (
-            <span className="small reqrow__hint">
-              Read the figure released to you, and check it against the ledger.
-            </span>
           )}
           {/* Holding one column of a register is the moment you find out you
               need the next one, and until now that meant filling the form in
@@ -383,10 +356,10 @@ function Ask({
   return (
     <div className="lbx__form">
       <p className="stamp-type lbx__eyebrow">{org}</p>
-      <h1>Request one piece of data.</h1>
+      <h1>Request documents</h1>
       <p className="lead lbx__constraint">
-        You will get the one figure you ask for and nothing else. Not the rest of the
-        row, and not the rest of the file. The factory decides whether to release it.
+        Ask a factory for the figures you need. You get only those, and only if the
+        factory approves.
       </p>
 
       {sent ? (
@@ -394,9 +367,7 @@ function Ask({
           <Seal tone="pending">Sent</Seal>
           <h3 className="lbx__sent-head">Your request is with {shortMsp(sent)}.</h3>
           <p className="small lbx__sent-body">
-            They decide whether to release it, from which record, and for how long. It
-            is on their screen now. If they say yes, you will be able to check that one
-            figure and nothing more.
+            It is on their screen now. Their answer will show in your list.
           </p>
           <button
             type="button"
@@ -426,7 +397,7 @@ function Ask({
           </Field>
 
           <div className="lbx__pair">
-            <Field label="Which kind of record" id="rtype">
+            <Field label="Document type" id="rtype">
               <select
                 id="rtype"
                 className="input"
@@ -438,7 +409,7 @@ function Ask({
                 ))}
               </select>
             </Field>
-            <Field label="Which month" id="period" hint="Only months the ledger actually has.">
+            <Field label="Which month" id="period">
               <select
                 id="period"
                 className="input"
@@ -459,8 +430,7 @@ function Ask({
           <fieldset className="picker">
             <legend className="field__label">Which figures</legend>
             <p className="field__hint small">
-              Tick everything you need. Each one is released separately, and the factory
-              can say yes to some and no to others.
+              The factory approves or refuses each one separately.
             </p>
             <div className="picker__grid">
               {available.map((f) => (
@@ -475,25 +445,21 @@ function Ask({
               ))}
             </div>
             {picked.length > 0 && (
-              <p className="small picker__count">
-                {picked.length} selected. That is {picked.length} separate
-                {picked.length === 1 ? ' permission' : ' permissions'} for the factory
-                to decide on.
-              </p>
+              <p className="small picker__count">{picked.length} selected.</p>
             )}
           </fieldset>
 
           {blocked.length > 0 && (
             <p className="small lbx__blocked">
-              {blocked.map((f) => f.label).join(', ')} cannot be asked for at all. Those
-              identify a person, and no permission opens them.
+              {blocked.map((f) => f.label).join(', ')} cannot be asked for. They name
+              a person.
             </p>
           )}
 
           <Field
             label="What you need it for"
             id="purpose"
-            hint="This goes on the ledger next to the permission, so the factory can see why it was asked for."
+            hint="The factory sees this reason."
           >
             <select
               id="purpose"
@@ -508,9 +474,9 @@ function Ask({
           </Field>
 
           <Field
-            label="Access ends on"
+            label="Permission ends on"
             id="expiry"
-            hint="After this date it stops working on its own. Nobody has to remember to end it."
+            hint="It ends on its own after this date."
           >
             <input
               id="expiry"

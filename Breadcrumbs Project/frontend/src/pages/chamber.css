@@ -106,7 +106,6 @@
 .carried__note { color: var(--ink-60); flex: 1; min-width: 220px; }
 
 /* -- the register --------------------------------------------------------- */
-.register__cap { color: var(--ink-quiet); margin-bottom: var(--s4); }
 
 .regtable { width: 100%; border-collapse: collapse; font-size: 14px; }
 .regtable th, .regtable td {

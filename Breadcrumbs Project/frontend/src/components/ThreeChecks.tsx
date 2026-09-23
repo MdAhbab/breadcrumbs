@@ -15,9 +15,21 @@ import './mechanisms.css';
  * and 3 are the only reason the forgery fails anyway.
  *
  * A combined badge would show that forged record as verified. So the rows stay
- * separate, the forgeable one is labelled as forgeable, and the explainer says
- * why in the fewest words that are still true.
+ * separate. The forgeable one is labelled once, in technical detail only.
  */
+
+/**
+ * Plain wording for each check, in the product's own words. The API's plain
+ * labels say "record" and "the single number", which this screen does not use.
+ */
+const PLAIN_LABEL: Record<string, string> = {
+  ledger: 'The ledger has this document, and it matches',
+  witness: 'The tamper check covers it',
+  index: 'It was added on a known date, in the open',
+};
+const PLAIN_OK_DETAIL: Record<string, string> = {
+  witness: 'The tamper check for the whole ledger includes this document.',
+};
 export function ThreeChecks({ result }: { result: Verification }) {
   const { technical } = useDetail();
 
@@ -26,7 +38,7 @@ export function ThreeChecks({ result }: { result: Verification }) {
       <section className="tcheck tcheck--off">
         <p className="tcheck__title">Nothing to check this against yet</p>
         <p className="small">
-          {result.reason || 'The tamper check has not been set up on this part of the network, so there is nothing to compare against.'}
+          {result.reason || 'The tamper check is not set up here yet.'}
         </p>
       </section>
     );
@@ -44,10 +56,6 @@ export function ThreeChecks({ result }: { result: Verification }) {
               ? 'All three checks pass. This has not been altered.'
               : `${result.checks.filter((c) => !c.ok).length} of 3 checks failed`}
           </p>
-          <p className="small tcheck__sub">
-            Three separate checks, run independently. The verdict is simply all three
-            agreeing. There is no fourth opinion on top of them.
-          </p>
         </div>
       </header>
 
@@ -59,26 +67,21 @@ export function ThreeChecks({ result }: { result: Verification }) {
               {c.ok ? <Check size={13} strokeWidth={3} /> : <X size={13} strokeWidth={3} />}
             </span>
             <div className="tcheck__body">
-              <p className="tcheck__label">{technical ? c.label : c.plain_label}</p>
-              <p className="small tcheck__detail">
-                {technical ? c.detail : c.plain_detail}
+              <p className="tcheck__label">
+                {technical ? c.label : PLAIN_LABEL[c.id] ?? c.plain_label}
               </p>
-              {c.forgeable_by_trapdoor && (
+              <p className="small tcheck__detail">
+                {technical ? c.detail : (c.ok && PLAIN_OK_DETAIL[c.id]) || c.plain_detail}
+              </p>
+              {technical && c.forgeable_by_trapdoor && (
                 <p className="small tcheck__forge">
-                  <AlertTriangle size={12} />{' '}
-                  {technical
-                    ? 'This is the check a holder of the modulus factorisation could forge.'
-                    : 'This is the one check somebody with the original setup secret could fake. The other two would still catch them.'}
+                  <AlertTriangle size={12} /> {result.note}
                 </p>
               )}
             </div>
           </li>
         ))}
       </ol>
-
-      <p className="small tcheck__why">
-        {technical ? result.note : result.plain_note}
-      </p>
     </section>
   );
 }

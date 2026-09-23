@@ -8,20 +8,13 @@ import { Seal } from './ui';
 import './mechanisms.css';
 
 /**
- * Proof that something was never committed.
+ * Check that something was never filed.
  *
- * This is the operation no Merkle tree can perform, and it turns "we have no
- * record of that certificate" from a filing failure into a cryptographic
- * statement. It is also the easiest claim in the product to overstate, so the
- * screen keeps two facts apart:
- *
- *   the ledger holds no record under this identifier — a lookup; and
- *   this element was never accumulated up to the current epoch — a Bezout proof.
- *
- * Only the second is cryptography, and its scope is narrow. Both the result and
- * the scope sentence come from the contract, which is what stops this screen
- * from quietly widening the claim: an earlier version invented a passing proof
- * for any reference it did not recognise.
+ * The easiest claim in the product to overstate, so the screen keeps two facts
+ * apart: the ledger holds no document under this reference (a lookup), and it
+ * was never added up to the latest update (a Bezout proof). Only the second is
+ * cryptography, and its scope is narrow. The plain line says the limit in
+ * words. The contract's own scope sentence is technical detail.
  */
 export function AbsenceProof() {
   const [value, setValue] = useState('ISO45001-FORGED-Q3-2026');
@@ -38,7 +31,7 @@ export function AbsenceProof() {
       setResult(await api.nonMembership(key));
     } catch (err) {
       setResult(null);
-      setError(err instanceof ApiError ? err : new ApiError(0, 'the proof could not be built'));
+      setError(err instanceof ApiError ? err : new ApiError(0, 'the check could not be run'));
     } finally {
       setBusy(false);
     }
@@ -48,7 +41,7 @@ export function AbsenceProof() {
     <div className="absence">
       <div className="absence__form">
         <label className="field__label" htmlFor="ref">
-          Certificate or record reference
+          Certificate or document reference
         </label>
         <div className="absence__row">
           <input
@@ -65,12 +58,11 @@ export function AbsenceProof() {
             onClick={() => void run()}
             disabled={busy}
           >
-            <Search size={14} /> {busy ? 'Proving…' : 'Prove'}
+            <Search size={14} /> {busy ? 'Checking…' : 'Check'}
           </button>
         </div>
         <p className="small field__hint">
-          A buyer holding a certificate the factory never committed can settle it
-          here without asking the factory anything.
+          Type any reference. You will see if it was ever put on the ledger.
         </p>
       </div>
 
@@ -88,25 +80,27 @@ export function AbsenceProof() {
               </p>
               <p className="small">
                 {result.never_committed
-                  ? 'Proved to be absent, not just not found. There is a certificate that it sits outside the set. That is the difference between "we could not find it" and something you can check for yourself.'
-                  : 'It exists, so there is nothing to prove absent, and the check correctly refuses to produce a certificate saying otherwise.'}
+                  ? `Checked, not just searched for.${
+                    result.epoch === null ? '' : ` This holds up to update ${result.epoch}.`
+                  } It says nothing about anything added later.`
+                  : 'It is there, so there is nothing to check.'}
               </p>
             </div>
           </header>
 
           <div className="absence__rows">
             <div className="absence__r">
-              <span className="stamp-type">Ledger lookup</span>
+              <span className="stamp-type">Search the ledger</span>
               <Seal tone={result.ledger_holds_record ? 'sealed' : 'inert'}>
-                {result.ledger_holds_record ? 'record found' : 'no record'}
+                {result.ledger_holds_record ? 'found' : 'not found'}
               </Seal>
             </div>
             <div className="absence__r">
-              <span className="stamp-type">Proof it is not there</span>
+              <span className="stamp-type">Tamper check</span>
               <Seal tone={result.proof_ok ? 'sealed' : 'broken'}>
                 {result.provable
-                  ? result.proof_ok ? 'verifies' : 'does not hold'
-                  : 'not applicable'}
+                  ? result.proof_ok ? 'never added' : 'failed'
+                  : 'not needed'}
               </Seal>
             </div>
             <Tech>
@@ -120,7 +114,7 @@ export function AbsenceProof() {
           </div>
 
           {result.reason && <p className="small absence__reason">{result.reason}</p>}
-          <p className="small absence__scope">{result.scope}</p>
+          <Tech><p className="small absence__scope">{result.scope}</p></Tech>
         </div>
       )}
     </div>

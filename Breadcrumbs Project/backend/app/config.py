@@ -70,7 +70,7 @@ ROLES: dict[str, dict[str, str]] = {
         "person": "Fatema Begum",
         "identity": "fatema.begum",
         "landing": "/factory/dashboard",
-        "summary": "Upload records, manage access grants, view commitment history.",
+        "summary": "Upload documents, decide who may see them, and close each month.",
     },
     "buyer": {
         "label": "Buyer / Brand",
@@ -79,7 +79,7 @@ ROLES: dict[str, dict[str, str]] = {
         "person": "James Holloway",
         "identity": "james.holloway",
         "landing": "/buyer/portal",
-        "summary": "Request specific facts from supplier records and verify them.",
+        "summary": "Ask a factory for specific figures, then check they are genuine.",
     },
     "auditor": {
         "label": "Auditor",
@@ -88,7 +88,7 @@ ROLES: dict[str, dict[str, str]] = {
         "person": "Dr. Meera Nair",
         "identity": "meera.nair",
         "landing": "/auditor/workspace",
-        "summary": "Batch-verify claims and attach signed attestations.",
+        "summary": "Open any document, check a whole batch, and sign off on it.",
     },
     "consortium": {
         "label": "Consortium Administrator",
@@ -97,7 +97,7 @@ ROLES: dict[str, dict[str, str]] = {
         "person": "Rafiqul Islam",
         "identity": "rafiqul.islam",
         "landing": "/governance",
-        "summary": "Approve new members, manage policy proposals, view SLA metrics.",
+        "summary": "Vote on members and rules, and approve updates to the shared AI model.",
     },
     "regulator": {
         "label": "Regulator (Observer)",
@@ -106,7 +106,7 @@ ROLES: dict[str, dict[str, str]] = {
         "person": "Lt. Col. (Ret.) Aziz",
         "identity": "aziz",
         "landing": "/regulator",
-        "summary": "Read-only view of governance events and aggregate statistics.",
+        "summary": "Watch votes and totals, and check that nothing has been altered.",
     },
 }
 

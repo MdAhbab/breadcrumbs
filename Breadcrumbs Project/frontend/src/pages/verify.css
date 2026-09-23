@@ -60,6 +60,11 @@
   background: rgba(18, 22, 28, 0.03);
 }
 
+/* Inside the application shell the sidebar is the frame, so the page drops
+   its own ground and the top padding the shell already provides. */
+.shellmain .lb { background: none; min-height: 0; }
+.shellmain .lb__main { padding-top: 0; padding-inline: 0; }
+
 .lb__main {
   flex: 1;
   width: 100%;
@@ -462,3 +467,11 @@
 /* The signed-in path opens on a control, not on a statement, so it does not
    need the clearance the receipt view gives its one object. */
 .lb__main--wide .lb__detail { margin-top: var(--s5); }
+.lb__main--wide .verdictbar { margin-bottom: var(--s6); }
+
+/* -- the receipt box, for a visitor without an account --------------------- */
+.receiptbox { display: grid; gap: var(--s2); text-align: left; max-width: 560px; margin-inline: auto; }
+.receiptbox__label { font-size: 14px; font-weight: 500; color: var(--ink); }
+.receiptbox__row { display: flex; gap: var(--s3); flex-wrap: wrap; }
+.receiptbox__row .input { flex: 1 1 220px; min-width: 0; }
+.receiptbox__note { color: var(--ink-quiet); max-width: 60ch; }

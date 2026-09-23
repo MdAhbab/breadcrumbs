@@ -9,7 +9,6 @@ import { commas, longDate, shortHash } from '../lib/format';
 import { useFieldLabel } from '../lib/useFieldLabel';
 import { Failed } from './states';
 import { Tech } from './Tech';
-import { Seal } from './ui';
 import './mechanisms.css';
 import './completeness.css';
 
@@ -174,9 +173,8 @@ export function CompletenessChecker({
 
           {whatIf && (
             <p className="cchk__whatif">
-              You have taken {commas(ids.length - disclosed.length)} out of the check. The
-              ledger is answering about the {commas(disclosed.length)} still ticked, not
-              about what you actually hold.
+              You took {commas(ids.length - disclosed.length)} out. This result is only
+              for the {commas(disclosed.length)} still ticked.
             </p>
           )}
 
@@ -195,20 +193,17 @@ export function CompletenessChecker({
           {/* When the count was fixed, which is the whole force of the check
               and was only stated further down the page on another card. */}
           <p className="small cchk__when">
-            Closed at {commas(seal.record_count)} record
-            {seal.record_count === 1 ? '' : 's'} on {longDate(seal.sealed_at)}
-            {seal.version > 1 && `, version ${seal.version}`} — before any of it was
-            released.
+            Closed on {longDate(seal.sealed_at)}, before anything was shared.
           </p>
 
           <Tech>
             <div className="cchk__roots">
               <div className="cchk__root">
-                <span className="stamp-type">Sealed root, on the ledger</span>
+                <span className="stamp-type">Closed month fingerprint</span>
                 <span className="mono">{shortHash(result.sealed_root ?? '')}</span>
               </div>
               <div className={`cchk__root ${result.complete ? '' : 'is-bad'}`}>
-                <span className="stamp-type">Root of what you hold</span>
+                <span className="stamp-type">Fingerprint of what you hold</span>
                 <span className="mono">{shortHash(result.computed_root ?? '')}</span>
               </div>
             </div>
@@ -221,36 +216,30 @@ export function CompletenessChecker({
                    is true of its access rather than of any disclosure. Saying
                    it the buyer's way would be the screen congratulating a
                    factory for a completeness it never had to demonstrate. */
-                ? 'You read this month by right of audit rather than by disclosure, so this '
-                  + 'confirms your own access rather than the factory’s openness. The '
-                  + 'check bites where a document is released rather than read — a buyer '
-                  + 'holding this period sees only what it was given.'
-                : 'The month was closed at this exact list of records before you asked, and '
-                  + 'what you hold is that list. Nothing was left out.'
-              : `${result.reason}. The month says it holds more than you were shown. That is `
-                + 'arithmetic, not an accusation.'}
+                ? 'As an auditor you can open every document. A buyer sees only what it was given.'
+                : 'Nothing was left out.'
+              : shortfall > 0
+                ? `${commas(shortfall)} document${shortfall === 1 ? ' is' : 's are'} missing `
+                  + 'from what you were shown. The count does not add up.'
+                : 'The documents you were shown do not match the closed month.'}
+            <Tech><span className="small dim"> {result.reason}</span></Tech>
           </p>
 
           {!result.complete && !readsEverything && (
             <p className="small cchk__cannot">
-              Which one is missing is not something this page can tell you: you were never
-              given it, so it has no name here. What is fixed is the count, and it was
-              fixed before the disclosure was made.
+              This page cannot say which one. You were never given it.
             </p>
           )}
 
           {(result.amendment_count ?? 0) > 0 && (
             <p className="small cchk__amend">
-              This month has been corrected {result.amendment_count} time
-              {result.amendment_count === 1 ? '' : 's'}. Read the corrections before
-              relying on the count.
+              This month was corrected {result.amendment_count} time
+              {result.amendment_count === 1 ? '' : 's'}. See the corrections below.
             </p>
           )}
 
           <p className="small cchk__limit">
-            What this cannot do: a file the factory never put on the ledger at all
-            leaves everything here looking consistent. This catches things being held
-            back from you. It does not prove the factory is honest.
+            This cannot catch a file that was never put on the ledger.
           </p>
         </div>
       )}
@@ -330,8 +319,7 @@ function Given({
       <div className="cchk__input">
         <p className="stamp-type cchk__label">What you were given</p>
         <p className="small cchk__hint">
-          You hold no records in this period, so there is nothing to check against
-          its seal.
+          You have no documents from this month to check.
         </p>
       </div>
     );
@@ -357,7 +345,7 @@ function Given({
 
       {columns.length > 0 && (
         <p className="small cchk__released">
-          Released to you as {columns.join(', ')}
+          Shared with you: {columns.join(', ')}
           {purposes.length === 1 && `, ${purposeLabel(purposes[0]).toLowerCase()}`}.
         </p>
       )}
@@ -370,7 +358,7 @@ function Given({
             className="input"
             type="search"
             value={query}
-            placeholder="Find an identifier…"
+            placeholder="Find a document…"
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
@@ -408,7 +396,6 @@ function Given({
                     </span>
                     <span className="mono cchk__id">{r.record_id}</span>
                     <span className="small cchk__rows">{commas(r.row_count)} rows</span>
-                    {r.witnesses.length > 0 && <Seal tone="sealed">counter-signed</Seal>}
                     {/* Was "not disclosed", in red — a state a buyer's data can
                         never be in, since a withheld identifier is not in this
                         list at all. The only way to reach it is to press this
@@ -437,8 +424,7 @@ function Given({
                   + `${commas(given.length)}.`
                 : `Showing ${commas(Math.min(shown, matching.length))} of `
                   + `${commas(given.length)}.`}
-              {' '}Take one out and the ledger recomputes the root. The seal was fixed
-              when the month closed; nothing here can alter it.
+              {' '}Untick one to see what the check says without it.
             </p>
           </div>
         </>

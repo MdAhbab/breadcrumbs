@@ -1,14 +1,14 @@
 import { Check, Download, FileText, PenLine } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 
 import {
   ApiError, api, shortMsp,
   type RecordReviews, type ReviewConfirmation, type ReviewOutcome,
 } from '../lib/api';
-import { dateTime, longDate } from '../lib/format';
+import { commas, dateTime, longDate } from '../lib/format';
 import { useApi, type Query } from '../lib/useApi';
 import { Failed, Result } from './states';
+import { Tech } from './Tech';
 import { Seal } from './ui';
 import './review.css';
 
@@ -73,7 +73,7 @@ const OUTCOME_TONE: Record<ReviewOutcome, 'sealed' | 'pending' | 'broken'> = {
   rejected: 'broken',
 };
 
-const OUTCOME_WORD: Record<ReviewOutcome, string> = {
+export const OUTCOME_WORD: Record<ReviewOutcome, string> = {
   accepted: 'Reviewed and accepted',
   qualified: 'Accepted with reservations',
   rejected: 'Not accepted',
@@ -127,6 +127,32 @@ function Panel({
     }
   };
 
+  // The document's owner cannot confirm its own document, so it gets one line
+  // saying who has, and nothing about how signing works.
+  if (!data.yours && !data.may_confirm) {
+    return (
+      <>
+        <header className="rev__head">
+          <div>
+            <h3 className="rev__title">Confirmation of review</h3>
+            <p className="small rev__sub">
+              {others.length === 0
+                ? 'No reader has confirmed this document yet.'
+                : `Confirmed by ${others.length} reader${others.length === 1 ? '' : 's'}.`}
+            </p>
+          </div>
+        </header>
+        {others.length > 0 && (
+          <div className="rev__others">
+            {others.map((r) => (
+              <Confirmation key={r.id} review={r} />
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <header className="rev__head">
@@ -134,31 +160,12 @@ function Panel({
           <h3 className="rev__title">Confirmation of review</h3>
           <p className="small rev__sub">
             {data.yours
-              ? 'You have confirmed this document. The confirmation below is yours to '
-                + 'hand over on its own — it names the document, what you concluded, and '
-                + 'the checks on the ledger it rests on.'
-              : data.reviewed_before
-                ? `${data.reviews.length} confirmation${data.reviews.length === 1 ? '' : 's'} `
-                  + 'already stand against this document. Yours would be separate from '
-                  + 'them, under your own name.'
-                : 'Nobody has confirmed reading this document yet. Signing generates an '
-                  + 'individual confirmation, with its own reference, under your name.'}
+              ? 'You confirmed this document. You can download the confirmation below.'
+              : 'Say what you found, and sign a confirmation of review in your name.'}
           </p>
         </div>
         {data.yours && <Seal tone={OUTCOME_TONE[data.yours.outcome]}>{data.yours.id}</Seal>}
       </header>
-
-      {/* The other thing this product calls counter-signing. Said here because
-          the two are on one page and share the word: a reader who signs this
-          and then finds "Who counter-signed it when it was filed" reporting
-          something else concludes the signature did not take. */}
-      <p className="small rev__vswitness">
-        This is not the counter-signature the document was filed with. That one is
-        made at capture by an organisation the consortium assigns, it is on the
-        ledger, and it is under <strong>Who counter-signed it when it was filed</strong>{' '}
-        further down this page. Signing here does not change it and is not meant
-        to — the two say different things, and are worth different amounts.
-      </p>
 
       {data.yours ? (
         <Confirmation review={data.yours} yours />
@@ -196,45 +203,16 @@ function Panel({
             />
           </label>
 
-{data.checks_you_ran.length > 0 ? (
-            <p className="small rev__rests">
-              This will cite {data.checks_you_ran.length} check
-              {data.checks_you_ran.length === 1 ? '' : 's'} you have already run against
-              this document. Those are on the ledger, and anyone holding the confirmation
-              can follow it back to them.
-            </p>
-          ) : data.may_check ? (
-            <p className="small rev__rests">
-              You have not checked any row of this document against the ledger yet — the
-              check is on each row of the table above, and on the button over it. You can
-              sign without doing that, and the confirmation will say plainly that it
-              rests on no check, which is a weaker statement and should look like one.
-            </p>
-          ) : (
-            /* No live permission on this document, so there is no check on this
-               page and there is no way to put one there from here. Saying "you
-               have not checked any row yet" to somebody who cannot check any row
-               is the screen blaming them for its own rule. */
-            <p className="small rev__rests">
-              <strong>There is no check to run on this document.</strong> You can read it
-              in full, but proving a figure writes a receipt naming that exact figure, and
-              that needs a permission from the factory — nothing here has been released to
-              you. Your confirmation will say, in as many words, that it rests on no
-              check: it confirms you read the document, not that any figure in it was
-              proved.
-              {data.you.role === 'auditor' && (
-                <> The documents you can prove are in{' '}
-                  <Link to="/auditor/workspace">My audit checks</Link>.
-                </>
-              )}
-              {data.you.role === 'buyer' && (
-                <> Ask the factory for a figure from{' '}
-                  <Link to="/buyer/portal">Request documents</Link>, and the check appears
-                  here once it is released.
-                </>
-              )}
-            </p>
-          )}
+          {/* What the confirmation will rest on, in one sentence. Where no
+              check can be run here, it does not tell the reader to run one. */}
+          <p className="small rev__rests">
+            {data.checks_you_ran.length > 0
+              ? `It will list the ${data.checks_you_ran.length === 1 ? 'check' : `${commas(data.checks_you_ran.length)} checks`} `
+                + 'you ran on this document.'
+              : data.may_check
+                ? 'You have not checked any row yet, so it will say it rests on no check.'
+                : 'Nothing here was released to you to check, so it will rest on no check.'}
+          </p>
 
           {failure && <Failed error={failure} />}
 
@@ -246,25 +224,18 @@ function Panel({
               onClick={() => void sign()}
             >
               <PenLine size={13} />
-              {busy ? 'Signing…' : 'Sign and generate the confirmation'}
+              {busy ? 'Signing…' : 'Sign the confirmation'}
             </button>
             {short && (
               <span className="small rev__why">
                 {written === 0
-                  ? `Write what you concluded first — ${MINIMUM_WORDS} words is enough.`
-                  : `${written} word${written === 1 ? '' : 's'} so far; `
-                    + `${MINIMUM_WORDS} is the minimum. The confirmation goes to people who `
-                    + 'cannot open the document themselves.'}
+                  ? `Write at least ${MINIMUM_WORDS} words first.`
+                  : `${written} word${written === 1 ? '' : 's'} so far. Write at least ${MINIMUM_WORDS}.`}
               </span>
             )}
           </div>
         </div>
-      ) : (
-        <p className="small rev__none">
-          Confirming a review is for the organisations that read this document rather than
-          the one that wrote it. What you can see here is who has confirmed it.
-        </p>
-      )}
+      ) : null}
 
       {others.length > 0 && (
         <div className="rev__others">
@@ -298,22 +269,24 @@ function Confirmation({ review, yours = false }: { review: ReviewConfirmation; y
 
       <p className="revdoc__by">
         <strong>{review.reviewer_name}</strong>, {review.reviewer_org}
-        <span className="small"> · {shortMsp(review.reviewer_msp)}</span>
+        <Tech><span className="small"> · {shortMsp(review.reviewer_msp)}</span></Tech>
       </p>
       <p className="small revdoc__when">
-        Confirmed {longDate(review.signed_at)} · about document{' '}
-        <span className="mono">{review.record_id}</span>
+        Confirmed {longDate(review.signed_at)}
+        <Tech> · document <span className="mono">{review.record_id}</span></Tech>
       </p>
 
       <p className="revdoc__statement">{review.statement}</p>
 
       <p className="small revdoc__rests">
-        {review.checks_cited.length > 0
-          ? `Rests on ${review.checks_cited.length} verification receipt`
-            + `${review.checks_cited.length === 1 ? '' : 's'} on the ledger: `
-            + review.checks_cited.join(', ')
-          : 'Rests on no verification receipt. This confirms that the document was read, '
-            + 'and not that any figure in it was proved.'}
+        {review.checks_cited.length > 0 ? (
+          <>
+            Based on {review.checks_cited.length === 1
+              ? '1 check'
+              : `${commas(review.checks_cited.length)} checks`} on the ledger.
+            <Tech> {review.checks_cited.join(', ')}</Tech>
+          </>
+        ) : 'Based on no check. It says the document was read, not that figures were checked.'}
       </p>
 
       <div className="revdoc__foot">
@@ -325,8 +298,7 @@ function Confirmation({ review, yours = false }: { review: ReviewConfirmation; y
           <Download size={13} /> Download this confirmation
         </button>
         <span className="small revdoc__note">
-          <FileText size={11} aria-hidden="true" /> A separate document. Handing it over
-          discloses nothing out of the register it is about.
+          <FileText size={11} aria-hidden="true" /> Sharing it shows nothing from the document.
         </span>
       </div>
     </article>

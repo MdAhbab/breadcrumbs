@@ -157,3 +157,6 @@
   .deployed__kind { grid-template-columns: 1fr 3.5rem; }
   .deployed__kindbar { display: none; }
 }
+
+/* The one plain line about the AI model in use: what it catches, what it misses. */
+.deployed__sum { margin-top: 6px; max-width: 65ch; color: var(--ink-80); }

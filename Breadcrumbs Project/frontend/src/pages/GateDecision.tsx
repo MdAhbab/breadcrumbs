@@ -5,7 +5,7 @@ import { GateSimulator } from '../components/GateSimulator';
 import { Result } from '../components/states';
 import { Tech } from '../components/Tech';
 import { useDetail } from '../lib/detail';
-import { plainReason } from '../lib/plainReason';
+import { plainReason, updateName, updateNumbers } from '../lib/plainReason';
 import { HashChip, LedgerRow, Seal } from '../components/ui';
 import { api, shortMsp, taskLabel, type GateDecision, type ModelVersion } from '../lib/api';
 import { bp, bpDelta, dateTime, longDate } from '../lib/format';
@@ -13,29 +13,20 @@ import { useApi } from '../lib/useApi';
 import './gatepage.css';
 
 /**
- * The Continuity Gate decision.
+ * AI model approvals.
  *
- * The most important screen in the product, and the one a judge will be shown.
- * It has fifteen seconds to make a smart-contract decision legible to someone
- * who has never heard of continual learning.
+ * The verdict first in plain words, then the per-task table where a failing
+ * row is unmissable, then the agreed rule, then who tested it. Stored ids,
+ * hashes and the contract's exact wording sit behind "Technical detail".
  *
- * So: the verdict first in plain English, then the per-task table where a
- * failing row is unmissable among passing ones, then the rule it was judged
- * against, then who signed what. The lock mechanism from the landing page
- * reappears, so the marketing surface and the product share a physical
- * vocabulary rather than merely a palette.
- *
- * Every number is the contract's record of an evaluation that actually ran. The
- * page used to pick between two hand-written decisions on `id === 'm-v8-rc1'`,
- * which meant the screen making the product's strongest claim was the one
- * screen guaranteed to agree with itself.
+ * Every number is the contract's record of an evaluation that actually ran.
  */
 export default function GateDecisionPage() {
   const { id } = useParams();
   return id ? <OneDecision id={id} /> : <DecisionIndex />;
 }
 
-/** Without a candidate named, the docket of every decision on the channel. */
+/** Without an update named, the list of every decision. */
 function DecisionIndex() {
   const registry = useApi(() => api.registry(), []);
 
@@ -43,15 +34,11 @@ function DecisionIndex() {
     <div className="gatepage grain warp">
       <div className="gatepage__inner">
         <header className="gatepage__head">
-          <p className="stamp-type gatepage__eyebrow">Model approvals</p>
           <div className="gv">
-            <h1 className="gv__head">Every update, approved and refused.</h1>
+            <h1 className="gv__head">AI model approvals</h1>
             <p className="lead gv__body">
-              The members share one detector, and it is updated in rounds. Before an
-              update is allowed to replace the one in use, a contract re-tests it on
-              every problem the model had already solved. If the update is worse at any
-              of them it is refused, and that refusal is written down just as permanently
-              as an approval. Open one to see what it was tested on and who signed it.
+              Each update to the shared AI model is tested on everything it already
+              knew. If it got worse at any of it, it is refused.
             </p>
           </div>
         </header>
@@ -59,21 +46,20 @@ function DecisionIndex() {
         <section className="gpsec">
           <Result
             query={registry}
-            pendingLabel="Reading the model channel"
+            pendingLabel="Reading the AI model updates"
             isEmpty={(rows) => rows.length === 0}
             empty={{
               title: 'No decisions yet',
-              detail: 'The tests are fixed and published, but no update has been put to them.',
+              detail: 'The tests are ready, but no update has been put to them.',
             }}
           >
-            {(rows: ModelVersion[]) => (
-              <div className="gptable-wrap scroll-x--dark">
-                <table className="gptable">
+            {(rows: ModelVersion[]) => {
+              const numbers = updateNumbers(rows);
+              return (
+                <table className="gptable gptable--index">
                   <thead>
                     <tr>
                       <th scope="col">Update</th>
-                      <th scope="col">Round</th>
-                      <Tech><th scope="col">Built on</th></Tech>
                       <th scope="col">Decided</th>
                       <th scope="col">Outcome</th>
                       <th scope="col">Why</th>
@@ -85,27 +71,30 @@ function DecisionIndex() {
                       .map((m) => (
                         <tr key={m.model_id} className={m.status === 'rejected' ? 'is-fail' : ''}>
                           <th scope="row">
-                            <Link to={`/model/gate/${encodeURIComponent(m.model_id)}`} className="mono">
-                              {m.model_id}
+                            <Link to={`/model/gate/${encodeURIComponent(m.model_id)}`}>
+                              {updateName(m.model_id, numbers)}
                             </Link>
+                            <Tech>
+                              <span className="mono gptable__id">
+                                {m.model_id} · {m.round_id} · built on {m.parent_id}
+                              </span>
+                            </Tech>
                           </th>
-                          <td className="mono">{m.round_id}</td>
-                          <Tech><td className="mono dim">{m.parent_id}</td></Tech>
-                          <td className="mono dim">{longDate(m.decided_at)}</td>
+                          <td className="gptable__date">{longDate(m.decided_at)}</td>
                           <td>
                             <span className={`gpverdict stamp-type ${m.status === 'rejected' ? 'bad' : 'ok'}`}>
-                              {m.status === 'rejected' ? 'refused' : 'approved'}
+                              {m.status === 'rejected' ? 'Refused' : 'Approved'}
                             </span>
                           </td>
                           <td className="gptable__reason">
-                            <span><Reason text={m.outcome_reason} /></span>
+                            <Reason text={m.outcome_reason} />
                           </td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
-              </div>
-            )}
+              );
+            }}
           </Result>
         </section>
 
@@ -119,31 +108,28 @@ function DecisionIndex() {
 }
 
 function OneDecision({ id }: { id: string }) {
-  const query = useApi(() => api.decision(id), [id]);
+  // The list is read too, only to name the update the same way as everywhere else.
+  const query = useApi(
+    () => Promise.all([api.decision(id), api.registry().catch(() => [] as ModelVersion[])]),
+    [id],
+  );
 
   return (
     <div className="gatepage grain warp">
       <div className="gatepage__inner">
-        <Result query={query} pendingLabel="Reading the decision off the chain">
-          {(d: GateDecision) => {
+        <Result query={query} pendingLabel="Reading the decision">
+          {([d, rows]: [GateDecision, ModelVersion[]]) => {
             const rejected = d.outcome === 'reject';
             const cumulative = d.reason_code === 'CUMULATIVE_REGRESSION';
-            const failing = d.per_task.find((t) => !t.pass);
-            const newTask = d.per_task.find((t) => t.is_new_task);
-            // The task that broke the cumulative bound, which is not necessarily
-            // the same row as the one that failed the per-round check.
             const sigma = d.parameters.sigma_bp ?? 0;
-            const drifting = d.per_task.find(
-              (t) => !t.is_new_task
-                && t.drift_from_best_bp !== null
-                && t.drift_from_best_bp > sigma,
-            );
+            const name = updateName(d.candidate_id, updateNumbers(rows));
 
             return (
               <>
                 <header className="gatepage__head">
                   <p className="stamp-type gatepage__eyebrow">
-                    Model approvals · round {d.round_id}
+                    <Link to="/model/gate">AI model approvals</Link>
+                    <Tech> · {d.round_id}</Tech>
                   </p>
 
                   <div className={`gv gv--${d.outcome}`}>
@@ -158,65 +144,28 @@ function OneDecision({ id }: { id: string }) {
                           : 'Refused. It forgot something it had already learned.'}
                     </h1>
                     <p className="lead gv__body">
-                      {!rejected ? (
-                        <>
-                          Model <span className="mono">{d.candidate_id}</span> improved on
-                          the new problem, and lost no more than the agreed margin on any
-                          earlier one. That holds both for this round and against its own
-                          best score. It is now the model everyone uses.
-                        </>
-                      ) : cumulative && drifting ? (
-                        <>
-                          Model <span className="mono">{d.candidate_id}</span> passed every
-                          per-round check. But{' '}
-                          {taskLabel(drifting.task_id).toLowerCase()} has now fallen{' '}
-                          {Math.abs((drifting.drift_from_best_bp ?? 0) / 100).toFixed(1)}{' '}
-                          points below the best it ever reached. The agreed limit is{' '}
-                          {bp(d.parameters.sigma_bp ?? 0)}.
-                          <br />
-                          This is the limit that catches slow erosion: an update can give
-                          up a little every round, each one defensible on its own, until
-                          the model is ruined and no single refusal was ever warranted.
-                        </>
-                      ) : failing ? (
-                        <>
-                          Model <span className="mono">{d.candidate_id}</span>
-                          {newTask && (
-                            <>
-                              {' '}improved on {taskLabel(newTask.task_id).toLowerCase()} by{' '}
-                              {bpDelta(newTask.change_bp)} points,
-                            </>
-                          )}{' '}
-                          but lost {Math.abs(failing.change_bp / 100).toFixed(1)} points on{' '}
-                          {taskLabel(failing.task_id).toLowerCase()}, which the network
-                          already knew. <span className="mono">{d.parent_id}</span> was not
-                          replaced by it.
-                        </>
-                      ) : (
-                        <>
-                          Model <span className="mono">{d.candidate_id}</span> was refused.
-                        </>
-                      )}
+                      {name}, {longDate(d.decided_at)}. <Reason text={d.reason} />
                     </p>
-                    <p className="small gv__body">{d.reason}</p>
                   </div>
                 </header>
 
                 <section className="gpsec">
-                  <h2 className="gpsec__title">Measured against every task the network knows</h2>
+                  <h2 className="gpsec__title">Tested on every task</h2>
                   <div className="gptable-wrap scroll-x--dark">
                     <table className="gptable">
                       <thead>
                         <tr>
                           <th scope="col">Task</th>
-                          <th scope="col">Benchmark</th>
-                          <th scope="col">{d.parent_id}</th>
-                          <th scope="col">{d.candidate_id}</th>
+                          <Tech><th scope="col">Test set</th></Tech>
+                          <th scope="col">Before</th>
+                          <th scope="col">After</th>
                           <th scope="col">Change</th>
-                          <th scope="col">Best ever</th>
-                          <th scope="col">Below best</th>
-                          <th scope="col">Tolerance</th>
-                          <th scope="col">Verdict</th>
+                          <Tech>
+                            <th scope="col">Best ever</th>
+                            <th scope="col">Below best</th>
+                            <th scope="col">Limit</th>
+                          </Tech>
+                          <th scope="col">Result</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -234,29 +183,31 @@ function OneDecision({ id }: { id: string }) {
                             <td className={`mono ${t.pass ? 'ok' : 'bad'}`}>
                               {bpDelta(t.change_bp)}
                             </td>
-                            <td className="mono dim">
-                              {t.best_bp === null ? (
-                                <span className="gptable__none">no baseline yet</span>
-                              ) : (
-                                `${bp(t.best_bp)}%`
-                              )}
-                            </td>
-                            <td className="mono">
-                              {t.drift_from_best_bp === null ? (
-                                <span className="gptable__none">n/a</span>
-                              ) : t.drift_from_best_bp <= 0 ? (
-                                <span className="ok">at or above it</span>
-                              ) : (
-                                <span className={t.drift_from_best_bp > sigma ? 'bad' : ''}>
-                                  {bp(t.drift_from_best_bp)}
-                                </span>
-                              )}
-                            </td>
-                            <td className="mono dim">
-                              {t.is_new_task
-                                ? `≥ +${bp(t.threshold_bp)}`
-                                : `≥ ${bp(t.threshold_bp)}, and ≤ ${bp(sigma)} below best`}
-                            </td>
+                            <Tech>
+                              <td className="mono dim">
+                                {t.best_bp === null ? (
+                                  <span className="gptable__none">none yet</span>
+                                ) : (
+                                  `${bp(t.best_bp)}%`
+                                )}
+                              </td>
+                              <td className="mono">
+                                {t.drift_from_best_bp === null ? (
+                                  <span className="gptable__none">n/a</span>
+                                ) : t.drift_from_best_bp <= 0 ? (
+                                  <span className="ok">at or above it</span>
+                                ) : (
+                                  <span className={t.drift_from_best_bp > sigma ? 'bad' : ''}>
+                                    {bp(t.drift_from_best_bp)}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="mono dim">
+                                {t.is_new_task
+                                  ? `≥ +${bp(t.threshold_bp)}`
+                                  : `≥ ${bp(t.threshold_bp)}, and ≤ ${bp(sigma)} below best`}
+                              </td>
+                            </Tech>
                             <td>
                               <span className={`gpverdict stamp-type ${t.pass ? 'ok' : 'bad'}`}>
                                 {t.pass ? 'pass' : 'fail'}
@@ -268,64 +219,47 @@ function OneDecision({ id }: { id: string }) {
                     </table>
                   </div>
                   <p className="small gpsec__note">
-                    Every benchmark hash above was committed to the ledger <em>before</em>{' '}
-                    this round opened, and revealed only after the decision. The
-                    organisations training in a round do not hold the set they will be
-                    judged against.
-                  </p>
-                  <p className="small gpsec__note">
-                    <strong>Best ever</strong> is the highest score a task has reached under
-                    an <em>approved</em> model, so a refused update cannot raise the bar it
-                    will be measured against next time. &ldquo;No baseline yet&rdquo; means
-                    nothing has been approved on that task, so there is no history to have
-                    drifted from, which is not the same as having drifted by zero.
+                    The tests were fixed before the update was made, so nobody could pick
+                    them after seeing the result.
                   </p>
                 </section>
 
                 <section className="gpsec">
-                  <h2 className="gpsec__title">The rule the consortium agreed</h2>
+                  <h2 className="gpsec__title">The rule the members agreed</h2>
                   <div className="rules">
                     <Rule
-                      label="Minimum gain on the new task"
-                      value={`+${bp(d.parameters.gamma_bp)} points`}
+                      label="Must get better at the new task by at least"
+                      value={`${bp(d.parameters.gamma_bp)}%`}
                       sym="γ"
                     />
                     <Rule
-                      label="Maximum loss on any earlier task, this round"
-                      value={`${bp(d.parameters.tau_bp)} points`}
+                      label="May get worse at an old task by at most"
+                      value={`${bp(d.parameters.tau_bp)}%`}
                       sym="τ"
                     />
                     <Rule
-                      label="Maximum fall below a task's best ever"
-                      value={
-                        d.parameters.sigma_bp
-                          ? `${bp(d.parameters.sigma_bp)} points`
-                          : 'not recorded'
-                      }
+                      label="May fall below its best ever by at most"
+                      value={d.parameters.sigma_bp ? `${bp(d.parameters.sigma_bp)}%` : 'not set'}
                       sym="σ"
                     />
                     <Rule
-                      label="Independent organisations required"
+                      label="Members who must test it"
                       value={`${d.parameters.k}`}
                       sym="k"
                     />
                     <Rule
-                      label="Tolerated disagreement between them"
-                      value={`${bp(d.parameters.delta_bp)} points`}
+                      label="Their results may differ by at most"
+                      value={`${bp(d.parameters.delta_bp)}%`}
                       sym="δ"
                     />
                   </div>
                 </section>
 
                 <section className="gpsec">
-                  <h2 className="gpsec__title">Who evaluated it, and what they signed</h2>
+                  <h2 className="gpsec__title">Who tested it</h2>
                   <p className="small gpsec__lede">
-                    The contract does not run the model. It cannot: the weights are
-                    off-chain, and a floating-point forward pass is not identical across
-                    hardware. Each organisation evaluated the candidate itself and signed
-                    the accuracies it measured. The contract resolved each certificate
-                    through the MSP, verified the signature against the key inside it,
-                    checked the organisations agreed within δ, and took the median.
+                    Each member tested the update on its own machines and signed its
+                    results.
                   </p>
                   <div className="endorsers">
                     {d.endorsers.map((msp) => (
@@ -334,11 +268,7 @@ function OneDecision({ id }: { id: string }) {
                           <span className="endorser__org">{shortMsp(msp)}</span>
                           <span className="endorser__agree stamp-type ok">accepted</span>
                         </div>
-                        <p className="mono endorser__msp">{msp}</p>
-                        <p className="small endorser__foot">
-                          Signature verified against the certificate the MSP holds for this
-                          organisation, and its figures agreed with the others within δ.
-                        </p>
+                        <Tech><p className="mono endorser__msp">{msp}</p></Tech>
                       </div>
                     ))}
                   </div>
@@ -358,7 +288,7 @@ function OneDecision({ id }: { id: string }) {
                   )}
 
                   <div className="median">
-                    <span className="stamp-type">Contributing organisations</span>
+                    <span className="stamp-type">Trained by</span>
                     <span className="mono median__v">
                       {d.contributors.map(shortMsp).join(' · ')}
                     </span>
@@ -366,46 +296,44 @@ function OneDecision({ id }: { id: string }) {
                 </section>
 
                 <section className="gpsec">
-                  <h2 className="gpsec__title">Replay the decision</h2>
-                  <GateSimulator decision={d} compact />
-                </section>
-
-                <section className="gpsec">
-                  <h2 className="gpsec__title">What was written to the ledger</h2>
-                  <div className="gprecord">
-                    <LedgerRow label="Outcome" dark>
-                      {rejected ? 'Refused' : 'Approved'} ·{' '}
-                      <span className="mono">{d.reason_code}</span>
-                    </LedgerRow>
-                    <LedgerRow label="Decided" dark>{dateTime(d.decided_at)}</LedgerRow>
-                    <LedgerRow label="Candidate hash" dark>
-                      <HashChip value={d.candidate_hash} dark />
-                    </LedgerRow>
-                    <LedgerRow label="Parent model" dark>
-                      <span className="mono">{d.parent_id}</span>
-                    </LedgerRow>
-                    <LedgerRow label="Round" dark>
-                      <span className="mono">{d.round_id}</span>
-                    </LedgerRow>
-                    <LedgerRow label="Memory bank" dark>
-                      <HashChip value={d.memory_bank_hash} dark />
-                    </LedgerRow>
-                    <LedgerRow label="Endorser set" dark>{d.endorsers.join(', ')}</LedgerRow>
-                  </div>
+                  <Tech>
+                    <h2 className="gpsec__title">What was written to the ledger</h2>
+                    <div className="gprecord">
+                      <LedgerRow label="Outcome" dark>
+                        {rejected ? 'Refused' : 'Approved'} ·{' '}
+                        <span className="mono">{d.reason_code}</span>
+                      </LedgerRow>
+                      <LedgerRow label="Decided" dark>{dateTime(d.decided_at)}</LedgerRow>
+                      <LedgerRow label="Update" dark>
+                        <span className="mono">{d.candidate_id}</span>
+                      </LedgerRow>
+                      <LedgerRow label="Update fingerprint" dark>
+                        <HashChip value={d.candidate_hash} dark />
+                      </LedgerRow>
+                      <LedgerRow label="Built on" dark>
+                        <span className="mono">{d.parent_id}</span>
+                      </LedgerRow>
+                      <LedgerRow label="Round" dark>
+                        <span className="mono">{d.round_id}</span>
+                      </LedgerRow>
+                      <LedgerRow label="Shared memory" dark>
+                        <HashChip value={d.memory_bank_hash} dark />
+                      </LedgerRow>
+                      <LedgerRow label="Tested by" dark>{d.endorsers.join(', ')}</LedgerRow>
+                    </div>
+                  </Tech>
 
                   <div className="recompute">
                     <ShieldCheck size={17} />
                     <div>
-                      <p className="recompute__head">Verify this decision yourself</p>
+                      <p className="recompute__head">Anyone can check this again</p>
                       <p className="small recompute__body">
-                        Every input is on the ledger: the benchmark hashes, the signed
-                        metrics, the endorser set and the parameters. Any member can
-                        work this outcome out again and get the same answer. The table above
-                        is what the contract recorded, not a summary of it.
+                        Every input is on the ledger. Any member can work out this result
+                        again and get the same answer.
                       </p>
                     </div>
                     <Link to="/model/registry" className="btn btn--onDark btn--sm">
-                      See the lineage
+                      AI model history
                     </Link>
                   </div>
                 </section>
@@ -421,7 +349,7 @@ function OneDecision({ id }: { id: string }) {
 function Rule({ label, value, sym }: { label: string; value: string; sym: string }) {
   return (
     <div className="rule">
-      <span className="rule__sym">{sym}</span>
+      <Tech><span className="rule__sym">{sym}</span></Tech>
       <div>
         <p className="rule__label small">{label}</p>
         <p className="rule__value mono">{value}</p>
